@@ -1,6 +1,5 @@
 import { parse } from '@babel/parser';
-// @ts-ignore
-import traverse from '@babel/traverse';
+import * as traverse from '@babel/traverse';
 import * as t from '@babel/types';
 import { readFileSync, statSync } from 'fs';
 import { glob } from 'glob';
@@ -44,6 +43,7 @@ export class JSXPropAnalyzer {
     includeTypes: boolean = true
   ): Promise<AnalysisResult> {
     const files = await this.getFiles(path);
+    let successfullyAnalyzedFiles = 0;
     const components: ComponentAnalysis[] = [];
     const allPropUsages: PropUsage[] = [];
 
@@ -52,14 +52,16 @@ export class JSXPropAnalyzer {
         const analysis = await this.analyzeFile(file, componentName, propName, includeTypes);
         components.push(...analysis.components);
         allPropUsages.push(...analysis.propUsages);
+        successfullyAnalyzedFiles++;
       } catch (error) {
         console.error(`Error analyzing file ${file}:`, error);
+        // Do not push components or propUsages for this file if it errors
       }
     }
 
     return {
       summary: {
-        totalFiles: files.length,
+        totalFiles: successfullyAnalyzedFiles,
         totalComponents: components.length,
         totalProps: allPropUsages.length,
       },
@@ -250,6 +252,10 @@ export class JSXPropAnalyzer {
       
       return [];
     } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        console.warn(`Path not found: ${path}. Returning empty array.`);
+        return [];
+      }
       throw new Error(`Cannot access path: ${path} - ${error.message}`);
     }
   }
