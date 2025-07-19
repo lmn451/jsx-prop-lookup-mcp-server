@@ -114,7 +114,24 @@ export class JSXPropAnalyzer {
 
     for (const file of files) {
       try {
-        const content = readFileSync(file, 'utf-8');
+        // Additional safety check for directories
+        const fileStat = statSync(file);
+        if (!fileStat.isFile()) {
+          console.warn(`Skipping non-file: ${file}`);
+          continue;
+        }
+
+        let content: string;
+        try {
+          content = readFileSync(file, 'utf-8');
+        } catch (readError: any) {
+          if (readError.code === 'EISDIR') {
+            console.warn(`Skipping directory (EISDIR): ${file}`);
+            continue;
+          }
+          throw readError;
+        }
+        
         let ast;
         
         try {
@@ -210,12 +227,30 @@ export class JSXPropAnalyzer {
       
       if (stat.isDirectory()) {
         const pattern = join(path, '**/*.{js,jsx,ts,tsx}');
-        return await glob(pattern, { ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'] });
+        const files = await glob(pattern, { 
+          ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+          nodir: true // Explicitly exclude directories
+        });
+        
+        // Double-check each file to ensure it's actually a file
+        const validFiles: string[] = [];
+        for (const file of files) {
+          try {
+            const fileStat = statSync(file);
+            if (fileStat.isFile() && this.supportedExtensions.includes(extname(file))) {
+              validFiles.push(file);
+            }
+          } catch (error: any) {
+            console.warn(`Skipping invalid file: ${file}`, error.message);
+          }
+        }
+        
+        return validFiles;
       }
       
       return [];
-    } catch (error) {
-      throw new Error(`Cannot access path: ${path}`);
+    } catch (error: any) {
+      throw new Error(`Cannot access path: ${path} - ${error.message}`);
     }
   }
 
@@ -225,7 +260,32 @@ export class JSXPropAnalyzer {
     targetProp?: string,
     includeTypes: boolean = true
   ): Promise<{ components: ComponentAnalysis[]; propUsages: PropUsage[] }> {
-    const content = readFileSync(filePath, 'utf-8');
+    // Check if the path is actually a file and not a directory
+    try {
+      const stat = statSync(filePath);
+      if (stat.isDirectory()) {
+        console.warn(`Skipping directory: ${filePath}`);
+        return { components: [], propUsages: [] };
+      }
+      if (!stat.isFile()) {
+        console.warn(`Skipping non-file: ${filePath}`);
+        return { components: [], propUsages: [] };
+      }
+    } catch (error: any) {
+      console.warn(`Cannot access file: ${filePath}`, error);
+      return { components: [], propUsages: [] };
+    }
+
+    let content: string;
+    try {
+      content = readFileSync(filePath, 'utf-8');
+    } catch (error: any) {
+      if (error.code === 'EISDIR') {
+        console.warn(`Skipping directory (EISDIR): ${filePath}`);
+        return { components: [], propUsages: [] };
+      }
+      throw new Error(`Failed to read file ${filePath}: ${error.message}`);
+    }
     const components: ComponentAnalysis[] = [];
     const propUsages: PropUsage[] = [];
 
