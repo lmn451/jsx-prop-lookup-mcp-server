@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+// Ensure we're using the correct Node.js version
+if (process.version.split('.')[0].slice(1) < '18') {
+  console.error('Error: Node.js 18 or higher is required');
+  process.exit(1);
+}
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -172,10 +178,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('JSX Prop Lookup MCP Server running on stdio');
+  try {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('JSX Prop Lookup MCP Server running on stdio');
+  } catch (error) {
+    console.error('Failed to start MCP server:', error);
+    process.exit(1);
+  }
 }
+
+// Handle process signals gracefully
+process.on('SIGINT', () => {
+  console.error('Received SIGINT, shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.error('Received SIGTERM, shutting down gracefully...');
+  process.exit(0);
+});
 
 main().catch((error) => {
   console.error('Server error:', error);
