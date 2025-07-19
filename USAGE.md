@@ -46,6 +46,8 @@ The server successfully analyzes JSX prop usage as demonstrated with the sample 
 - ✅ Spread operator handling
 - ✅ Line/column location tracking
 - ✅ Prop value extraction (strings, expressions)
+- ✅ Missing prop detection for code auditing
+- ✅ Robust file system handling (no EISDIR errors)
 
 ## MCP Integration
 

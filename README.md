@@ -7,7 +7,9 @@ An MCP (Model Context Protocol) server that analyzes JSX prop usage in React/Typ
 - **AST-based Analysis**: Uses Babel parser for accurate JSX/TSX parsing
 - **Prop Usage Tracking**: Find where props are used across components
 - **Component Analysis**: Analyze prop definitions and usage patterns
+- **Missing Prop Detection**: Find components missing required props (e.g., Select without width)
 - **TypeScript Support**: Includes TypeScript interface analysis
+- **Robust File Handling**: Handles complex directory structures without EISDIR errors
 - **Multiple Search Options**: Search by component, prop name, or analyze entire directories
 
 ## Installation
@@ -70,8 +72,15 @@ Find component instances that are missing a required prop (e.g., Select componen
 - `requiredProp` (required): Name of the required prop (e.g., "width")
 - `directory` (optional): Directory to search in (default: ".")
 
+**Example Use Cases:**
+- Find all Select components without width prop
+- Identify Button components missing onClick handlers
+- Audit components for required accessibility props
+- Ensure consistent prop usage across codebase
+
 ## Example Output
 
+### Component Analysis
 ```json
 {
   "summary": {
@@ -105,6 +114,26 @@ Find component instances that are missing a required prop (e.g., Select componen
       "value": "btn-primary"
     }
   ]
+}
+```
+
+### Missing Props Analysis
+```json
+{
+  "missingPropUsages": [
+    {
+      "componentName": "Select",
+      "file": "./src/Form.tsx",
+      "line": 48,
+      "column": 6,
+      "existingProps": ["options", "placeholder"]
+    }
+  ],
+  "summary": {
+    "totalInstances": 2,
+    "missingPropCount": 2,
+    "missingPropPercentage": 100
+  }
 }
 ```
 

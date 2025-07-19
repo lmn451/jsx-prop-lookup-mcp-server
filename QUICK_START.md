@@ -70,6 +70,11 @@ Once configured, you can use these tools in your MCP client:
    Use get_component_props to analyze the "Button" component
    ```
 
+4. **Find missing props:**
+   ```
+   Use find_components_without_prop to find all "Select" components missing "width" prop
+   ```
+
 ## 🎯 Benefits of npx approach:
 
 - ✅ **No global installation** required
@@ -87,3 +92,5 @@ Once configured, you can use these tools in your MCP client:
 - Spread operators
 - Component hierarchies
 - Prop values and types
+- Missing required props
+- Code quality and consistency
