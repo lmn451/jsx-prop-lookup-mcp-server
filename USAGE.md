@@ -2,6 +2,12 @@
 
 ## Quick Start
 
+### Option 1: Use with npx (Recommended)
+```bash
+npx jsx-prop-lookup-mcp-server
+```
+
+### Option 2: Development Setup
 1. **Install dependencies:**
    ```bash
    npm install
@@ -43,8 +49,21 @@ The server successfully analyzes JSX prop usage as demonstrated with the sample 
 
 ## MCP Integration
 
+### Using with npx (Recommended)
 Add to your MCP client configuration:
 
+```json
+{
+  "mcpServers": {
+    "jsx-prop-lookup": {
+      "command": "npx",
+      "args": ["jsx-prop-lookup-mcp-server"]
+    }
+  }
+}
+```
+
+### Using with local development
 ```json
 {
   "mcpServers": {
