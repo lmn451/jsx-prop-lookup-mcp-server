@@ -12,8 +12,6 @@ const server = new Server(
   {
     name: 'jsx-prop-lookup-server',
     version: '1.0.0',
-  },
-  {
     capabilities: {
       tools: {},
     },
