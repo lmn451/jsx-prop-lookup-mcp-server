@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "jsx-prop-lookup": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "."
+    }
+  }
+}
