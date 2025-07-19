@@ -81,5 +81,6 @@ Add to your MCP client configuration:
 1. **analyze_jsx_props** - Comprehensive analysis of JSX props in files/directories
 2. **find_prop_usage** - Find specific prop usage across codebase
 3. **get_component_props** - Get all props for a specific component
+4. **find_components_without_prop** - Find components missing required props (e.g., Select without width)
 
 The server is ready for production use!

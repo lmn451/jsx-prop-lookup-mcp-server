@@ -85,6 +85,121 @@ export class JSXPropAnalyzer {
     return result.components.filter(comp => comp.componentName === componentName);
   }
 
+  async findComponentsWithoutProp(
+    componentName: string,
+    requiredProp: string,
+    directory: string = '.'
+  ): Promise<{
+    missingPropUsages: Array<{
+      componentName: string;
+      file: string;
+      line: number;
+      column: number;
+      existingProps: string[];
+    }>;
+    summary: {
+      totalInstances: number;
+      missingPropCount: number;
+      missingPropPercentage: number;
+    };
+  }> {
+    const files = await this.getFiles(directory);
+    const missingPropUsages: Array<{
+      componentName: string;
+      file: string;
+      line: number;
+      column: number;
+      existingProps: string[];
+    }> = [];
+
+    for (const file of files) {
+      try {
+        const content = readFileSync(file, 'utf-8');
+        let ast;
+        
+        try {
+          ast = parse(content, {
+            sourceType: 'module',
+            plugins: [
+              'jsx',
+              'typescript',
+              'decorators-legacy',
+              'classProperties',
+              'objectRestSpread',
+              'functionBind',
+              'exportDefaultFrom',
+              'exportNamespaceFrom',
+              'dynamicImport',
+              'nullishCoalescingOperator',
+              'optionalChaining',
+            ],
+          });
+        } catch (error) {
+          console.error(`Failed to parse ${file}:`, error);
+          continue;
+        }
+
+        const traverseDefault = traverse.default || traverse;
+        traverseDefault(ast, {
+          JSXElement: (path) => {
+            const openingElement = path.node.openingElement;
+            if (!t.isJSXIdentifier(openingElement.name)) return;
+
+            const elementName = openingElement.name.name;
+            if (elementName !== componentName) return;
+
+            // Get all props for this element
+            const existingProps: string[] = [];
+            let hasRequiredProp = false;
+
+            for (const attribute of openingElement.attributes) {
+              if (t.isJSXAttribute(attribute) && t.isJSXIdentifier(attribute.name)) {
+                const propName = attribute.name.name;
+                existingProps.push(propName);
+                if (propName === requiredProp) {
+                  hasRequiredProp = true;
+                }
+              } else if (t.isJSXSpreadAttribute(attribute)) {
+                existingProps.push('...spread');
+                // Note: We can't determine if spread contains the required prop
+                // so we'll assume it might and not flag this as missing
+                hasRequiredProp = true;
+              }
+            }
+
+            // If the required prop is missing, record this usage
+            if (!hasRequiredProp) {
+              const loc = openingElement.loc;
+              missingPropUsages.push({
+                componentName: elementName,
+                file,
+                line: loc?.start.line || 0,
+                column: loc?.start.column || 0,
+                existingProps,
+              });
+            }
+          },
+        });
+      } catch (error) {
+        console.error(`Error analyzing file ${file}:`, error);
+      }
+    }
+
+    // Calculate summary statistics
+    const totalInstances = missingPropUsages.length;
+    const missingPropCount = missingPropUsages.length;
+    const missingPropPercentage = totalInstances > 0 ? (missingPropCount / totalInstances) * 100 : 0;
+
+    return {
+      missingPropUsages,
+      summary: {
+        totalInstances,
+        missingPropCount,
+        missingPropPercentage,
+      },
+    };
+  }
+
   private async getFiles(path: string): Promise<string[]> {
     try {
       const stat = statSync(path);

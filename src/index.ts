@@ -99,6 +99,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['componentName'],
         },
       },
+      {
+        name: 'find_components_without_prop',
+        description: 'Find component instances that are missing a required prop (e.g., Select components without width prop)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            componentName: {
+              type: 'string',
+              description: 'Name of the component to check (e.g., "Select")',
+            },
+            requiredProp: {
+              type: 'string',
+              description: 'Name of the required prop (e.g., "width")',
+            },
+            directory: {
+              type: 'string',
+              description: 'Directory to search in',
+              default: '.',
+            },
+          },
+          required: ['componentName', 'requiredProp'],
+        },
+      },
     ],
   };
 });
@@ -149,6 +172,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_component_props': {
         const result = await analyzer.getComponentProps(
           args.componentName as string,
+          (args.directory as string) ?? '.'
+        );
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'find_components_without_prop': {
+        const result = await analyzer.findComponentsWithoutProp(
+          args.componentName as string,
+          args.requiredProp as string,
           (args.directory as string) ?? '.'
         );
         return {

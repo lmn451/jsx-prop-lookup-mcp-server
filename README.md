@@ -36,7 +36,7 @@ npm start
 
 ## Usage
 
-The server provides three main tools:
+The server provides four main tools:
 
 ### 1. `analyze_jsx_props`
 Analyze JSX prop usage in files or directories.
@@ -60,6 +60,14 @@ Get all props used by a specific component.
 
 **Parameters:**
 - `componentName` (required): Name of the component to analyze
+- `directory` (optional): Directory to search in (default: ".")
+
+### 4. `find_components_without_prop`
+Find component instances that are missing a required prop (e.g., Select components without width prop).
+
+**Parameters:**
+- `componentName` (required): Name of the component to check (e.g., "Select")
+- `requiredProp` (required): Name of the required prop (e.g., "width")
 - `directory` (optional): Directory to search in (default: ".")
 
 ## Example Output
