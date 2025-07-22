@@ -82,4 +82,18 @@ describe('JSXPropAnalyzer', () => {
     expect(result.components.length).toBe(0);
     expect(result.propUsages.length).toBe(0);
   });
+
+  it('should handle current directory "." as a valid path', async () => {
+    const result = await analyzer.analyzeProps('.');
+    // Should not throw an error and should return a valid result structure
+    expect(result).toBeDefined();
+    expect(result.summary).toBeDefined();
+    expect(result.components).toBeDefined();
+    expect(result.propUsages).toBeDefined();
+    expect(typeof result.summary.totalFiles).toBe('number');
+    expect(typeof result.summary.totalComponents).toBe('number');
+    expect(typeof result.summary.totalProps).toBe('number');
+    expect(Array.isArray(result.components)).toBe(true);
+    expect(Array.isArray(result.propUsages)).toBe(true);
+  });
 });
