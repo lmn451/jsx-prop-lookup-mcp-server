@@ -24,39 +24,11 @@ describe('JSXPropAnalyzer', () => {
     );
   });
 
-  it('should find prop usage for a specific prop', async () => {
-    const directoryPath = join(testDataPath, 'simple-components');
-    const propUsages = await analyzer.findPropUsage('onClick', directoryPath, 'Button', { format: 'full' });
 
-    expect(propUsages.length).toBeGreaterThan(0);
-    expect((propUsages[0] as any).propName).toBe('onClick');
-    expect((propUsages[0] as any).componentName).toBe('Button');
-  });
 
-  it('should get component props for a specific component', async () => {
-    const directoryPath = join(testDataPath, 'simple-components');
-    const componentAnalysis = await analyzer.getComponentProps('Button', directoryPath, { format: 'full' });
 
-    expect(componentAnalysis.length).toBe(1);
-    expect((componentAnalysis[0] as any).componentName).toBe('Button');
-    expect((componentAnalysis[0] as any).props.map((p: any) => p.propName)).toEqual(
-      expect.arrayContaining(['children', 'onClick', 'variant', 'disabled'])
-    );
-  });
 
-  it('should find components without a required prop', async () => {
-    const directoryPath = join(testDataPath, 'complex-components');
-    const result = await analyzer.findComponentsWithoutProp('Select', 'width', directoryPath);
 
-    expect(result.missingPropUsages.length).toBe(2);
-    expect(result.missingPropUsages[0].file).toContain('Select.tsx');
-    expect(result.missingPropUsages[0].componentName).toBe('Select');
-    expect(result.missingPropUsages[0].existingProps).not.toContain('width');
-
-    expect(result.summary.totalInstances).toBe(2);
-    expect(result.summary.missingPropCount).toBe(2);
-    expect(result.summary.missingPropPercentage).toBe(100);
-  });
 
   it('should handle files with syntax errors gracefully', async () => {
     const filePath = join(testDataPath, 'problematic-files', 'SyntaxError.jsx');
@@ -164,31 +136,9 @@ describe('JSXPropAnalyzer', () => {
       });
     });
 
-    it('should work with findPropUsage in different formats', async () => {
-      const directoryPath = join(testDataPath, 'simple-components');
-      
-      // Test minimal format
-      const minimalResult = await analyzer.findPropUsage('onClick', directoryPath, undefined, { format: 'minimal' });
-      expect(Array.isArray(minimalResult)).toBe(true);
-      if (minimalResult.length > 0) {
-        expect((minimalResult[0] as any)).toHaveProperty('component');
-        expect((minimalResult[0] as any)).toHaveProperty('file');
-        expect((minimalResult[0] as any)).toHaveProperty('line');
-      }
-    });
 
-    it('should work with getComponentProps in different formats', async () => {
-      const directoryPath = join(testDataPath, 'simple-components');
-      
-      // Test compact format
-      const compactResult = await analyzer.getComponentProps('Button', directoryPath, { format: 'compact' });
-      expect(Array.isArray(compactResult)).toBe(true);
-      if (compactResult.length > 0) {
-        expect((compactResult[0] as any)).toHaveProperty('name');
-        expect((compactResult[0] as any)).toHaveProperty('props');
-        expect(Array.isArray((compactResult[0] as any).props)).toBe(true);
-      }
-    });
+
+
   });
 
   // New tests for query_components functionality

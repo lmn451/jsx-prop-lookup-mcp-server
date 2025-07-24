@@ -129,8 +129,6 @@ export interface ComponentQueryResult {
 
 export class JSXPropAnalyzer {
   private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
-  private componentCache = new Map<string, ComponentAnalysis[]>();
-  private propUsageCache = new Map<string, PropUsage[]>();
 
   private generatePrettyPath(filePath: string, line?: number, column?: number): string {
     // Generate VS Code compatible path for editor integration
@@ -162,12 +160,12 @@ export class JSXPropAnalyzer {
     let filesScanned = 0;
 
     // Get all components of the specified type
-    const componentAnalysis = await this.getComponentProps(componentName, directory, { format: 'full' }) as ComponentAnalysis[];
-    const allPropUsages = await this.analyzeProps(directory, componentName, undefined, true, { format: 'full' }) as AnalysisResult;
+    const allAnalysis = await this.analyzeProps(directory, componentName, undefined, true, { format: 'full' }) as AnalysisResult;
+    const componentAnalysis = allAnalysis.components.filter(c => c.componentName === componentName);
     
     filesScanned = new Set([
       ...componentAnalysis.map(c => c.file),
-      ...allPropUsages.propUsages.map(u => u.file)
+      ...allAnalysis.propUsages.map(u => u.file)
     ]).size;
 
     // Process component definitions and JSX usages together
@@ -207,7 +205,7 @@ export class JSXPropAnalyzer {
 
     // Process JSX usages grouped by file and line to avoid duplicates
     const usageMap = new Map<string, PropUsage[]>();
-    allPropUsages.propUsages.forEach(usage => {
+    allAnalysis.propUsages.forEach(usage => {
       const key = `${usage.file}:${usage.line}`;
       if (!usageMap.has(key)) {
         usageMap.set(key, []);
@@ -436,7 +434,6 @@ export class JSXPropAnalyzer {
         allPropUsages.push(...analysis.propUsages);
         successfullyAnalyzedFiles++;
       } catch (error) {
-        console.error(`Error analyzing file ${file}:`, error);
         // Do not push components or propUsages for this file if it errors
       }
     }
@@ -475,212 +472,6 @@ export class JSXPropAnalyzer {
     }
   }
 
-  async findPropUsage(
-    propName: string,
-    directory: string = '.',
-    componentName?: string,
-    options: AnalysisOptions = {}
-  ): Promise<PropUsage[] | MinimalPropUsage[]> {
-    const result = await this.analyzeProps(directory, componentName, propName, true, options);
-    
-    if (options.format === 'minimal') {
-      const minimalResult = result as MinimalAnalysisResult;
-      return minimalResult.props[propName] || [];
-    }
-    
-    if (options.format === 'compact') {
-      const compactResult = result as CompactAnalysisResult;
-      const usages: PropUsage[] = [];
-      Object.entries(compactResult.files).forEach(([filePath, fileData]) => {
-        fileData.usages.forEach(usage => {
-          if (usage.name === propName) {
-            usages.push({
-              propName: usage.name,
-              componentName: '', // Will be filled from context
-              file: filePath,
-              line: usage.line,
-              column: usage.col || 0,
-              value: usage.value,
-              isSpread: usage.spread,
-              ...(options.includePrettyPaths && { prettyPath: fileData.prettyPath }),
-            });
-          }
-        });
-      });
-      return usages;
-    }
-    
-    const fullResult = result as AnalysisResult;
-    return fullResult.propUsages.filter(usage => usage.propName === propName);
-  }
-
-  async getComponentProps(
-    componentName: string,
-    directory: string = '.',
-    options: AnalysisOptions = {}
-  ): Promise<ComponentAnalysis[] | ConciseComponentAnalysis[]> {
-    const result = await this.analyzeProps(directory, componentName, undefined, true, options);
-    
-    if (options.format === 'compact') {
-      const compactResult = result as CompactAnalysisResult;
-      const components: ConciseComponentAnalysis[] = [];
-      Object.values(compactResult.files).forEach(fileData => {
-        components.push(...fileData.components.filter(comp => comp.name === componentName));
-      });
-      return components;
-    }
-    
-    if (options.format === 'minimal') {
-      // For minimal format, convert to concise format as it's more appropriate for component analysis
-      const minimalResult = result as MinimalAnalysisResult;
-      const componentProps = new Set<string>();
-      Object.entries(minimalResult.props).forEach(([propName, usages]) => {
-        if (usages.some(usage => usage.component === componentName)) {
-          componentProps.add(propName);
-        }
-      });
-      return [{
-        name: componentName,
-        props: Array.from(componentProps),
-      }];
-    }
-    
-    const fullResult = result as AnalysisResult;
-    return fullResult.components.filter(comp => comp.componentName === componentName);
-  }
-
-  async findComponentsWithoutProp(
-    componentName: string,
-    requiredProp: string,
-    directory: string = '.'
-  ): Promise<{
-    missingPropUsages: Array<{
-      componentName: string;
-      file: string;
-      line: number;
-      column: number;
-      existingProps: string[];
-    }>;
-    summary: {
-      totalInstances: number;
-      missingPropCount: number;
-      missingPropPercentage: number;
-    };
-  }> {
-    const files = await this.getFiles(directory);
-    const missingPropUsages: Array<{
-      componentName: string;
-      file: string;
-      line: number;
-      column: number;
-      existingProps: string[];
-    }> = [];
-
-    for (const file of files) {
-      try {
-        // Additional safety check for directories
-        const fileStat = statSync(file);
-        if (!fileStat.isFile()) {
-          console.warn(`Skipping non-file: ${file}`);
-          continue;
-        }
-
-        let content: string;
-        try {
-          content = readFileSync(file, 'utf-8');
-        } catch (readError: any) {
-          if (readError.code === 'EISDIR') {
-            console.warn(`Skipping directory (EISDIR): ${file}`);
-            continue;
-          }
-          throw readError;
-        }
-
-        let ast;
-
-        try {
-          ast = parse(content, {
-            sourceType: 'module',
-            plugins: [
-              'jsx',
-              'typescript',
-              'decorators-legacy',
-              'classProperties',
-              'objectRestSpread',
-              'functionBind',
-              'exportDefaultFrom',
-              'exportNamespaceFrom',
-              'dynamicImport',
-              'nullishCoalescingOperator',
-              'optionalChaining',
-            ],
-          });
-        } catch (error) {
-          console.error(`Failed to parse ${file}:`, error);
-          continue;
-        }
-
-        const traverseDefault = traverse.default || traverse;
-        traverseDefault(ast, {
-          JSXElement: (path) => {
-            const openingElement = path.node.openingElement;
-            if (!t.isJSXIdentifier(openingElement.name)) return;
-
-            const elementName = openingElement.name.name;
-            if (elementName !== componentName) return;
-
-            // Get all props for this element
-            const existingProps: string[] = [];
-            let hasRequiredProp = false;
-
-            for (const attribute of openingElement.attributes) {
-              if (t.isJSXAttribute(attribute) && t.isJSXIdentifier(attribute.name)) {
-                const propName = attribute.name.name;
-                existingProps.push(propName);
-                if (propName === requiredProp) {
-                  hasRequiredProp = true;
-                }
-              } else if (t.isJSXSpreadAttribute(attribute)) {
-                existingProps.push('...spread');
-                // Note: We can't determine if spread contains the required prop
-                // so we'll assume it might and not flag this as missing
-                hasRequiredProp = true;
-              }
-            }
-
-            // If the required prop is missing, record this usage
-            if (!hasRequiredProp) {
-              const loc = openingElement.loc;
-              missingPropUsages.push({
-                componentName: elementName,
-                file,
-                line: loc?.start.line || 0,
-                column: loc?.start.column || 0,
-                existingProps,
-              });
-            }
-          },
-        });
-      } catch (error) {
-        console.error(`Error analyzing file ${file}:`, error);
-      }
-    }
-
-    // Calculate summary statistics
-    const totalInstances = missingPropUsages.length;
-    const missingPropCount = missingPropUsages.length;
-    const missingPropPercentage = totalInstances > 0 ? (missingPropCount / totalInstances) * 100 : 0;
-
-    return {
-      missingPropUsages,
-      summary: {
-        totalInstances,
-        missingPropCount,
-        missingPropPercentage,
-      },
-    };
-  }
-
   private async getFiles(path: string): Promise<string[]> {
     try {
       const stat = statSync(path);
@@ -705,7 +496,7 @@ export class JSXPropAnalyzer {
               validFiles.push(file);
             }
           } catch (error: any) {
-            console.warn(`Skipping invalid file: ${file}`, error.message);
+            // Skip invalid files
           }
         }
 
@@ -715,7 +506,7 @@ export class JSXPropAnalyzer {
       return [];
     } catch (error: any) {
       if (error.code === 'ENOENT') {
-        console.warn(`Path not found: ${path}. Returning empty array.`);
+        // Path not found
         return [];
       }
       throw new Error(`Cannot access path: ${path} - ${error.message}`);
@@ -733,15 +524,15 @@ export class JSXPropAnalyzer {
     try {
       const stat = statSync(filePath);
       if (stat.isDirectory()) {
-        console.warn(`Skipping directory: ${filePath}`);
+        // Skip directories
         return { components: [], propUsages: [] };
       }
       if (!stat.isFile()) {
-        console.warn(`Skipping non-file: ${filePath}`);
+        // Skip non-files
         return { components: [], propUsages: [] };
       }
     } catch (error: any) {
-      console.warn(`Cannot access file: ${filePath}`, error);
+      // Cannot access file
       return { components: [], propUsages: [] };
     }
 
@@ -750,7 +541,7 @@ export class JSXPropAnalyzer {
       content = readFileSync(filePath, 'utf-8');
     } catch (error: any) {
       if (error.code === 'EISDIR') {
-        console.warn(`Skipping directory (EISDIR): ${filePath}`);
+        // Skip directories (EISDIR)
         return { components: [], propUsages: [] };
       }
       throw new Error(`Failed to read file ${filePath}: ${error.message}`);
