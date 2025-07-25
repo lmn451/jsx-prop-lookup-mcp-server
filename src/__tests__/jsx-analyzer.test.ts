@@ -22,6 +22,11 @@ describe('JSXPropAnalyzer', () => {
     expect(buttonComponent?.props.map(p => p.propName)).toEqual(
       expect.arrayContaining(['children', 'onClick', 'variant', 'disabled'])
     );
+    expect(buttonComponent?.props.map(p => p.propName)).toEqual(
+      expect.arrayContaining(['children', 'onClick', 'variant', 'disabled'])
+    );
+    const variantProp = buttonComponent?.props.find(p => p.propName === 'variant');
+    expect(variantProp?.type).toBe("'primary' | 'secondary'");
   });
 
 

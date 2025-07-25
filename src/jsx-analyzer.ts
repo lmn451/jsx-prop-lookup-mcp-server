@@ -128,7 +128,8 @@ export interface ComponentQueryResult {
 }
 
 export class JSXPropAnalyzer {
-  private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
+    private componentPropTypes = new Map<string, Map<string, string>>();
+private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
 
   private generatePrettyPath(filePath: string, line?: number, column?: number): string {
     // Generate VS Code compatible path for editor integration
@@ -490,7 +491,14 @@ export class JSXPropAnalyzer {
     }
   }
 
-  private async getFiles(path: string): Promise<string[]> {
+  
+  private getNodeSourceText(node: t.Node, fileContent: string): string | undefined {
+    if (node.start === null || node.end === null) {
+        return undefined;
+    }
+    return fileContent.substring(node.start, node.end);
+  }
+private async getFiles(path: string): Promise<string[]> {
     try {
       const stat = statSync(path);
 
@@ -613,8 +621,17 @@ export class JSXPropAnalyzer {
         if (!includeTypes) return;
 
         const interfaceName = path.node.id.name;
-        if (interfaceName.endsWith('Props')) {
+                if (interfaceName.endsWith('Props')) {
           const componentName = interfaceName.replace(/Props$/, '');
+          const propTypes = new Map<string, string>();
+          path.get('body').get('body').forEach(propPath => {
+            if (propPath.isTSPropertySignature()) {
+              const propName = propPath.node.key.name;
+              const propType = propPath.get('typeAnnotation').get('typeAnnotation');
+              propTypes.set(propName, this.getNodeSourceText(propType.node, content) ?? 'any');
+            }
+          });
+          this.componentPropTypes.set(componentName, propTypes);
           componentInterfaces.set(componentName, interfaceName);
         }
       },
@@ -741,6 +758,10 @@ export class JSXPropAnalyzer {
           line: loc?.start.line || 0,
           column: loc?.start.column || 0,
         };
+        const propType = this.componentPropTypes.get(componentName)?.get(propName);
+        if (propType) {
+          propUsage.type = propType;
+        }
 
         componentAnalysis.props.push(propUsage);
         propUsages.push(propUsage);
