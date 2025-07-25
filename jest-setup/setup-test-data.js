@@ -123,32 +123,53 @@ const Select: React.FC<SelectProps> = ({
   );
 };
 
-// Usage examples - some missing width prop
+// Usage examples with various width values
 const SelectExamples = () => (
   <div>
-    {/* Has width - GOOD */}
+    {/* Width 180 - Target for our test */}
     <Select
-      options={[{value: 'a', label: 'A'}]}
+      options={[{value: 'a', label: 'Option A'}]}
+      width={180}
+      placeholder="Select A"
+    />
+
+    {/* Width 180 as string - Another target */}
+    <Select
+      options={[{value: 'b', label: 'Option B'}]}
+      width="180px"
+      disabled={false}
+    />
+
+    {/* Width 200 - Should not match */}
+    <Select
+      options={[{value: 'c', label: 'Option C'}]}
       width="200px"
     />
 
-    {/* Missing width - SHOULD BE FLAGGED */}
+    {/* Width 180 - Third target */}
     <Select
-      options={[{value: 'b', label: 'B'}]}
+      options={[{value: 'd', label: 'Option D'}]}
+      width={180}
+      multiple={true}
+    />
+
+    {/* Missing width - Should not match */}
+    <Select
+      options={[{value: 'e', label: 'Option E'}]}
       placeholder="Choose..."
     />
 
-    {/* Has width - GOOD */}
+    {/* Width 150 - Should not match */}
     <Select
-      options={[{value: 'c', label: 'C'}]}
+      options={[{value: 'f', label: 'Option F'}]}
       width={150}
       disabled
     />
 
-    {/* Missing width - SHOULD BE FLAGGED */}
+    {/* Width "180" as string number - Fourth target */}
     <Select
-      options={[{value: 'd', label: 'D'}]}
-      multiple
+      options={[{value: 'g', label: 'Option G'}]}
+      width="180"
     />
   </div>
 );
