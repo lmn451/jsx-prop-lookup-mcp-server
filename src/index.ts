@@ -189,6 +189,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                   default: false,
                   description: 'Include editor-compatible file paths for deep linking',
                 },
+                respectProjectBoundaries: {
+                  type: 'boolean',
+                  description: 'Respect project boundaries (package.json, .git, etc.) to prevent searching outside the project',
+                  default: false,
+                },
+                maxDepth: {
+                  type: 'number',
+                  description: 'Maximum directory depth to search',
+                  default: Infinity,
+                },
               },
             },
           },
@@ -229,6 +239,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'boolean',
               description: 'Include editor-compatible file paths for deep linking',
               default: false,
+            },
+            respectProjectBoundaries: {
+              type: 'boolean',
+              description: 'Respect project boundaries (package.json, .git, etc.) to prevent searching outside the project',
+              default: false,
+            },
+            maxDepth: {
+              type: 'number',
+              description: 'Maximum directory depth to search',
+              default: Infinity,
             },
           },
           required: ['propName'],
@@ -287,6 +307,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           format: (args.format as any) || 'full',
           includeColumns: args.includeColumns !== false,
           includePrettyPaths: args.includePrettyPaths === true,
+          respectProjectBoundaries: (args.respectProjectBoundaries as boolean) ?? false,
+          maxDepth: (args.maxDepth as number) ?? Infinity,
         };
         
         const result = await analyzer.findPropUsage(

@@ -377,4 +377,37 @@ describe('MCP Server Integration Tests', () => {
       }
     });
   });
+
+  describe('Enhanced Runtime and Boundary Tests', () => {
+    it('should handle large directory structures without errors', async () => {
+      const largeDir = join(__dirname, '..', '..'); // Parent directory for more files
+      const result = await analyzer.analyzeProps(largeDir, {
+        format: 'minimal',
+        respectProjectBoundaries: true,
+        maxDepth: 3
+      });
+      expect(result).toBeDefined();
+      // Check for minimal format structure
+      expect((result as MinimalAnalysisResult).props).toBeDefined();
+    });
+
+    it('should respect boundary controls correctly', async () => {
+      const testDataPath = join(__dirname, '..', '..', 'test-data');
+      const resultWithBoundaries = await analyzer.analyzeProps(testDataPath, {
+        respectProjectBoundaries: true,
+        maxDepth: 2
+      }) as AnalysisResult;
+      const resultWithoutBoundaries = await analyzer.analyzeProps(testDataPath, {
+        respectProjectBoundaries: false,
+        maxDepth: Infinity
+      }) as AnalysisResult;
+      // Without boundaries should find at least as many or more
+      expect(resultWithoutBoundaries.summary.totalFiles).toBeGreaterThanOrEqual(resultWithBoundaries.summary.totalFiles);
+    });
+
+    it('should not throw module resolution errors', async () => {
+      const testDataPath = join(__dirname, '..', '..', 'test-data');
+      await expect(analyzer.analyzeProps(testDataPath)).resolves.not.toThrow();
+    });
+  });
 });
