@@ -16,15 +16,15 @@ describe('MCP Server Integration Tests', () => {
       await expect(async () => {
         const result = await analyzer.analyzeProps(testDataPath, { format: 'full' });
         expect(result).toBeDefined();
-        expect(result.summary).toBeDefined();
-        expect(typeof result.summary.totalFiles).toBe('number');
+        expect((result as any).summary).toBeDefined();
+        expect(typeof (result as any).summary.totalFiles).toBe('number');
       }).not.toThrow();
     });
 
     it('should successfully traverse AST and find components', async () => {
       const testDataPath = join(__dirname, '..', '..', 'test-data');
       
-      const result = await analyzer.analyzeProps(testDataPath, { format: 'full' });
+      const result = await analyzer.analyzeProps(testDataPath, { format: 'full' }) as any;
       
       // Should find components (not return empty results due to traverse error)
       expect(result.summary.totalFiles).toBeGreaterThan(0);
@@ -39,7 +39,7 @@ describe('MCP Server Integration Tests', () => {
       await expect(async () => {
         const result = await analyzer.queryComponents('Select', [
           { name: 'width', exists: true }
-        ], { directory: testDataPath });
+        ], { directory: testDataPath }) as any;
         
         expect(result).toBeDefined();
         expect(result.summary).toBeDefined();
@@ -70,7 +70,7 @@ describe('MCP Server Integration Tests', () => {
         format: 'full',
         includeColumns: true,
         includePrettyPaths: false,
-      });
+      }) as any;
       
       expect(result.summary).toBeDefined();
       expect(result.summary.totalFiles).toBeGreaterThan(0);
@@ -217,7 +217,7 @@ describe('MCP Server Integration Tests', () => {
       
       // Test rapid successive calls
       for (let i = 0; i < 10; i++) {
-        const result = await analyzer.analyzeProps(testDataPath, { format: 'full' });
+        const result = await analyzer.analyzeProps(testDataPath, { format: 'full' }) as any;
         expect(result.summary.totalFiles).toBeGreaterThan(0);
       }
     });
@@ -231,7 +231,7 @@ describe('MCP Server Integration Tests', () => {
       const result = await analyzer.analyzeProps(testDataPath, { 
         format: 'full',
         includeTypes: true 
-      });
+      }) as any;
       
       expect(result.summary.totalFiles).toBeGreaterThan(0);
       expect(result.components.length).toBeGreaterThan(0);
@@ -246,7 +246,7 @@ describe('MCP Server Integration Tests', () => {
     it('should handle TypeScript and JavaScript files equally', async () => {
       const testDataPath = join(__dirname, '..', '..', 'test-data');
       
-      const result = await analyzer.analyzeProps(testDataPath, { format: 'full' });
+      const result = await analyzer.analyzeProps(testDataPath, { format: 'full' }) as any;
       
       // Should find components in both .ts/.tsx and .js/.jsx files
       const tsFiles = result.components.filter(c => c.file.endsWith('.ts') || c.file.endsWith('.tsx'));
@@ -267,14 +267,14 @@ describe('MCP Server Integration Tests', () => {
       
       let traverseError = null;
       try {
-        const result = await analyzer.analyzeProps(testDataPath, { format: 'full' });
+        const result = await analyzer.analyzeProps(testDataPath, { format: 'full' }) as any;
         
         // If we get here without error, the traverse import is working
         expect(result).toBeDefined();
         expect(result.summary.totalFiles).toBeGreaterThan(0);
         
       } catch (error) {
-        traverseError = error;
+        traverseError = error as any;
       }
       
       // Should not have any traverse-related errors
@@ -297,7 +297,7 @@ describe('MCP Server Integration Tests', () => {
           const result = await method();
           expect(result).toBeDefined();
         } catch (err) {
-          error = err;
+          error = err as any;
         }
         
         // None of these should throw traverse-related errors
@@ -310,8 +310,8 @@ describe('MCP Server Integration Tests', () => {
       
       // Test with complex component queries that stress the traverse functionality
       const complexQueries = [
-        { componentName: 'Select', propCriteria: [{ name: 'width', value: '180', operator: 'contains' }] },
-        { componentName: 'Button', propCriteria: [{ name: 'variant', value: 'primary', operator: 'equals' }] },
+        { componentName: 'Select', propCriteria: [{ name: 'width', value: '180', operator: 'contains' as const }] },
+        { componentName: 'Button', propCriteria: [{ name: 'variant', value: 'primary', operator: 'equals' as const }] },
         { componentName: 'DataTable', propCriteria: [{ name: 'columns', exists: true }] },
       ];
       
@@ -320,7 +320,7 @@ describe('MCP Server Integration Tests', () => {
           query.componentName, 
           query.propCriteria, 
           { directory: testDataPath }
-        );
+        ) as any;
         
         // Should complete without errors
         expect(result.summary).toBeDefined();
@@ -370,7 +370,7 @@ describe('MCP Server Integration Tests', () => {
       ];
       
       for (const scenario of errorScenarios) {
-        const result = await analyzer.analyzeProps(scenario.path as string, { format: 'full' });
+        const result = await analyzer.analyzeProps(scenario.path as string, { format: 'full' }) as any;
         expect(result.summary.totalFiles).toBe(0); // No files found, but no error
         expect(result.components).toEqual([]);
         expect(result.propUsages).toEqual([]);
