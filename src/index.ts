@@ -13,6 +13,8 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { JSXPropAnalyzer } from './jsx-analyzer.js';
+import { loggingService } from './services/logging-service.js';
+import { LoggingMiddleware } from './middleware/logging-middleware.js';
 
 const server = new Server(
   {
@@ -25,6 +27,18 @@ const server = new Server(
 );
 
 const analyzer = new JSXPropAnalyzer();
+const loggingMiddleware = new LoggingMiddleware(loggingService);
+
+// Wrap analyzer methods with logging
+const wrappedAnalyzeProps = loggingMiddleware.wrapToolHandler(
+  'analyze_jsx_props',
+  analyzer.analyzeProps.bind(analyzer)
+);
+
+const wrappedQueryComponents = loggingMiddleware.wrapToolHandler(
+  'query_components', 
+  analyzer.queryComponents.bind(analyzer)
+);
 
 // Helper function to create consistent responses
 function createResponse(result: any, compact: boolean = false) {
@@ -191,7 +205,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           includeColumns: args.includeColumns !== false,
           includePrettyPaths: args.includePrettyPaths === true,
         };
-        const result = await analyzer.analyzeProps(
+        const result = await wrappedAnalyzeProps(
           args.path as string,
           {
             componentName: args.componentName as string | undefined,
@@ -207,7 +221,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'query_components': {
         const { componentName, propCriteria, options = {} } = args;
         
-        const result = await analyzer.queryComponents(
+        const result = await wrappedQueryComponents(
           componentName as string,
           propCriteria as any[],
           options as any
@@ -237,17 +251,20 @@ async function main() {
 }
 
 // Handle process signals gracefully
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.error('Received SIGINT, shutting down gracefully...');
+  await loggingService.shutdown();
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.error('Received SIGTERM, shutting down gracefully...');
+  await loggingService.shutdown();
   process.exit(0);
 });
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error('Server error:', error);
+  await loggingService.shutdown();
   process.exit(1);
 });
