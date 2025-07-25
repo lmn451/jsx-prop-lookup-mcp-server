@@ -82,6 +82,53 @@ Use analyze_jsx_props with componentName "Button" to analyze the Button componen
 Use query_components to find Button components with variant="primary" AND onClick handler
 ```
 
+## 🔧 Boundary Control Features
+
+### Project Boundaries
+The `respectProjectBoundaries` parameter (default: true) prevents the analyzer from searching outside your project structure. When enabled, it stops at common project boundaries:
+
+- **package.json** files (indicating separate npm packages)
+- **.git** directories (repository boundaries)
+- **node_modules** directories (dependency boundaries)
+- **dist/build** directories (compiled output)
+
+**Why use this?**
+- Prevents analyzing external dependencies or unrelated projects
+- Improves performance by focusing on your actual codebase
+- Avoids false positives from third-party code
+
+**Example:**
+```json
+{
+  "name": "analyze_jsx_props",
+  "arguments": {
+    "path": "./",
+    "respectProjectBoundaries": false,
+    "componentName": "Button"
+  }
+}
+```
+
+### Search Depth Control
+The `maxDepth` parameter (default: 10) limits how deep the analyzer searches into nested directories.
+
+**When to adjust:**
+- **Lower values (3-5)**: For focused analysis of shallow directory structures
+- **Higher values (15-20)**: For deep monorepos or complex nested structures
+- **Set to 1**: Analyze only the specified directory, no subdirectories
+
+**Example:**
+```json
+{
+  "name": "analyze_jsx_props",
+  "arguments": {
+    "path": "./src",
+    "maxDepth": 3,
+    "propName": "onClick"
+  }
+}
+```
+
 ## 🛠️ Available Tools
 
 ### `analyze_jsx_props`
@@ -93,6 +140,8 @@ Analyze JSX prop usage in files or directories.
 - **includeTypes** (optional): Include TypeScript info (default: true)
 - **includeColumns** (optional): Include column numbers (default: true)
 - **includePrettyPaths** (optional): Include editor paths (default: false)
+- **respectProjectBoundaries** (optional): Stay within project boundaries (default: true)
+- **maxDepth** (optional): Maximum directory depth to search (default: 10)
 
 ### `query_components` ⭐ NEW
 Advanced component querying with prop filtering and logic operators.
@@ -137,16 +186,24 @@ Example:
 - Find components missing accessibility props
 - Ensure consistent prop usage across components
 - Identify unused or inconsistent prop patterns
+- **Use boundary control** to focus on your codebase only
 
 ### Refactoring
 - Find all usages of a prop before renaming
 - Identify components that need prop updates
 - Analyze prop dependencies before changes
+- **Limit search depth** for targeted refactoring in specific modules
 
 ### Code Quality
 - Find Select components without required width prop using query_components with exists: false
 - Ensure Button components have onClick handlers using query_components
 - Validate form components have proper props using advanced querying
+- **Respect project boundaries** to avoid analyzing third-party components
+
+### Performance Optimization
+- **Use maxDepth=3** for quick shallow analysis
+- **Set respectProjectBoundaries=true** to avoid scanning node_modules
+- **Choose compact format** for large codebases
 
 ## 🔍 Supported Files
 
@@ -161,6 +218,9 @@ Example:
 - Start with **compact format** for better performance
 - Use **query_components** for complex filtering needs
 - Combine tools for comprehensive analysis
+- **Enable respectProjectBoundaries** (default) to avoid scanning dependencies
+- **Adjust maxDepth** based on your project structure - lower for focused analysis, higher for deep monorepos
+- **Set maxDepth=1** to analyze only the current directory without subdirectories
 
 ## 🤝 Contributing
 
