@@ -185,6 +185,45 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['componentName', 'propCriteria'],
         },
       },
+      {
+        name: 'find_prop_usage',
+        description: 'Find all usages of a specific prop across JSX files',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            propName: {
+              type: 'string',
+              description: 'Name of the prop to search for',
+            },
+            directory: {
+              type: 'string',
+              description: 'Directory to search in',
+              default: '.',
+            },
+            componentName: {
+              type: 'string',
+              description: 'Optional: limit search to specific component',
+            },
+            format: {
+              type: 'string',
+              enum: ['full', 'compact', 'minimal'],
+              description: 'Response format: full (default), compact, or minimal',
+              default: 'full',
+            },
+            includeColumns: {
+              type: 'boolean',
+              description: 'Include column numbers in location data',
+              default: true,
+            },
+            includePrettyPaths: {
+              type: 'boolean',
+              description: 'Include editor-compatible file paths for deep linking',
+              default: false,
+            },
+          },
+          required: ['propName'],
+        },
+      },
     ],
   };
 });
@@ -228,6 +267,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         
         const isCompact = (options as any)?.format === 'compact' || (options as any)?.format === 'minimal';
+        return createResponse(result, isCompact);
+      }
+
+      case 'find_prop_usage': {
+        const options = {
+          format: (args.format as any) || 'full',
+          includeColumns: args.includeColumns !== false,
+          includePrettyPaths: args.includePrettyPaths === true,
+        };
+        
+        const result = await analyzer.findPropUsage(
+          args.propName as string,
+          (args.directory as string) || '.',
+          args.componentName as string | undefined,
+          options
+        );
+        
+        const isCompact = options.format === 'compact' || options.format === 'minimal';
         return createResponse(result, isCompact);
       }
 

@@ -491,6 +491,61 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
     }
   }
 
+  async findPropUsage(
+    propName: string,
+    directory: string = '.',
+    componentName?: string,
+    options: AnalysisOptions = {}
+  ): Promise<PropUsage[]> {
+    const result = await this.analyzeProps(directory, {
+      componentName,
+      propName,
+      includeTypes: true,
+      format: options.format || 'full',
+      includeColumns: options.includeColumns,
+      includePrettyPaths: options.includePrettyPaths,
+    });
+    
+    if (options.format === 'minimal') {
+      const minimalResult = result as MinimalAnalysisResult;
+      const minimalUsages = minimalResult.props[propName] || [];
+      // Convert MinimalPropUsage to PropUsage
+      return minimalUsages.map(usage => ({
+        propName: propName,
+        componentName: usage.component,
+        file: usage.file,
+        line: usage.line,
+        column: 0, // MinimalPropUsage doesn't have column
+        ...(usage.prettyPath && { prettyPath: usage.prettyPath }),
+      }));
+    }
+    
+    if (options.format === 'compact') {
+      const compactResult = result as CompactAnalysisResult;
+      const usages: PropUsage[] = [];
+      Object.entries(compactResult.files).forEach(([filePath, fileData]) => {
+        fileData.usages.forEach(usage => {
+          if (usage.name === propName) {
+            usages.push({
+              propName: usage.name,
+              componentName: componentName || '', // Will be filled from context
+              file: filePath,
+              line: usage.line,
+              column: usage.col || 0,
+              value: usage.value,
+              isSpread: usage.spread,
+              ...(options.includePrettyPaths && { prettyPath: fileData.prettyPath }),
+            });
+          }
+        });
+      });
+      return usages;
+    }
+    
+    const fullResult = result as AnalysisResult;
+    return fullResult.propUsages.filter(usage => usage.propName === propName);
+  }
+
   
   private getNodeSourceText(node: t.Node, fileContent: string): string | undefined {
     if (node.start === null || node.end === null || node.start === undefined || node.end === undefined) {

@@ -529,3 +529,72 @@ describe('JSXPropAnalyzer', () => {
     });
   });
 });
+  describe('find_prop_usage Tests', () => {
+    it('should find prop usage across files', async () => {
+      const analyzer = new JSXPropAnalyzer();
+      const results = await analyzer.findPropUsage('width', 'test-data');
+      
+      expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBeGreaterThan(0);
+      
+      const widthUsage = results.find(r => r.propName === 'width');
+      expect(widthUsage).toBeDefined();
+      expect(widthUsage?.file).toContain('.tsx');
+      expect(widthUsage?.line).toBeGreaterThan(0);
+    });
+
+    it('should find prop usage for specific component', async () => {
+      const analyzer = new JSXPropAnalyzer();
+      const results = await analyzer.findPropUsage('width', 'test-data', 'Select');
+      
+      expect(Array.isArray(results)).toBe(true);
+      
+      // Should only return results for Select components
+      results.forEach(result => {
+        expect(result.componentName).toBe('Select');
+        expect(result.propName).toBe('width');
+      });
+    });
+
+    it('should support different format options for findPropUsage', async () => {
+      const analyzer = new JSXPropAnalyzer();
+      
+      // Test compact format
+      const compactResults = await analyzer.findPropUsage('width', 'test-data', undefined, { format: 'compact' });
+      expect(compactResults).toBeDefined();
+      
+      // Test minimal format  
+      const minimalResults = await analyzer.findPropUsage('width', 'test-data', undefined, { format: 'minimal' });
+      expect(minimalResults).toBeDefined();
+      expect(Array.isArray(minimalResults)).toBe(true);
+    });
+
+    it('should handle non-existent props gracefully', async () => {
+      const analyzer = new JSXPropAnalyzer();
+      const results = await analyzer.findPropUsage('nonExistentProp', 'test-data');
+      
+      expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBe(0);
+    });
+
+    it('should match original Select width scenario', async () => {
+      const analyzer = new JSXPropAnalyzer();
+      
+      // This should replicate the original scenario of finding Select components with width
+      const results = await analyzer.findPropUsage('width', 'test-data', 'Select');
+      
+      expect(Array.isArray(results)).toBe(true);
+      
+      // Verify structure matches expected PropUsage interface
+      if (results.length > 0) {
+        const firstResult = results[0];
+        expect(firstResult).toHaveProperty('propName', 'width');
+        expect(firstResult).toHaveProperty('componentName', 'Select');
+        expect(firstResult).toHaveProperty('file');
+        expect(firstResult).toHaveProperty('line');
+        expect(firstResult).toHaveProperty('column');
+        expect(typeof firstResult.line).toBe('number');
+        expect(typeof firstResult.column).toBe('number');
+      }
+    });
+  });
