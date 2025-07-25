@@ -1,5 +1,6 @@
 import { parse } from '@babel/parser';
-import * as traverse from '@babel/traverse';
+// @ts-ignore
+import traverse from '@babel/traverse';
 import * as t from '@babel/types';
 import { readFileSync, statSync } from 'fs';
 import { glob } from 'glob';
@@ -669,7 +670,7 @@ private async getFiles(path: string): Promise<string[]> {
     const componentInterfaces = new Map<string, string>();
 
     // Handle default export from traverse
-    const traverseDefault = traverse.default || traverse;
+    const traverseDefault = (traverse as any).default || traverse;
     traverseDefault(ast, {
       // Handle TypeScript interfaces for props
       TSInterfaceDeclaration: (path) => {
