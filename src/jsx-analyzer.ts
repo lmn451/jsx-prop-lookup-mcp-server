@@ -2,9 +2,9 @@ import { parse } from '@babel/parser';
 // @ts-ignore
 import traverse from '@babel/traverse';
 import * as t from '@babel/types';
-import { readFileSync, statSync } from 'fs';
+import { readFileSync, statSync, existsSync } from 'fs';
 import { glob } from 'glob';
-import { join, extname } from 'path';
+import { join, extname, dirname, resolve, sep } from 'path';
 
 export interface PropUsage {
   propName: string;
@@ -157,8 +157,8 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
       format = 'full',
       includeColumns = true,
       includePrettyPaths = false,
-      respectProjectBoundaries = true,
-      maxDepth = 10,
+      respectProjectBoundaries = false,
+      maxDepth = Infinity,
     } = options;
 
     const query: ComponentQuery = { componentName, propCriteria, options };
@@ -441,8 +441,8 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
       format = 'full',
       includeColumns = true,
       includePrettyPaths = false,
-      respectProjectBoundaries = true,
-      maxDepth = 10,
+      respectProjectBoundaries = false,
+      maxDepth = Infinity,
     } = options;
 
     const files = await this.getFiles(path, { respectProjectBoundaries, maxDepth });
@@ -576,7 +576,7 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
 
       if (stat.isDirectory()) {
         // Resolve to absolute path for consistent boundary checking
-        const absolutePath = require('path').resolve(path);
+        const absolutePath = resolve(path);
         
         // Find project boundaries if enabled
         let projectBoundaries: string[] = [];
@@ -631,8 +631,6 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
 
   private async findProjectBoundaries(startPath: string): Promise<string[]> {
     const boundaries: string[] = [];
-    const path = require('path');
-    const fs = require('fs');
     
     let currentPath = startPath;
     const maxLevels = 10; // Prevent infinite loops
@@ -640,12 +638,12 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
     for (let i = 0; i < maxLevels; i++) {
       try {
         // Check for package.json (most common project boundary)
-        if (fs.existsSync(path.join(currentPath, 'package.json'))) {
+        if (existsSync(join(currentPath, 'package.json'))) {
           boundaries.push(currentPath);
         }
         
         // Check for .git directory
-        if (fs.existsSync(path.join(currentPath, '.git'))) {
+        if (existsSync(join(currentPath, '.git'))) {
           boundaries.push(currentPath);
         }
         
@@ -662,13 +660,13 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
         ];
         
         for (const marker of projectMarkers) {
-          if (fs.existsSync(path.join(currentPath, marker))) {
+          if (existsSync(join(currentPath, marker))) {
             boundaries.push(currentPath);
             break;
           }
         }
         
-        const parentPath = path.dirname(currentPath);
+        const parentPath = dirname(currentPath);
         if (parentPath === currentPath) {
           // Reached root directory
           break;
@@ -683,9 +681,8 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
   }
 
   private isWithinProjectBoundaries(filePath: string, boundaries: string[], searchPath: string): boolean {
-    const path = require('path');
-    const absoluteFilePath = path.resolve(filePath);
-    const absoluteSearchPath = path.resolve(searchPath);
+    const absoluteFilePath = resolve(filePath);
+    const absoluteSearchPath = resolve(searchPath);
     
     // If no boundaries found, allow files within the search path
     if (boundaries.length === 0) {
@@ -694,7 +691,7 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
     
     // Check if file is within any of the project boundaries
     for (const boundary of boundaries) {
-      const absoluteBoundary = path.resolve(boundary);
+      const absoluteBoundary = resolve(boundary);
       if (absoluteFilePath.startsWith(absoluteBoundary)) {
         // Additional check: if we're searching from within a boundary,
         // only allow files from that specific boundary
@@ -703,8 +700,8 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
         }
         // If searching from outside, allow files from any boundary
         // but prefer the closest one to the search path
-        const searchDepth = absoluteSearchPath.split(path.sep).length;
-        const boundaryDepth = absoluteBoundary.split(path.sep).length;
+        const searchDepth = absoluteSearchPath.split(sep).length;
+        const boundaryDepth = absoluteBoundary.split(sep).length;
         if (boundaryDepth >= searchDepth) {
           return true;
         }
