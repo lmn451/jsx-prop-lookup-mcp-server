@@ -95,6 +95,8 @@ export interface ComponentQueryOptions {
   format?: ResponseFormat;
   includeColumns?: boolean;
   includePrettyPaths?: boolean;
+  respectProjectBoundaries?: boolean;
+  maxDepth?: number;
 }
 
 export interface ComponentQuery {
@@ -154,7 +156,9 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
       logic = 'AND',
       format = 'full',
       includeColumns = true,
-      includePrettyPaths = false
+      includePrettyPaths = false,
+      respectProjectBoundaries = true,
+      maxDepth = 10,
     } = options;
 
     const query: ComponentQuery = { componentName, propCriteria, options };
@@ -165,7 +169,9 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
     const allAnalysis = await this.analyzeProps(directory, {
       componentName,
       format: 'full',
-      includeTypes: true
+      includeTypes: true,
+      respectProjectBoundaries,
+      maxDepth,
     }) as AnalysisResult;
     const componentAnalysis = allAnalysis.components.filter(c => c.componentName === componentName);
     
@@ -424,6 +430,8 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
       format?: ResponseFormat;
       includeColumns?: boolean;
       includePrettyPaths?: boolean;
+      respectProjectBoundaries?: boolean;
+      maxDepth?: number;
     } = {}
   ): Promise<AnalysisResult | CompactAnalysisResult | MinimalAnalysisResult> {
     const {
@@ -433,16 +441,18 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
       format = 'full',
       includeColumns = true,
       includePrettyPaths = false,
+      respectProjectBoundaries = true,
+      maxDepth = 10,
     } = options;
 
-    const files = await this.getFiles(path);
+    const files = await this.getFiles(path, { respectProjectBoundaries, maxDepth });
     let successfullyAnalyzedFiles = 0;
     const components: ComponentAnalysis[] = [];
     const allPropUsages: PropUsage[] = [];
 
     for (const file of files) {
       try {
-                const analysis = await this.analyzeFile(file, {
+        const analysis = await this.analyzeFile(file, {
           targetComponent: componentName,
           targetProp: propName,
           includeTypes,
@@ -554,7 +564,9 @@ private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
     }
     return fileContent.substring(node.start, node.end);
   }
-private async getFiles(path: string): Promise<string[]> {
+  private async getFiles(path: string, options: { respectProjectBoundaries?: boolean; maxDepth?: number } = {}): Promise<string[]> {
+    const { respectProjectBoundaries = true, maxDepth = 10 } = options;
+    
     try {
       const stat = statSync(path);
 
@@ -563,18 +575,40 @@ private async getFiles(path: string): Promise<string[]> {
       }
 
       if (stat.isDirectory()) {
+        // Resolve to absolute path for consistent boundary checking
+        const absolutePath = require('path').resolve(path);
+        
+        // Find project boundaries if enabled
+        let projectBoundaries: string[] = [];
+        if (respectProjectBoundaries) {
+          projectBoundaries = await this.findProjectBoundaries(absolutePath);
+        }
+
         const pattern = join(path, '**/*.{js,jsx,ts,tsx}');
         const files = await glob(pattern, {
-          ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
-          nodir: true // Explicitly exclude directories
+          ignore: [
+            '**/node_modules/**', 
+            '**/dist/**', 
+            '**/build/**',
+            '**/.git/**',
+            '**/coverage/**',
+            '**/tmp/**',
+            '**/temp/**'
+          ],
+          nodir: true,
+          maxDepth: maxDepth
         });
 
-        // Double-check each file to ensure it's actually a file
+        // Filter files based on project boundaries
         const validFiles: string[] = [];
         for (const file of files) {
           try {
             const fileStat = statSync(file);
             if (fileStat.isFile() && this.supportedExtensions.includes(extname(file))) {
+              // Check if file is within project boundaries
+              if (respectProjectBoundaries && !this.isWithinProjectBoundaries(file, projectBoundaries, absolutePath)) {
+                continue;
+              }
               validFiles.push(file);
             }
           } catch (error: any) {
@@ -593,6 +627,91 @@ private async getFiles(path: string): Promise<string[]> {
       }
       throw new Error(`Cannot access path: ${path} - ${error.message}`);
     }
+  }
+
+  private async findProjectBoundaries(startPath: string): Promise<string[]> {
+    const boundaries: string[] = [];
+    const path = require('path');
+    const fs = require('fs');
+    
+    let currentPath = startPath;
+    const maxLevels = 10; // Prevent infinite loops
+    
+    for (let i = 0; i < maxLevels; i++) {
+      try {
+        // Check for package.json (most common project boundary)
+        if (fs.existsSync(path.join(currentPath, 'package.json'))) {
+          boundaries.push(currentPath);
+        }
+        
+        // Check for .git directory
+        if (fs.existsSync(path.join(currentPath, '.git'))) {
+          boundaries.push(currentPath);
+        }
+        
+        // Check for other project markers
+        const projectMarkers = [
+          'tsconfig.json',
+          'jsconfig.json',
+          '.eslintrc.js',
+          '.eslintrc.json',
+          'webpack.config.js',
+          'vite.config.js',
+          'next.config.js',
+          'gatsby-config.js'
+        ];
+        
+        for (const marker of projectMarkers) {
+          if (fs.existsSync(path.join(currentPath, marker))) {
+            boundaries.push(currentPath);
+            break;
+          }
+        }
+        
+        const parentPath = path.dirname(currentPath);
+        if (parentPath === currentPath) {
+          // Reached root directory
+          break;
+        }
+        currentPath = parentPath;
+      } catch (error) {
+        break;
+      }
+    }
+    
+    return [...new Set(boundaries)]; // Remove duplicates
+  }
+
+  private isWithinProjectBoundaries(filePath: string, boundaries: string[], searchPath: string): boolean {
+    const path = require('path');
+    const absoluteFilePath = path.resolve(filePath);
+    const absoluteSearchPath = path.resolve(searchPath);
+    
+    // If no boundaries found, allow files within the search path
+    if (boundaries.length === 0) {
+      return absoluteFilePath.startsWith(absoluteSearchPath);
+    }
+    
+    // Check if file is within any of the project boundaries
+    for (const boundary of boundaries) {
+      const absoluteBoundary = path.resolve(boundary);
+      if (absoluteFilePath.startsWith(absoluteBoundary)) {
+        // Additional check: if we're searching from within a boundary,
+        // only allow files from that specific boundary
+        if (absoluteSearchPath.startsWith(absoluteBoundary)) {
+          return true;
+        }
+        // If searching from outside, allow files from any boundary
+        // but prefer the closest one to the search path
+        const searchDepth = absoluteSearchPath.split(path.sep).length;
+        const boundaryDepth = absoluteBoundary.split(path.sep).length;
+        if (boundaryDepth >= searchDepth) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   }
 
   private async analyzeFile(

@@ -107,6 +107,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'Include editor-compatible file paths for deep linking',
               default: false,
             },
+            respectProjectBoundaries: {
+              type: 'boolean',
+              description: 'Respect project boundaries (package.json, .git, etc.) to prevent searching outside the project',
+              default: true,
+            },
+            maxDepth: {
+              type: 'number',
+              description: 'Maximum directory depth to search',
+              default: 10,
+            },
           },
           required: ['path'],
         },
@@ -243,6 +253,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           format: (args.format as any) || 'full',
           includeColumns: args.includeColumns !== false,
           includePrettyPaths: args.includePrettyPaths === true,
+          respectProjectBoundaries: (args.respectProjectBoundaries as boolean) ?? true,
+          maxDepth: (args.maxDepth as number) ?? 10,
         };
         const result = await wrappedAnalyzeProps(
           args.path as string,
