@@ -11,7 +11,7 @@ describe('JSXPropAnalyzer', () => {
 
   it('should analyze props for a simple component correctly', async () => {
     const filePath = join(testDataPath, 'simple-components', 'Button.tsx');
-    const result = await analyzer.analyzeProps(filePath, undefined, undefined, true, { format: 'full' }) as AnalysisResult;
+        const result = await analyzer.analyzeProps(filePath, { format: 'full' }) as AnalysisResult;
 
     expect(result.summary.totalFiles).toBe(1);
     expect(result.summary.totalComponents).toBe(1);
@@ -33,7 +33,7 @@ describe('JSXPropAnalyzer', () => {
   it('should handle files with syntax errors gracefully', async () => {
     const filePath = join(testDataPath, 'problematic-files', 'SyntaxError.jsx');
     // Expect no throw, and analysis result should reflect the skipped file
-    const result = await analyzer.analyzeProps(filePath, undefined, undefined, true, { format: 'full' }) as AnalysisResult;
+        const result = await analyzer.analyzeProps(filePath, { format: 'full' }) as AnalysisResult;
     expect(result.summary.totalFiles).toBe(0); // File should be skipped due to parse error
     expect(result.components.length).toBe(0);
     expect(result.propUsages.length).toBe(0);
@@ -41,7 +41,7 @@ describe('JSXPropAnalyzer', () => {
 
   it('should handle non-existent paths', async () => {
     const nonExistentPath = join(testDataPath, 'non-existent-dir');
-    const result = await analyzer.analyzeProps(nonExistentPath, undefined, undefined, true, { format: 'full' }) as AnalysisResult;
+        const result = await analyzer.analyzeProps(nonExistentPath, { format: 'full' }) as AnalysisResult;
     expect(result.summary.totalFiles).toBe(0);
     expect(result.components.length).toBe(0);
     expect(result.propUsages.length).toBe(0);
@@ -49,14 +49,14 @@ describe('JSXPropAnalyzer', () => {
 
   it('should handle binary files gracefully', async () => {
     const filePath = join(testDataPath, 'problematic-files', 'BinaryFile.png');
-    const result = await analyzer.analyzeProps(filePath, undefined, undefined, true, { format: 'full' }) as AnalysisResult;
+        const result = await analyzer.analyzeProps(filePath, { format: 'full' }) as AnalysisResult;
     expect(result.summary.totalFiles).toBe(0);
     expect(result.components.length).toBe(0);
     expect(result.propUsages.length).toBe(0);
   });
 
   it('should handle current directory "." as a valid path', async () => {
-    const result = await analyzer.analyzeProps('.', undefined, undefined, true, { format: 'full' }) as AnalysisResult;
+        const result = await analyzer.analyzeProps('.', { format: 'full' }) as AnalysisResult;
     // Should not throw an error and should return a valid result structure
     expect(result).toBeDefined();
     expect(result.summary).toBeDefined();
@@ -73,7 +73,7 @@ describe('JSXPropAnalyzer', () => {
   describe('Response Format Tests', () => {
     it('should return compact format correctly', async () => {
       const filePath = join(testDataPath, 'simple-components', 'Button.tsx');
-      const result = await analyzer.analyzeProps(filePath, undefined, undefined, true, { format: 'compact' });
+            const result = await analyzer.analyzeProps(filePath, { format: 'compact' });
       
       expect(result).toHaveProperty('summary');
       expect(result).toHaveProperty('files');
@@ -85,7 +85,7 @@ describe('JSXPropAnalyzer', () => {
 
     it('should return minimal format correctly', async () => {
       const filePath = join(testDataPath, 'simple-components', 'Button.tsx');
-      const result = await analyzer.analyzeProps(filePath, undefined, undefined, true, { format: 'minimal' });
+            const result = await analyzer.analyzeProps(filePath, { format: 'minimal' });
       
       expect(result).toHaveProperty('props');
       expect(typeof (result as any).props).toBe('object');
@@ -104,7 +104,7 @@ describe('JSXPropAnalyzer', () => {
 
     it('should include prettyPath when requested', async () => {
       const filePath = join(testDataPath, 'simple-components', 'Button.tsx');
-      const result = await analyzer.analyzeProps(filePath, undefined, undefined, true, { 
+            const result = await analyzer.analyzeProps(filePath, { 
         format: 'full', 
         includePrettyPaths: true 
       }) as AnalysisResult;
@@ -123,7 +123,7 @@ describe('JSXPropAnalyzer', () => {
 
     it('should exclude columns when requested', async () => {
       const filePath = join(testDataPath, 'simple-components', 'Button.tsx');
-      const result = await analyzer.analyzeProps(filePath, undefined, undefined, true, { 
+            const result = await analyzer.analyzeProps(filePath, { 
         format: 'compact', 
         includeColumns: false 
       });

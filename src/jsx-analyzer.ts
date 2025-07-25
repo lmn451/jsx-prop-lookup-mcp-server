@@ -160,7 +160,11 @@ export class JSXPropAnalyzer {
     let filesScanned = 0;
 
     // Get all components of the specified type
-    const allAnalysis = await this.analyzeProps(directory, componentName, undefined, true, { format: 'full' }) as AnalysisResult;
+    const allAnalysis = await this.analyzeProps(directory, {
+      componentName,
+      format: 'full',
+      includeTypes: true
+    }) as AnalysisResult;
     const componentAnalysis = allAnalysis.components.filter(c => c.componentName === componentName);
     
     filesScanned = new Set([
@@ -411,12 +415,19 @@ export class JSXPropAnalyzer {
 
   async analyzeProps(
     path: string,
-    componentName?: string,
-    propName?: string,
-    includeTypes: boolean = true,
-    options: AnalysisOptions = {}
+    options: {
+      componentName?: string;
+      propName?: string;
+      includeTypes?: boolean;
+      format?: ResponseFormat;
+      includeColumns?: boolean;
+      includePrettyPaths?: boolean;
+    } = {}
   ): Promise<AnalysisResult | CompactAnalysisResult | MinimalAnalysisResult> {
     const {
+      componentName,
+      propName,
+      includeTypes = true,
       format = 'full',
       includeColumns = true,
       includePrettyPaths = false,
@@ -429,7 +440,14 @@ export class JSXPropAnalyzer {
 
     for (const file of files) {
       try {
-        const analysis = await this.analyzeFile(file, componentName, propName, includeTypes, options);
+                const analysis = await this.analyzeFile(file, {
+          targetComponent: componentName,
+          targetProp: propName,
+          includeTypes,
+          format,
+          includeColumns,
+          includePrettyPaths,
+        });
         components.push(...analysis.components);
         allPropUsages.push(...analysis.propUsages);
         successfullyAnalyzedFiles++;
@@ -451,9 +469,9 @@ export class JSXPropAnalyzer {
     // Transform based on format
     switch (format) {
       case 'compact':
-        return this.transformToCompact(fullResult, options);
+        return this.transformToCompact(fullResult, { format, includeColumns, includePrettyPaths });
       case 'minimal':
-        return this.transformToMinimal(fullResult, options);
+        return this.transformToMinimal(fullResult, { format, includeColumns, includePrettyPaths });
       default:
         // Add prettyPath to full format if requested
         if (includePrettyPaths) {
@@ -515,11 +533,24 @@ export class JSXPropAnalyzer {
 
   private async analyzeFile(
     filePath: string,
-    targetComponent?: string,
-    targetProp?: string,
-    includeTypes: boolean = true,
-    options: AnalysisOptions = {}
+    options: {
+      targetComponent?: string;
+      targetProp?: string;
+      includeTypes?: boolean;
+      format: ResponseFormat;
+      includeColumns?: boolean;
+      includePrettyPaths?: boolean;
+    }
   ): Promise<{ components: ComponentAnalysis[]; propUsages: PropUsage[] }> {
+    const {
+      targetComponent,
+      targetProp,
+      includeTypes = true,
+      format = 'full',
+      includeColumns = true,
+      includePrettyPaths = false,
+    } = options;
+
     // Check if the path is actually a file and not a directory
     try {
       const stat = statSync(filePath);
@@ -642,14 +673,14 @@ export class JSXPropAnalyzer {
 
       // Handle JSX elements and their props
       JSXElement: (path) => {
-        this.analyzeJSXElement(path, filePath, propUsages, targetComponent, targetProp);
+        this.analyzeJSXElement(path, filePath, propUsages, targetComponent, targetProp, { includeColumns, includePrettyPaths });
       },
 
       JSXFragment: (path) => {
         // Handle fragments that might contain JSX elements
         path.traverse({
           JSXElement: (innerPath) => {
-            this.analyzeJSXElement(innerPath, filePath, propUsages, targetComponent, targetProp);
+            this.analyzeJSXElement(innerPath, filePath, propUsages, targetComponent, targetProp, { includeColumns, includePrettyPaths });
           },
         });
       },
