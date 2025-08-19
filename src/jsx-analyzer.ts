@@ -359,12 +359,13 @@ export class JSXPropAnalyzer {
         // Analyze props parameter
         const propsParam = path.node.params[0];
         if (propsParam && t.isIdentifier(propsParam)) {
-          // Look for prop destructuring in function body
+          // Look for member access using the actual parameter name
           this.findPropsInFunctionBody(
             path,
             componentAnalysis,
             propUsages,
-            targetProp
+            targetProp,
+            propsParam.name
           );
         } else if (propsParam && t.isObjectPattern(propsParam)) {
           // Direct destructuring in parameters
@@ -411,6 +412,15 @@ export class JSXPropAnalyzer {
             propUsages,
             targetProp
           );
+        } else if (propsParam && t.isIdentifier(propsParam)) {
+          // Look for member access using the actual parameter name
+          this.findPropsInFunctionBody(
+            path,
+            componentAnalysis,
+            propUsages,
+            targetProp,
+            propsParam.name
+          );
         }
 
         components.push(componentAnalysis);
@@ -450,12 +460,14 @@ export class JSXPropAnalyzer {
     functionPath: any,
     componentAnalysis: ComponentAnalysis,
     propUsages: PropUsage[],
-    targetProp?: string
+    targetProp: string | undefined,
+    paramName: string
   ) {
     functionPath.traverse({
       MemberExpression(path: any) {
         if (
-          t.isIdentifier(path.node.object, { name: "props" }) &&
+          t.isIdentifier(path.node.object) &&
+          path.node.object.name === paramName &&
           t.isIdentifier(path.node.property)
         ) {
           const propName = path.node.property.name;

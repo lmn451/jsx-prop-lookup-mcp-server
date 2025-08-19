@@ -40,7 +40,7 @@ The server successfully analyzes JSX prop usage as demonstrated with the sample 
 
 **Key Features Demonstrated:**
 - ✅ AST-based parsing of JSX/TSX files
-- ✅ Component prop extraction from function parameters
+- ✅ Component prop extraction from function parameters (destructured or identifier-based)
 - ✅ JSX element prop usage tracking
 - ✅ TypeScript interface detection
 - ✅ Spread operator handling
@@ -78,9 +78,9 @@ Add to your MCP client configuration:
 
 ## Available Tools
 
-1. **analyze_jsx_props** - Comprehensive analysis of JSX props in files/directories
-2. **find_prop_usage** - Find specific prop usage across codebase
-3. **get_component_props** - Get all props for a specific component
-4. **find_components_without_prop** - Find components missing required props (e.g., Select without width)
+1. **analyze_jsx_props** - Comprehensive analysis of JSX props in files/directories (accepts relative or absolute `path`, resolved against the server CWD)
+2. **find_prop_usage** - Find specific prop usage across codebase (accepts relative or absolute `directory`, resolved against the server CWD)
+3. **get_component_props** - Get all props for a specific component (accepts relative or absolute `directory`, resolved against the server CWD)
+4. **find_components_without_prop** - Find components missing required props (e.g., Select without width) (accepts relative or absolute `directory`, resolved against the server CWD)
 
 The server is ready for production use!

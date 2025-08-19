@@ -6,8 +6,9 @@ An MCP (Model Context Protocol) server that analyzes JSX prop usage in React/Typ
 
 - **AST-based Analysis**: Uses Babel parser for accurate JSX/TSX parsing
 - **Prop Usage Tracking**: Find where props are used across components
-- **Component Analysis**: Analyze prop definitions and usage patterns
+- **Component Analysis**: Analyze prop definitions and usage patterns (supports destructuring and identifier-based props access in function/arrow components)
 - **TypeScript Support**: Includes TypeScript interface analysis
+- **Identifier Param Support**: Detects props accessed via identifier parameters (not just destructured), e.g., `p.onClick` and `buttonProps.disabled` inside function/arrow component bodies
 - **Multiple Search Options**: Search by component, prop name, or analyze entire directories
 
 ## Installation
@@ -48,27 +49,27 @@ Analyze JSX prop usage in files or directories.
 - `includeTypes` (optional): Include TypeScript type information (default: true)
 
 ### 2. `find_prop_usage`
-Find all usages of a specific prop across JSX files.
+Find all usages of a specific prop across JSX files. Accepts relative or absolute `directory` and resolves against the server process's current working directory.
 
 **Parameters:**
 - `propName` (required): Name of the prop to search for
-- `directory` (optional): Directory to search in (default: ".")
+- `directory` (optional): Directory to search in (default: "."). Relative paths are resolved against the server process's current working directory.
 - `componentName` (optional): Limit search to specific component
 
 ### 3. `get_component_props`
-Get all props used by a specific component.
+Get all props used by a specific component. Accepts relative or absolute `directory` and resolves against the server process's current working directory.
 
 **Parameters:**
 - `componentName` (required): Name of the component to analyze
-- `directory` (optional): Directory to search in (default: ".")
+- `directory` (optional): Directory to search in (default: "."). Relative paths are resolved against the server process's current working directory.
 
 ### 4. `find_components_without_prop`
-Find component instances that are missing a required prop (e.g., Select components without width prop).
+Find component instances that are missing a required prop (e.g., Select components without width prop). Accepts relative or absolute `directory` and resolves against the server process's current working directory.
 
 **Parameters:**
 - `componentName` (required): Name of the component to check (e.g., "Select")
 - `requiredProp` (required): Name of the required prop (e.g., "width")
-- `directory` (optional): Directory to search in (default: ".")
+- `directory` (optional): Directory to search in (default: "."). Relative paths are resolved against the server process's current working directory.
 
 ## Example Output
 
