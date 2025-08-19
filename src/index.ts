@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 // Ensure we're using the correct Node.js version
-if (process.version.split(".")[0].slice(1) < "18") {
+const nodeMajorVersion = Number(process.versions.node.split('.')[0]);
+if (Number.isNaN(nodeMajorVersion) || nodeMajorVersion < 18) {
   console.error("Error: Node.js 18 or higher is required");
   process.exit(1);
 }
@@ -134,64 +135,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (!args) {
     throw new Error("Missing arguments");
   }
-  if (!args.path) {
-    throw new Error("Please provide absolute path for working directory");
-  }
 
-  // Validate that path is absolute
-  if (typeof args.path !== "string" || !path.isAbsolute(args.path)) {
-    throw new Error(
-      `Path must be an absolute string path, received: ${args.path}`
-    );
-  }
-
-  // Validate that path exists
-  try {
-    const stat = fs.statSync(args.path as string);
-    if (!stat.isDirectory() && !stat.isFile()) {
+  const resolveAndValidatePath = (input: string, label: string): string => {
+    if (typeof input !== "string" || input.length === 0) {
+      throw new Error(`${label} must be a non-empty string`);
+    }
+    const abs = path.isAbsolute(input) ? input : path.resolve(process.cwd(), input);
+    try {
+      const stat = fs.statSync(abs);
+      if (!stat.isDirectory() && !stat.isFile()) {
+        throw new Error(`${label} exists but is neither a file nor directory: ${abs}`);
+      }
+    } catch (error) {
       throw new Error(
-        `Path exists but is neither a file nor directory: ${args.path}`
+        `Invalid ${label}: ${input} -> ${abs} - ${error instanceof Error ? error.message : String(error)}`
       );
     }
-  } catch (error) {
-    throw new Error(
-      `Invalid path: ${args.path} - ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
-  }
-
-  // Validate that path is absolute
-  if (!path.isAbsolute(args.path)) {
-    throw new Error(
-      `Path must be absolute, received relative path: ${args.path}`
-    );
-  }
-
-  // Validate that path exists
-  try {
-    const stat = fs.statSync(args.path);
-    if (!stat.isDirectory() && !stat.isFile()) {
-      throw new Error(
-        `Path exists but is neither a file nor directory: ${args.path}`
-      );
-    }
-  } catch (error) {
-    throw new Error(
-      `Invalid path: ${args.path} - ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
-  }
+    return abs;
+  };
 
   try {
     switch (name) {
       case "analyze_jsx_props": {
+        if (typeof (args as any).path !== "string" || !(args as any).path) {
+          throw new Error("Missing required argument: path");
+        }
+        const absPath = resolveAndValidatePath((args as any).path, "path");
         const result = await analyzer.analyzeProps(
-          args.path as string,
-          args.componentName as string | undefined,
-          args.propName as string | undefined,
-          (args.includeTypes as boolean) ?? true
+          absPath,
+          (args as any).componentName as string | undefined,
+          (args as any).propName as string | undefined,
+          ((args as any).includeTypes as boolean) ?? true
         );
         return {
           content: [
@@ -204,10 +178,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "find_prop_usage": {
+        if (
+          typeof (args as any).propName !== "string" || !(args as any).propName
+        ) {
+          throw new Error("Missing required argument: propName");
+        }
+        const dir = ((args as any).directory as string) ?? ".";
+        const absDir = resolveAndValidatePath(dir, "directory");
         const result = await analyzer.findPropUsage(
-          args.propName as string,
-          (args.directory as string) ?? ".",
-          args.componentName as string | undefined
+          (args as any).propName as string,
+          absDir,
+          (args as any).componentName as string | undefined
         );
         return {
           content: [
@@ -220,9 +201,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_component_props": {
+        if (
+          typeof (args as any).componentName !== "string" ||
+          !(args as any).componentName
+        ) {
+          throw new Error("Missing required argument: componentName");
+        }
+        const dir = ((args as any).directory as string) ?? ".";
+        const absDir = resolveAndValidatePath(dir, "directory");
         const result = await analyzer.getComponentProps(
-          args.componentName as string,
-          (args.directory as string) ?? "."
+          (args as any).componentName as string,
+          absDir
         );
         return {
           content: [
@@ -235,10 +224,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "find_components_without_prop": {
+        const componentName = (args as any).componentName as string;
+        const requiredProp = (args as any).requiredProp as string;
+        if (!componentName) {
+          throw new Error("Missing required argument: componentName");
+        }
+        if (!requiredProp) {
+          throw new Error("Missing required argument: requiredProp");
+        }
+        const dir = ((args as any).directory as string) ?? ".";
+        const absDir = resolveAndValidatePath(dir, "directory");
         const result = await analyzer.findComponentsWithoutProp(
-          args.componentName as string,
-          args.requiredProp as string,
-          (args.directory as string) ?? "."
+          componentName,
+          requiredProp,
+          absDir
         );
         return {
           content: [
@@ -258,9 +257,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [
         {
           type: "text",
-          text: `Error: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
         },
       ],
       isError: true,
