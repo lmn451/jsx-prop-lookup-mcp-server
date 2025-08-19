@@ -78,9 +78,9 @@ Add to your MCP client configuration:
 
 ## Available Tools
 
-1. **analyze_jsx_props** - Comprehensive analysis of JSX props in files/directories (accepts relative or absolute `path`, resolved against the server CWD)
-2. **find_prop_usage** - Find specific prop usage across codebase (accepts relative or absolute `directory`, resolved against the server CWD)
-3. **get_component_props** - Get all props for a specific component (accepts relative or absolute `directory`, resolved against the server CWD)
-4. **find_components_without_prop** - Find components missing required props (e.g., Select without width) (accepts relative or absolute `directory`, resolved against the server CWD)
+1. **analyze_jsx_props** - Comprehensive analysis of JSX props in files/directories (requires absolute `path`)
+2. **find_prop_usage** - Find specific prop usage across codebase (requires absolute `directory`)
+3. **get_component_props** - Get all props for a specific component (requires absolute `directory`)
+4. **find_components_without_prop** - Find components missing required props (e.g., Select without width) (requires absolute `directory`)
 
 The server is ready for production use!

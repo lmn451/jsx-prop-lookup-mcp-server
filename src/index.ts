@@ -140,18 +140,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (typeof input !== "string" || input.length === 0) {
       throw new Error(`${label} must be a non-empty string`);
     }
-    const abs = path.isAbsolute(input) ? input : path.resolve(process.cwd(), input);
+    if (!path.isAbsolute(input)) {
+      throw new Error(`${label} must be an absolute path. Received: ${input}`);
+    }
     try {
-      const stat = fs.statSync(abs);
+      const stat = fs.statSync(input);
       if (!stat.isDirectory() && !stat.isFile()) {
-        throw new Error(`${label} exists but is neither a file nor directory: ${abs}`);
+        throw new Error(`${label} exists but is neither a file nor directory: ${input}`);
       }
     } catch (error) {
       throw new Error(
-        `Invalid ${label}: ${input} -> ${abs} - ${error instanceof Error ? error.message : String(error)}`
+        `Invalid ${label}: ${input} - ${error instanceof Error ? error.message : String(error)}`
       );
     }
-    return abs;
+    return input;
   };
 
   try {

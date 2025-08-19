@@ -49,27 +49,27 @@ Analyze JSX prop usage in files or directories.
 - `includeTypes` (optional): Include TypeScript type information (default: true)
 
 ### 2. `find_prop_usage`
-Find all usages of a specific prop across JSX files. Accepts relative or absolute `directory` and resolves against the server process's current working directory.
+Find all usages of a specific prop across JSX files. The `directory` must be an absolute path.
 
 **Parameters:**
 - `propName` (required): Name of the prop to search for
-- `directory` (optional): Directory to search in (default: "."). Relative paths are resolved against the server process's current working directory.
+- `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
 - `componentName` (optional): Limit search to specific component
 
 ### 3. `get_component_props`
-Get all props used by a specific component. Accepts relative or absolute `directory` and resolves against the server process's current working directory.
+Get all props used by a specific component. The `directory` must be an absolute path.
 
 **Parameters:**
 - `componentName` (required): Name of the component to analyze
-- `directory` (optional): Directory to search in (default: "."). Relative paths are resolved against the server process's current working directory.
+- `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
 
 ### 4. `find_components_without_prop`
-Find component instances that are missing a required prop (e.g., Select components without width prop). Accepts relative or absolute `directory` and resolves against the server process's current working directory.
+Find component instances that are missing a required prop (e.g., Select components without width prop). The `directory` must be an absolute path.
 
 **Parameters:**
 - `componentName` (required): Name of the component to check (e.g., "Select")
 - `requiredProp` (required): Name of the required prop (e.g., "width")
-- `directory` (optional): Directory to search in (default: "."). Relative paths are resolved against the server process's current working directory.
+- `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
 
 ## Example Output
 
