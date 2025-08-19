@@ -109,6 +109,9 @@ Find component instances that are missing a required prop (e.g., Select componen
 }
 ```
 
+### Component name matching
+- Namespaced JSX components (e.g., `UI.Select`) are supported. You can target either the full dotted name (e.g., `UI.Select`) or the local component name (e.g., `Select`) in tool inputs. Results record the full dotted name where applicable.
+
 ## Supported File Types
 
 - `.js` - JavaScript
