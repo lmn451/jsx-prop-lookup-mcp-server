@@ -1,5 +1,4 @@
 import { parse } from "@babel/parser";
-// @ts-ignore
 import traverse from "@babel/traverse";
 import * as t from "@babel/types";
 import { readFileSync, statSync } from "fs";
@@ -163,7 +162,7 @@ export class JSXPropAnalyzer {
           continue;
         }
 
-        const traverseDefault = traverse.default || traverse;
+        const traverseDefault = (traverse as any).default || traverse;
         traverseDefault(ast, {
           JSXElement: (path) => {
             const openingElement = path.node.openingElement;
@@ -217,7 +216,7 @@ export class JSXPropAnalyzer {
             if (!hasRequiredProp) {
               const loc = openingElement.loc;
               missingPropUsages.push({
-                componentName: fullName,
+                componentName: localName,
                 file,
                 line: loc?.start.line || 0,
                 column: loc?.start.column || 0,
@@ -247,7 +246,7 @@ export class JSXPropAnalyzer {
               'jsx','typescript','decorators-legacy','classProperties','objectRestSpread','functionBind','exportDefaultFrom','exportNamespaceFrom','dynamicImport','nullishCoalescingOperator','optionalChaining'
             ]
           });
-          const traverseDefault2 = traverse.default || traverse;
+          const traverseDefault2 = (traverse as any).default || traverse;
           traverseDefault2(ast, {
             JSXElement: (p) => {
               const openingElement = p.node.openingElement;
@@ -391,7 +390,7 @@ export class JSXPropAnalyzer {
     const componentInterfaces = new Map<string, string>();
 
     // Handle default export from traverse
-    const traverseDefault = traverse.default || traverse;
+    const traverseDefault = (traverse as any).default || traverse;
     traverseDefault(ast, {
       // Handle TypeScript interfaces for props
       TSInterfaceDeclaration: (path) => {
