@@ -42,20 +42,24 @@ The server provides four main tools:
 Analyze JSX prop usage in files or directories.
 
 **Parameters:**
-- `path` (required): File or directory path to analyze
+- `path` (required): Absolute file or directory path to analyze
 - `componentName` (optional): Specific component name to analyze
 - `propName` (optional): Specific prop name to search for
 - `includeTypes` (optional): Include TypeScript type information (default: true)
 
 ### 2. `find_prop_usage`
+
+Note: All directory and file paths must be absolute.
 Find all usages of a specific prop across JSX files.
 
 **Parameters:**
 - `propName` (required): Name of the prop to search for
-- `directory` (optional): Directory to search in (default: ".")
+- `directory` (required): Absolute directory to search in
 - `componentName` (optional): Limit search to specific component
 
 ### 3. `get_component_props`
+
+Note: All directory and file paths must be absolute.
 Get all props used by a specific component.
 
 **Parameters:**
@@ -63,6 +67,8 @@ Get all props used by a specific component.
 - `directory` (optional): Directory to search in (default: ".")
 
 ### 4. `find_components_without_prop`
+
+Note: All directory and file paths must be absolute.
 Find component instances that are missing a required prop (e.g., Select components without width prop).
 
 **Parameters:**

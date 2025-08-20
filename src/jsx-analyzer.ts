@@ -4,7 +4,7 @@ import traverse from '@babel/traverse';
 import * as t from '@babel/types';
 import { readFileSync, statSync } from 'fs';
 import { glob } from 'glob';
-import { join, extname } from 'path';
+import { join, extname, resolve, isAbsolute } from 'path';
 
 export interface PropUsage {
   propName: string;
@@ -37,13 +37,23 @@ export interface AnalysisResult {
 export class JSXPropAnalyzer {
   private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
 
+  // Ensure we always work with absolute paths, do not assume cwd
+  private toAbsolute(p: string): string {
+    if (!p) throw new Error('Path is required');
+    if (!isAbsolute(p)) {
+      throw new Error(`Path must be absolute: ${p}`);
+    }
+    return p;
+  }
+
   async analyzeProps(
     path: string,
     componentName?: string,
     propName?: string,
     includeTypes: boolean = true
   ): Promise<AnalysisResult> {
-    const files = await this.getFiles(path);
+    const absPath = this.toAbsolute(path);
+    const files = await this.getFiles(absPath);
     const components: ComponentAnalysis[] = [];
     const allPropUsages: PropUsage[] = [];
 
@@ -70,25 +80,27 @@ export class JSXPropAnalyzer {
 
   async findPropUsage(
     propName: string,
-    directory: string = '.',
+    directory: string,
     componentName?: string
   ): Promise<PropUsage[]> {
-    const result = await this.analyzeProps(directory, componentName, propName);
+    const absDir = this.toAbsolute(directory);
+    const result = await this.analyzeProps(absDir, componentName, propName);
     return result.propUsages.filter(usage => usage.propName === propName);
   }
 
   async getComponentProps(
     componentName: string,
-    directory: string = '.'
+    directory: string
   ): Promise<ComponentAnalysis[]> {
-    const result = await this.analyzeProps(directory, componentName);
+    const absDir = this.toAbsolute(directory);
+    const result = await this.analyzeProps(absDir, componentName);
     return result.components.filter(comp => comp.componentName === componentName);
   }
 
   async findComponentsWithoutProp(
     componentName: string,
     requiredProp: string,
-    directory: string = '.'
+    directory: string
   ): Promise<{
     missingPropUsages: Array<{
       componentName: string;
@@ -103,7 +115,8 @@ export class JSXPropAnalyzer {
       missingPropPercentage: number;
     };
   }> {
-    const files = await this.getFiles(directory);
+    const absDir = this.toAbsolute(directory);
+    const files = await this.getFiles(absDir);
     const missingPropUsages: Array<{
       componentName: string;
       file: string;
@@ -219,16 +232,17 @@ export class JSXPropAnalyzer {
 
   private async getFiles(path: string): Promise<string[]> {
     try {
-      const stat = statSync(path);
+      const abs = this.toAbsolute(path);
+      const stat = statSync(abs);
       
       if (stat.isFile()) {
-        return this.supportedExtensions.includes(extname(path)) ? [path] : [];
+        return this.supportedExtensions.includes(extname(abs)) ? [abs] : [];
       }
       
       if (stat.isDirectory()) {
-        const pattern = join(path, '**/*.{js,jsx,ts,tsx}');
+        const pattern = join(abs, '**/*.{js,jsx,ts,tsx}');
         const files = await glob(pattern, { 
-          ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+          ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**'],
           nodir: true // Explicitly exclude directories
         });
         

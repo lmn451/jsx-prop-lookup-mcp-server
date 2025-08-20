@@ -13,6 +13,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { JSXPropAnalyzer } from './jsx-analyzer.js';
+import { resolve, isAbsolute } from 'path';
 
 const server = new Server(
   {
@@ -38,7 +39,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             path: {
               type: 'string',
-              description: 'File or directory path to analyze',
+              description: 'Absolute file or directory path to analyze',
             },
             componentName: {
               type: 'string',
@@ -69,8 +70,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             directory: {
               type: 'string',
-              description: 'Directory to search in',
-              default: '.',
+              description: 'Absolute directory to search in',
             },
             componentName: {
               type: 'string',
@@ -92,8 +92,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             directory: {
               type: 'string',
-              description: 'Directory to search in',
-              default: '.',
+              description: 'Absolute directory to search in',
             },
           },
           required: ['componentName'],
@@ -115,8 +114,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             directory: {
               type: 'string',
-              description: 'Directory to search in',
-              default: '.',
+              description: 'Absolute directory to search in',
             },
           },
           required: ['componentName', 'requiredProp'],
@@ -137,8 +135,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'analyze_jsx_props': {
+        const inputPath = args.path as string;
+        if (!isAbsolute(inputPath)) {
+          throw new Error('path must be an absolute file or directory path');
+        }
         const result = await analyzer.analyzeProps(
-          args.path as string,
+          inputPath,
           args.componentName as string | undefined,
           args.propName as string | undefined,
           (args.includeTypes as boolean) ?? true
@@ -154,9 +156,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'find_prop_usage': {
+        const dirInput = args.directory as string;
+        if (!isAbsolute(dirInput)) {
+          throw new Error('directory must be an absolute path');
+        }
         const result = await analyzer.findPropUsage(
           args.propName as string,
-          (args.directory as string) ?? '.',
+          dirInput,
           args.componentName as string | undefined
         );
         return {
@@ -170,9 +176,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_component_props': {
+        const dirInput = args.directory as string;
+        if (!isAbsolute(dirInput)) {
+          throw new Error('directory must be an absolute path');
+        }
         const result = await analyzer.getComponentProps(
           args.componentName as string,
-          (args.directory as string) ?? '.'
+          dirInput
         );
         return {
           content: [
@@ -185,10 +195,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'find_components_without_prop': {
+        const dirInput = args.directory as string;
+        if (!isAbsolute(dirInput)) {
+          throw new Error('directory must be an absolute path');
+        }
         const result = await analyzer.findComponentsWithoutProp(
           args.componentName as string,
           args.requiredProp as string,
-          (args.directory as string) ?? '.'
+          dirInput
         );
         return {
           content: [
