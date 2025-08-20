@@ -308,7 +308,8 @@ export class JSXPropAnalyzer {
         ],
       });
     } catch (error) {
-      throw new Error(`Failed to parse ${filePath}: ${error}`);
+      console.error(`Failed to parse ${filePath}:`, error);
+      return { components: [], propUsages: [] };
     }
 
     // Track component definitions and their prop interfaces
@@ -362,6 +363,7 @@ export class JSXPropAnalyzer {
         }
 
         const componentName = path.node.id.name;
+        if (!/^[A-Z]/.test(componentName)) return;
         if (targetComponent && componentName !== targetComponent) return;
 
         const arrowFunc = path.node.init;
