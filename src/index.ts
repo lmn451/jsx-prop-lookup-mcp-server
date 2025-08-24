@@ -13,6 +13,33 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { JSXPropAnalyzer } from './jsx-analyzer.js';
+import * as path from 'path';
+
+/**
+ * Validates that a path is absolute. Rejects relative paths with a hard error.
+ * @param rawPath - The path to validate
+ * @param paramName - The parameter name for error messages
+ * @returns The validated absolute path
+ * @throws Error if path is not absolute
+ */
+function validateAbsolutePath(rawPath: unknown, paramName: string = 'path'): string {
+  if (typeof rawPath !== 'string') {
+    throw new Error(`Invalid argument: ${paramName} must be a string`);
+  }
+
+  const trimmedPath = rawPath.trim();
+  if (!trimmedPath) {
+    throw new Error(`Invalid argument: ${paramName} must be a non-empty string`);
+  }
+
+  if (!path.isAbsolute(trimmedPath)) {
+    const err = new Error(`Relative or non-absolute paths are not allowed. Provide an absolute path for ${paramName}`);
+    (err as any).code = 'INVALID_ABSOLUTE_PATH';
+    throw err;
+  }
+
+  return trimmedPath;
+}
 
 const server = new Server(
   {
@@ -38,11 +65,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             path: {
               type: 'string',
-              description: 'File or directory path to analyze',
+              description: 'Absolute path to file or directory to analyze. Relative paths are not allowed.',
             },
             componentName: {
               type: 'string',
-              description: 'Optional: specific component name to analyze',
+              description: 'Specific component name to analyze',
             },
             propName: {
               type: 'string',
@@ -54,7 +81,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               default: true,
             },
           },
-          required: ['path'],
+          required: ['path', 'componentName'],
         },
       },
       {
@@ -67,17 +94,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'string',
               description: 'Name of the prop to search for',
             },
-            directory: {
+            path: {
               type: 'string',
-              description: 'Directory to search in',
-              default: '.',
+              description: 'Absolute path to directory to search in. Relative paths are not allowed.',
             },
             componentName: {
               type: 'string',
               description: 'Optional: limit search to specific component',
             },
           },
-          required: ['propName'],
+          required: ['propName', 'path', 'componentName'],
         },
       },
       {
@@ -90,13 +116,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'string',
               description: 'Name of the component to analyze',
             },
-            directory: {
+            path: {
               type: 'string',
-              description: 'Directory to search in',
-              default: '.',
+              description: 'Absolute path to directory to search in. Relative paths are not allowed.',
             },
           },
-          required: ['componentName'],
+          required: ['componentName', 'path'],
         },
       },
       {
@@ -113,13 +138,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'string',
               description: 'Name of the required prop (e.g., "width")',
             },
-            directory: {
+            path: {
               type: 'string',
-              description: 'Directory to search in',
-              default: '.',
+              description: 'Absolute path to directory to search in. Relative paths are not allowed.',
+            },
+            assumeSpreadHasRequiredProp: {
+              type: 'boolean',
+              description: 'If true, any JSX spread attribute is assumed to provide the required prop.',
+              default: true,
             },
           },
-          required: ['componentName', 'requiredProp'],
+          required: ['componentName', 'requiredProp', 'path'],
         },
       },
     ],
@@ -129,7 +158,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  
+
   if (!args) {
     throw new Error('Missing arguments');
   }
@@ -137,8 +166,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'analyze_jsx_props': {
+        const validatedPath = validateAbsolutePath(args.path, 'path');
         const result = await analyzer.analyzeProps(
-          args.path as string,
+          validatedPath,
           args.componentName as string | undefined,
           args.propName as string | undefined,
           (args.includeTypes as boolean) ?? true
@@ -154,9 +184,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'find_prop_usage': {
+        const validatedPath = validateAbsolutePath(args.path, 'path');
         const result = await analyzer.findPropUsage(
           args.propName as string,
-          (args.directory as string) ?? '.',
+          validatedPath,
           args.componentName as string | undefined
         );
         return {
@@ -170,9 +201,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_component_props': {
+        const validatedPath = validateAbsolutePath(args.path, 'path');
         const result = await analyzer.getComponentProps(
           args.componentName as string,
-          (args.directory as string) ?? '.'
+          validatedPath
         );
         return {
           content: [
@@ -185,10 +217,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'find_components_without_prop': {
+        const validatedPath = validateAbsolutePath(args.path, 'path');
         const result = await analyzer.findComponentsWithoutProp(
           args.componentName as string,
           args.requiredProp as string,
-          (args.directory as string) ?? '.'
+          validatedPath
         );
         return {
           content: [
