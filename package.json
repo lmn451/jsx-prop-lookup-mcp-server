@@ -24,12 +24,15 @@
   },
   "homepage": "https://github.com/lmn451/jsx-prop-lookup-mcp-server#readme",
   "scripts": {
-    "build": "tsc",
+    "build:js": "bun build ./src/index.ts ./src/cli.ts --outdir ./dist --target node",
+    "build:types": "tsc --emitDeclarationOnly",
+    "build": "bun run build:js && bun run build:types",
+    "typecheck": "tsc --noEmit",
     "start": "bun dist/index.js",
     "dev": "bun src/index.ts",
     "test": "vitest",
-    "prepublishOnly": "npm run build",
-    "pretest": "npm run build"
+    "prepublishOnly": "bun run build",
+    "pretest": "bun run build"
   },
   "bin": {
     "jsx-prop-lookup-mcp-server": "dist/index.js",
