@@ -1,0 +1,68 @@
+name: Build, Test & Publish
+
+on:
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        registry-url: 'https://registry.npmjs.org'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: TypeScript type checking
+      run: npm run build
+      
+    - name: Run tests
+      run: npm test
+      
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+    - name: Bump version and publish
+      run: |
+        # Determine version bump type based on commit message
+        if git log -1 --pretty=%B | grep -qE "(BREAKING|major)"; then
+          BUMP_TYPE="major"
+        elif git log -1 --pretty=%B | grep -qE "(feat|feature|minor)"; then
+          BUMP_TYPE="minor"  
+        else
+          BUMP_TYPE="patch"
+        fi
+        
+        echo "Bumping version with: $BUMP_TYPE"
+        npm version $BUMP_TYPE
+        
+        # Get new version
+        NEW_VERSION=$(node -p "require('./package.json').version")
+        echo "Publishing version: $NEW_VERSION"
+        
+        # Publish to npm
+        npm publish
+        
+        # Push version bump and tag
+        git push origin HEAD --tags
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

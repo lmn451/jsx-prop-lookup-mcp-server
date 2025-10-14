@@ -1,124 +1,18 @@
 # JSX Prop Lookup MCP Server
 
-An MCP (Model Context Protocol) server that analyzes JSX prop usage in React/TypeScript codebases using AST parsing.
+Analyze JSX prop usage in React/TypeScript codebases using AST parsing. Perfect for code auditing, refactoring, and understanding component prop patterns.
 
-## Features
+## ✨ What it does
 
-- **AST-based Analysis**: Uses Babel parser for accurate JSX/TSX parsing
-- **Prop Usage Tracking**: Find where props are used across components
-- **Component Analysis**: Analyze prop definitions and usage patterns
-- **TypeScript Support**: Includes TypeScript interface analysis
-- **Multiple Search Options**: Search by component, prop name, or analyze entire directories
+- **Find prop usage** across your entire codebase
+- **Analyze components** to see what props they use
+- **Query components** with advanced filtering (NEW!)
+- **TypeScript support** with interface analysis
 
-## Installation
+## 🚀 Installation
 
-### Option 1: Use with npx (Recommended)
-No installation required! Use directly with npx:
-
-```bash
-npx jsx-prop-lookup-mcp-server
-```
-
-### Option 2: Install Globally
-```bash
-npm install -g jsx-prop-lookup-mcp-server
-jsx-prop-lookup-mcp-server
-```
-
-### Option 3: Development Setup
-```bash
-git clone https://github.com/your-username/jsx-prop-lookup-mcp-server.git
-cd jsx-prop-lookup-mcp-server
-npm install
-npm run build
-npm start
-```
-
-## Usage
-
-The server provides four main tools:
-
-### 1. `analyze_jsx_props`
-Analyze JSX prop usage in files or directories.
-
-**Parameters:**
-- `path` (required): File or directory path to analyze
-- `componentName` (optional): Specific component name to analyze
-- `propName` (optional): Specific prop name to search for
-- `includeTypes` (optional): Include TypeScript type information (default: true)
-
-### 2. `find_prop_usage`
-Find all usages of a specific prop across JSX files.
-
-**Parameters:**
-- `propName` (required): Name of the prop to search for
-- `directory` (optional): Directory to search in (default: ".")
-- `componentName` (optional): Limit search to specific component
-
-### 3. `get_component_props`
-Get all props used by a specific component.
-
-**Parameters:**
-- `componentName` (required): Name of the component to analyze
-- `directory` (optional): Directory to search in (default: ".")
-
-### 4. `find_components_without_prop`
-Find component instances that are missing a required prop (e.g., Select components without width prop).
-
-**Parameters:**
-- `componentName` (required): Name of the component to check (e.g., "Select")
-- `requiredProp` (required): Name of the required prop (e.g., "width")
-- `directory` (optional): Directory to search in (default: ".")
-
-## Example Output
-
-```json
-{
-  "summary": {
-    "totalFiles": 5,
-    "totalComponents": 3,
-    "totalProps": 12
-  },
-  "components": [
-    {
-      "componentName": "Button",
-      "file": "./src/Button.tsx",
-      "props": [
-        {
-          "propName": "onClick",
-          "componentName": "Button",
-          "file": "./src/Button.tsx",
-          "line": 5,
-          "column": 10
-        }
-      ],
-      "propsInterface": "ButtonProps"
-    }
-  ],
-  "propUsages": [
-    {
-      "propName": "className",
-      "componentName": "Button",
-      "file": "./src/App.tsx",
-      "line": 15,
-      "column": 20,
-      "value": "btn-primary"
-    }
-  ]
-}
-```
-
-## Supported File Types
-
-- `.js` - JavaScript
-- `.jsx` - JavaScript with JSX
-- `.ts` - TypeScript
-- `.tsx` - TypeScript with JSX
-
-## MCP Client Configuration
-
-### Using with npx (Recommended)
-Add to your MCP client configuration:
+### Use with npx (Recommended)
+No installation required! Just add to your MCP client:
 
 ```json
 {
@@ -131,34 +25,207 @@ Add to your MCP client configuration:
 }
 ```
 
-### Using with global installation
+## 🔧 MCP Client Setup
+
+### Claude Desktop
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
-      "command": "jsx-prop-lookup-mcp-server"
+      "command": "npx",
+      "args": ["jsx-prop-lookup-mcp-server"]
     }
   }
 }
 ```
 
-### Using with local development
+### Cline (VS Code Extension)
+Add to your Cline MCP configuration:
+
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
-      "command": "node",
-      "args": ["dist/index.js"],
-      "cwd": "/path/to/jsx-prop-lookup-mcp-server"
+      "command": "npx",
+      "args": ["jsx-prop-lookup-mcp-server"]
     }
   }
 }
 ```
 
-## Development
+### Other MCP Clients
+Use the same configuration format with your MCP client.
 
-```bash
-npm run dev  # Run in development mode
-npm run build  # Build for production
-npm start  # Run built version
+## 📖 Basic Usage
+
+Once configured, you can use these commands in your MCP client:
+
+### Analyze your entire project
 ```
+Use analyze_jsx_props on "./src" to find all React component props
+```
+
+### Find specific prop usage
+```
+Use analyze_jsx_props with propName "onClick" to search for onClick props in my codebase
+```
+
+### Get component details
+```
+Use analyze_jsx_props with componentName "Button" to analyze the Button component
+```
+
+### Advanced component querying (NEW!)
+```
+Use query_components to find Button components with variant="primary" AND onClick handler
+```
+
+## 🔧 Boundary Control Features
+
+### Project Boundaries
+The `respectProjectBoundaries` parameter (default: true) prevents the analyzer from searching outside your project structure. When enabled, it stops at common project boundaries:
+
+- **package.json** files (indicating separate npm packages)
+- **.git** directories (repository boundaries)
+- **node_modules** directories (dependency boundaries)
+- **dist/build** directories (compiled output)
+
+**Why use this?**
+- Prevents analyzing external dependencies or unrelated projects
+- Improves performance by focusing on your actual codebase
+- Avoids false positives from third-party code
+
+**Example:**
+```json
+{
+  "name": "analyze_jsx_props",
+  "arguments": {
+    "path": "./",
+    "respectProjectBoundaries": false,
+    "componentName": "Button"
+  }
+}
+```
+
+### Search Depth Control
+The `maxDepth` parameter (default: 10) limits how deep the analyzer searches into nested directories.
+
+**When to adjust:**
+- **Lower values (3-5)**: For focused analysis of shallow directory structures
+- **Higher values (15-20)**: For deep monorepos or complex nested structures
+- **Set to 1**: Analyze only the specified directory, no subdirectories
+
+**Example:**
+```json
+{
+  "name": "analyze_jsx_props",
+  "arguments": {
+    "path": "./src",
+    "maxDepth": 3,
+    "propName": "onClick"
+  }
+}
+```
+
+## 🛠️ Available Tools
+
+### `analyze_jsx_props`
+Analyze JSX prop usage in files or directories.
+- **path** (required): File or directory to analyze
+- **componentName** (optional): Focus on specific component
+- **propName** (optional): Focus on specific prop
+- **format** (optional): 'full', 'compact', or 'minimal'
+- **includeTypes** (optional): Include TypeScript info (default: true)
+- **includeColumns** (optional): Include column numbers (default: true)
+- **includePrettyPaths** (optional): Include editor paths (default: false)
+- **respectProjectBoundaries** (optional): Stay within project boundaries (default: true)
+- **maxDepth** (optional): Maximum directory depth to search (default: 10)
+
+### `query_components` ⭐ NEW
+Advanced component querying with prop filtering and logic operators.
+- **componentName** (required): Component to query
+- **propCriteria** (required): Array of prop criteria to match
+- **options** (optional): Logic ('AND'/'OR'), format, directory
+
+**Example criteria:**
+```json
+{
+  "componentName": "Button",
+  "propCriteria": [
+    { "name": "variant", "value": "primary", "operator": "equals" },
+    { "name": "onClick", "exists": true }
+  ],
+  "options": { "logic": "AND" }
+}
+```
+
+## 📊 Response Formats
+
+Choose the format that best fits your needs:
+
+- **full** (default): Complete analysis with all details
+- **compact**: File-grouped results, 20-40% smaller
+- **minimal**: Essential info only, 50-60% smaller
+
+Example:
+```json
+{
+  "name": "analyze_jsx_props",
+  "arguments": {
+    "path": "./src",
+    "format": "compact"
+  }
+}
+```
+
+## 🎯 Common Use Cases
+
+### Code Auditing
+- Find components missing accessibility props
+- Ensure consistent prop usage across components
+- Identify unused or inconsistent prop patterns
+- **Use boundary control** to focus on your codebase only
+
+### Refactoring
+- Find all usages of a prop before renaming
+- Identify components that need prop updates
+- Analyze prop dependencies before changes
+- **Limit search depth** for targeted refactoring in specific modules
+
+### Code Quality
+- Find Select components without required width prop using query_components with exists: false
+- Ensure Button components have onClick handlers using query_components
+- Validate form components have proper props using advanced querying
+- **Respect project boundaries** to avoid analyzing third-party components
+
+### Performance Optimization
+- **Use maxDepth=3** for quick shallow analysis
+- **Set respectProjectBoundaries=true** to avoid scanning node_modules
+- **Choose compact format** for large codebases
+
+## 🔍 Supported Files
+
+- `.js` - JavaScript
+- `.jsx` - JavaScript with JSX  
+- `.ts` - TypeScript
+- `.tsx` - TypeScript with JSX
+
+## 💡 Pro Tips
+
+- Use **npx** for zero-maintenance setup
+- Start with **compact format** for better performance
+- Use **query_components** for complex filtering needs
+- Combine tools for comprehensive analysis
+- **Enable respectProjectBoundaries** (default) to avoid scanning dependencies
+- **Adjust maxDepth** based on your project structure - lower for focused analysis, higher for deep monorepos
+- **Set maxDepth=1** to analyze only the current directory without subdirectories
+
+## 🤝 Contributing
+
+Found a bug or have a feature request? [Open an issue](https://github.com/lmn451/jsx-prop-lookup-mcp-server/issues) on GitHub.
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.

@@ -4,7 +4,15 @@
   "description": "MCP server for analyzing JSX prop usage using AST",
   "main": "dist/index.js",
   "type": "module",
-  "keywords": ["mcp", "jsx", "react", "ast", "props", "analysis", "typescript"],
+  "keywords": [
+    "mcp",
+    "jsx",
+    "react",
+    "ast",
+    "props",
+    "analysis",
+    "typescript"
+  ],
   "author": "Rovo Dev",
   "license": "MIT",
   "repository": {
@@ -16,6 +24,7 @@
   },
   "homepage": "https://github.com/lmn451/jsx-prop-lookup-mcp-server#readme",
   "scripts": {
+    "test": "jest",
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
@@ -27,18 +36,30 @@
   "files": [
     "dist/**/*",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "package.json"
   ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.4.0",
     "@babel/parser": "^7.23.0",
     "@babel/traverse": "^7.23.0",
     "@babel/types": "^7.23.0",
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "@supabase/supabase-js": "^2.39.0",
     "glob": "^10.3.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@babel/preset-env": "^7.28.0",
+    "@babel/preset-typescript": "^7.27.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
+    "babel-jest": "^30.0.4",
+    "jest": "^30.0.4",
+    "ts-jest": "^29.4.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }

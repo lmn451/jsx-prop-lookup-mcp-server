@@ -52,6 +52,42 @@ const server = new Server(
 );
 
 const analyzer = new JSXPropAnalyzer();
+const loggingMiddleware = new LoggingMiddleware(loggingService);
+
+// Wrap analyzer methods with logging
+const wrappedAnalyzeProps = loggingMiddleware.wrapToolHandler(
+  'analyze_jsx_props',
+  analyzer.analyzeProps.bind(analyzer)
+);
+
+const wrappedQueryComponents = loggingMiddleware.wrapToolHandler(
+  'query_components', 
+  analyzer.queryComponents.bind(analyzer)
+);
+
+// Helper function to create consistent responses
+function createResponse(result: any, compact: boolean = false) {
+  return {
+    content: [
+      {
+        type: 'text',
+        text: compact ? JSON.stringify(result) : JSON.stringify(result, null, 2),
+      },
+    ],
+  };
+}
+
+function createErrorResponse(error: unknown) {
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+      },
+    ],
+    isError: true,
+  };
+}
 
 // List available tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -80,8 +116,84 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'Include TypeScript type information',
               default: true,
             },
+            format: {
+              type: 'string',
+              enum: ['full', 'compact', 'minimal'],
+              description: 'Response format: full (default), compact (grouped by file), or minimal (props only)',
+              default: 'full',
+            },
+            includeColumns: {
+              type: 'boolean',
+              description: 'Include column numbers in location data',
+              default: true,
+            },
+            includePrettyPaths: {
+              type: 'boolean',
+              description: 'Include editor-compatible file paths for deep linking',
+              default: false,
+            },
+            respectProjectBoundaries: {
+              type: 'boolean',
+              description: 'Respect project boundaries (package.json, .git, etc.) to prevent searching outside the project',
+              default: true,
+            },
+            maxDepth: {
+              type: 'number',
+              description: 'Maximum directory depth to search',
+              default: 10,
+            },
           },
           required: ['path', 'componentName'],
+        },
+      },
+      {
+        name: 'query_components',
+        description: 'Advanced component querying with prop value filtering and complex logic',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            componentName: {
+              type: 'string',
+              description: 'Component type to search for (e.g., "Select", "Button")',
+            },
+            path: {
+              type: 'string',
+              description: 'Absolute path to directory to search in. Relative paths are not allowed.',
+            },
+            options: {
+              type: 'object',
+              properties: {
+                directory: {
+                  type: 'string',
+                  description: 'Directory to search in',
+                  default: '.',
+                },
+                logic: {
+                  type: 'string',
+                  enum: ['AND', 'OR'],
+                  default: 'AND',
+                  description: 'How to combine multiple criteria',
+                },
+                format: {
+                  type: 'string',
+                  enum: ['full', 'compact', 'minimal'],
+                  default: 'full',
+                  description: 'Response format',
+                },
+                includeColumns: {
+                  type: 'boolean',
+                  default: true,
+                  description: 'Include column numbers in location data',
+                },
+                includePrettyPaths: {
+                  type: 'boolean',
+                  default: false,
+                  description: 'Include editor-compatible file paths for deep linking',
+                },
+              },
+            },
+          },
+          required: ['propName', 'path', 'componentName'],
         },
       },
       {
@@ -93,28 +205,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             propName: {
               type: 'string',
               description: 'Name of the prop to search for',
-            },
-            path: {
-              type: 'string',
-              description: 'Absolute path to directory to search in. Relative paths are not allowed.',
-            },
-            componentName: {
-              type: 'string',
-              description: 'Optional: limit search to specific component',
-            },
-          },
-          required: ['propName', 'path', 'componentName'],
-        },
-      },
-      {
-        name: 'get_component_props',
-        description: 'Get all props used by a specific component',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            componentName: {
-              type: 'string',
-              description: 'Name of the component to analyze',
             },
             path: {
               type: 'string',
@@ -132,11 +222,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             componentName: {
               type: 'string',
-              description: 'Name of the component to check (e.g., "Select")',
+              description: 'Optional: limit search to specific component',
             },
-            requiredProp: {
+            format: {
               type: 'string',
-              description: 'Name of the required prop (e.g., "width")',
+              enum: ['full', 'compact', 'minimal'],
+              description: 'Response format: full (default), compact, or minimal',
+              default: 'full',
             },
             path: {
               type: 'string',
@@ -173,14 +265,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args.propName as string | undefined,
           (args.includeTypes as boolean) ?? true
         );
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        const isCompact = options.format === 'compact' || options.format === 'minimal';
+        return createResponse(result, isCompact);
       }
 
       case 'find_prop_usage': {
@@ -190,14 +276,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           validatedPath,
           args.componentName as string | undefined
         );
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        
+        const isCompact = (options as any)?.format === 'compact' || (options as any)?.format === 'minimal';
+        return createResponse(result, isCompact);
       }
 
       case 'get_component_props': {
@@ -223,29 +304,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args.requiredProp as string,
           validatedPath
         );
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        
+        const isCompact = options.format === 'compact' || options.format === 'minimal';
+        return createResponse(result, isCompact);
       }
 
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
-      isError: true,
-    };
+    return createErrorResponse(error);
   }
 });
 
@@ -261,17 +329,20 @@ async function main() {
 }
 
 // Handle process signals gracefully
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.error('Received SIGINT, shutting down gracefully...');
+  await loggingService.shutdown();
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.error('Received SIGTERM, shutting down gracefully...');
+  await loggingService.shutdown();
   process.exit(0);
 });
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error('Server error:', error);
+  await loggingService.shutdown();
   process.exit(1);
 });

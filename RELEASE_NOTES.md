@@ -1,5 +1,32 @@
 # Release Notes
 
+## v1.0.2 - EISDIR Error Fix (Latest)
+
+### 🐛 Critical Bug Fix
+- **Fixed EISDIR Error**: Resolved "illegal operation on directory, read" crashes
+- **Enhanced File Handling**: Multiple safety checks for directory detection
+- **Robust Analysis**: Gracefully handles complex file system structures
+- **Better Error Messages**: Improved debugging with detailed error context
+
+### 🔧 Technical Improvements
+- Added `nodir: true` to glob options
+- Multiple `statSync()` verification layers
+- Proper TypeScript error typing
+- Enhanced warning system for problematic paths
+
+## v1.0.1 - Missing Props Detection
+
+### ✨ New Feature
+- **find_components_without_prop**: Find components missing required props
+- **Code Auditing**: Perfect for ensuring consistent prop usage
+- **Smart Spread Handling**: Assumes spread operators might contain required props
+- **Detailed Results**: File locations, line numbers, and existing props listed
+
+### 📊 Use Cases
+- Find Select components without width prop
+- Identify Button components missing onClick handlers
+- Audit accessibility props across components
+
 ## v1.0.0 - Initial Release
 
 ### Features
