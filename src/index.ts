@@ -13,8 +13,33 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { JSXPropAnalyzer } from './jsx-analyzer.js';
-import { loggingService } from './services/logging-service.js';
-import { LoggingMiddleware } from './middleware/logging-middleware.js';
+import * as path from 'path';
+
+/**
+ * Validates that a path is absolute. Rejects relative paths with a hard error.
+ * @param rawPath - The path to validate
+ * @param paramName - The parameter name for error messages
+ * @returns The validated absolute path
+ * @throws Error if path is not absolute
+ */
+function validateAbsolutePath(rawPath: unknown, paramName: string = 'path'): string {
+  if (typeof rawPath !== 'string') {
+    throw new Error(`Invalid argument: ${paramName} must be a string`);
+  }
+
+  const trimmedPath = rawPath.trim();
+  if (!trimmedPath) {
+    throw new Error(`Invalid argument: ${paramName} must be a non-empty string`);
+  }
+
+  if (!path.isAbsolute(trimmedPath)) {
+    const err = new Error(`Relative or non-absolute paths are not allowed. Provide an absolute path for ${paramName}`);
+    (err as any).code = 'INVALID_ABSOLUTE_PATH';
+    throw err;
+  }
+
+  return trimmedPath;
+}
 
 const server = new Server(
   {
@@ -76,11 +101,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             path: {
               type: 'string',
-              description: 'File or directory path to analyze',
+              description: 'Absolute path to file or directory to analyze. Relative paths are not allowed.',
             },
             componentName: {
               type: 'string',
-              description: 'Optional: specific component name to analyze',
+              description: 'Specific component name to analyze',
             },
             propName: {
               type: 'string',
@@ -118,7 +143,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               default: 10,
             },
           },
-          required: ['path'],
+          required: ['path', 'componentName'],
         },
       },
       {
@@ -131,33 +156,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'string',
               description: 'Component type to search for (e.g., "Select", "Button")',
             },
-            propCriteria: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  name: {
-                    type: 'string',
-                    description: 'Prop name',
-                  },
-                  value: {
-                    type: ['string', 'number', 'boolean'],
-                    description: 'Expected prop value',
-                  },
-                  operator: {
-                    type: 'string',
-                    enum: ['equals', 'contains'],
-                    default: 'equals',
-                    description: 'Comparison operator',
-                  },
-                  exists: {
-                    type: 'boolean',
-                    description: 'Whether prop must exist (true) or not exist (false)',
-                  },
-                },
-                required: ['name'],
-              },
-              description: 'Array of prop criteria to match',
+            path: {
+              type: 'string',
+              description: 'Absolute path to directory to search in. Relative paths are not allowed.',
             },
             options: {
               type: 'object',
@@ -192,7 +193,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               },
             },
           },
-          required: ['componentName', 'propCriteria'],
+          required: ['propName', 'path', 'componentName'],
         },
       },
       {
@@ -205,11 +206,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'string',
               description: 'Name of the prop to search for',
             },
-            directory: {
+            path: {
               type: 'string',
-              description: 'Directory to search in',
-              default: '.',
+              description: 'Absolute path to directory to search in. Relative paths are not allowed.',
             },
+          },
+          required: ['componentName', 'path'],
+        },
+      },
+      {
+        name: 'find_components_without_prop',
+        description: 'Find component instances that are missing a required prop (e.g., Select components without width prop)',
+        inputSchema: {
+          type: 'object',
+          properties: {
             componentName: {
               type: 'string',
               description: 'Optional: limit search to specific component',
@@ -220,18 +230,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'Response format: full (default), compact, or minimal',
               default: 'full',
             },
-            includeColumns: {
+            path: {
+              type: 'string',
+              description: 'Absolute path to directory to search in. Relative paths are not allowed.',
+            },
+            assumeSpreadHasRequiredProp: {
               type: 'boolean',
-              description: 'Include column numbers in location data',
+              description: 'If true, any JSX spread attribute is assumed to provide the required prop.',
               default: true,
             },
-            includePrettyPaths: {
-              type: 'boolean',
-              description: 'Include editor-compatible file paths for deep linking',
-              default: false,
-            },
           },
-          required: ['propName'],
+          required: ['componentName', 'requiredProp', 'path'],
         },
       },
     ],
@@ -241,7 +250,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  
+
   if (!args) {
     throw new Error('Missing arguments');
   }
@@ -249,51 +258,51 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'analyze_jsx_props': {
-        const options = {
-          format: (args.format as any) || 'full',
-          includeColumns: args.includeColumns !== false,
-          includePrettyPaths: args.includePrettyPaths === true,
-          respectProjectBoundaries: (args.respectProjectBoundaries as boolean) ?? true,
-          maxDepth: (args.maxDepth as number) ?? 10,
-        };
-        const result = await wrappedAnalyzeProps(
-          args.path as string,
-          {
-            componentName: args.componentName as string | undefined,
-            propName: args.propName as string | undefined,
-            includeTypes: (args.includeTypes as boolean) ?? true,
-            ...options
-          }
+        const validatedPath = validateAbsolutePath(args.path, 'path');
+        const result = await analyzer.analyzeProps(
+          validatedPath,
+          args.componentName as string | undefined,
+          args.propName as string | undefined,
+          (args.includeTypes as boolean) ?? true
         );
         const isCompact = options.format === 'compact' || options.format === 'minimal';
         return createResponse(result, isCompact);
       }
 
-      case 'query_components': {
-        const { componentName, propCriteria, options = {} } = args;
-        
-        const result = await wrappedQueryComponents(
-          componentName as string,
-          propCriteria as any[],
-          options as any
+      case 'find_prop_usage': {
+        const validatedPath = validateAbsolutePath(args.path, 'path');
+        const result = await analyzer.findPropUsage(
+          args.propName as string,
+          validatedPath,
+          args.componentName as string | undefined
         );
         
         const isCompact = (options as any)?.format === 'compact' || (options as any)?.format === 'minimal';
         return createResponse(result, isCompact);
       }
 
-      case 'find_prop_usage': {
-        const options = {
-          format: (args.format as any) || 'full',
-          includeColumns: args.includeColumns !== false,
-          includePrettyPaths: args.includePrettyPaths === true,
+      case 'get_component_props': {
+        const validatedPath = validateAbsolutePath(args.path, 'path');
+        const result = await analyzer.getComponentProps(
+          args.componentName as string,
+          validatedPath
+        );
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
         };
-        
-        const result = await analyzer.findPropUsage(
-          args.propName as string,
-          (args.directory as string) || '.',
-          args.componentName as string | undefined,
-          options
+      }
+
+      case 'find_components_without_prop': {
+        const validatedPath = validateAbsolutePath(args.path, 'path');
+        const result = await analyzer.findComponentsWithoutProp(
+          args.componentName as string,
+          args.requiredProp as string,
+          validatedPath
         );
         
         const isCompact = options.format === 'compact' || options.format === 'minimal';
