@@ -3,24 +3,39 @@
 ## Quick Start
 
 ### Option 1: Use with npx (Recommended)
+
 ```bash
 npx jsx-prop-lookup-mcp-server
 ```
 
 ### Option 2: Development Setup
+
 1. **Install dependencies:**
+
    ```bash
-   npm install
+
+   bun install
+
    ```
+
+
 
 2. **Build the server:**
+
    ```bash
-   npm run build
+
+   bun run build
+
    ```
 
+
+
 3. **Test the server:**
+
    ```bash
-   npm start
+
+   bun run start
+
    ```
 
 ## Example Usage
@@ -30,15 +45,18 @@ The server successfully analyzes JSX prop usage as demonstrated with the sample 
 ### Sample Analysis Results
 
 **Button Component Props:**
+
 - `children`, `onClick`, `disabled`, `variant`, `className`, `...rest`
 - Includes TypeScript interface: `ButtonProps`
 
 **onClick Prop Usage Found:**
+
 - Button component definition (parameter destructuring)
 - Button JSX element usage in App component
 - Native button element in Button component
 
 **Key Features Demonstrated:**
+
 - ✅ AST-based parsing of JSX/TSX files
 - ✅ Component prop extraction from function parameters
 - ✅ JSX element prop usage tracking
@@ -50,6 +68,7 @@ The server successfully analyzes JSX prop usage as demonstrated with the sample 
 ## MCP Integration
 
 ### Using with npx (Recommended)
+
 Add to your MCP client configuration:
 
 ```json
@@ -64,11 +83,12 @@ Add to your MCP client configuration:
 ```
 
 ### Using with local development
+
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
-      "command": "node",
+      "command": "bun",
       "args": ["dist/index.js"],
       "cwd": "/path/to/jsx-prop-lookup-mcp-server"
     }

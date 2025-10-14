@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React from "react";
 
 export interface ButtonProps {
   onClick: () => void;
@@ -7,7 +6,11 @@ export interface ButtonProps {
   disabled?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({ onClick, children, disabled }) => {
+export const Button: React.FC<ButtonProps> = ({
+  onClick,
+  children,
+  disabled,
+}) => {
   return (
     <button onClick={onClick} disabled={disabled}>
       {children}

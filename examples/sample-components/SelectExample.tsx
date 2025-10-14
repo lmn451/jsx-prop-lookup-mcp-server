@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface SelectProps {
   options: string[];
@@ -9,17 +9,17 @@ interface SelectProps {
   disabled?: boolean;
 }
 
-const Select: React.FC<SelectProps> = ({ 
-  options, 
-  value, 
-  onChange, 
-  width, 
-  placeholder, 
-  disabled 
+const Select: React.FC<SelectProps> = ({
+  options,
+  value,
+  onChange,
+  width,
+  placeholder,
+  disabled,
 }) => {
   return (
-    <select 
-      value={value} 
+    <select
+      value={value}
       onChange={(e) => onChange?.(e.target.value)}
       style={{ width }}
       disabled={disabled}
@@ -38,35 +38,25 @@ const ExampleUsage: React.FC = () => {
   return (
     <div>
       {/* This Select has width prop - GOOD */}
-      <Select 
-        options={['Option 1', 'Option 2', 'Option 3']}
+      <Select
+        options={["Option 1", "Option 2", "Option 3"]}
         width="200px"
         placeholder="Choose an option"
       />
-      
+
       {/* This Select is missing width prop - SHOULD BE FLAGGED */}
-      <Select 
-        options={['A', 'B', 'C']}
-        placeholder="Select letter"
-      />
-      
+      <Select options={["A", "B", "C"]} placeholder="Select letter" />
+
       {/* This Select has width prop - GOOD */}
-      <Select 
-        options={['Red', 'Green', 'Blue']}
-        width={150}
-        value="Red"
-      />
-      
+      <Select options={["Red", "Green", "Blue"]} width={150} value="Red" />
+
       {/* This Select is missing width prop - SHOULD BE FLAGGED */}
-      <Select 
-        options={['Small', 'Medium', 'Large']}
-        disabled={true}
-      />
-      
+      <Select options={["Small", "Medium", "Large"]} disabled={true} />
+
       {/* This Select has spread props - ASSUMED GOOD (might contain width) */}
-      <Select 
-        options={['X', 'Y', 'Z']}
-        {...{ width: '100px', placeholder: 'Pick one' }}
+      <Select
+        options={["X", "Y", "Z"]}
+        {...{ width: "100px", placeholder: "Pick one" }}
       />
     </div>
   );

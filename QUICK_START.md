@@ -1,10 +1,35 @@
 # Quick Start Guide
 
-## 🚀 Use with npx (No Installation Required!)
+This project can be used as a standalone CLI or as an MCP server.
 
-The easiest way to use the JSX Prop Lookup MCP Server:
+## 🚀 Standalone CLI (Recommended)
 
-### 1. Add to your MCP client configuration:
+The easiest way to use the tool is with the `jsx-analyzer` command-line interface.
+
+### 1. Install the CLI:
+
+```bash
+bun install -g jsx-prop-lookup-mcp-server
+```
+
+### 2. Run a command:
+
+```bash
+# Get help
+jsx-analyzer --help
+
+# Analyze props in the current directory
+jsx-analyzer analyze_jsx_props --path .
+
+# Find where a specific prop is used
+jsx-analyzer find_prop_usage --propName onClick --path ./src
+```
+
+## 🔧 MCP Server Usage
+
+If you want to use the tool as an MCP server, you can do so with `npx` or by running it directly.
+
+### Add to your MCP client configuration:
 
 ```json
 {
@@ -17,73 +42,4 @@ The easiest way to use the JSX Prop Lookup MCP Server:
 }
 ```
 
-### 2. That's it! 
-
-The server will be automatically downloaded and run when your MCP client needs it.
-
-## 🔧 Popular MCP Clients
-
-### Claude Desktop
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "jsx-prop-lookup": {
-      "command": "npx",
-      "args": ["jsx-prop-lookup-mcp-server"]
-    }
-  }
-}
-```
-
-### Cline (VS Code Extension)
-Add to your Cline MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "jsx-prop-lookup": {
-      "command": "npx",
-      "args": ["jsx-prop-lookup-mcp-server"]
-    }
-  }
-}
-```
-
-## 📝 Example Usage
-
-Once configured, you can use these tools in your MCP client:
-
-1. **Analyze entire project:**
-   ```
-   Use the analyze_jsx_props tool on "./src" to find all React component props
-   ```
-
-2. **Find specific prop usage:**
-   ```
-   Use find_prop_usage to search for "onClick" prop usage in my codebase
-   ```
-
-3. **Get component props:**
-   ```
-   Use get_component_props to analyze the "Button" component
-   ```
-
-## 🎯 Benefits of npx approach:
-
-- ✅ **No global installation** required
-- ✅ **Always latest version** automatically
-- ✅ **Zero maintenance** - updates happen automatically
-- ✅ **Works anywhere** Node.js is installed
-- ✅ **Perfect for CI/CD** environments
-
-## 🔍 What it analyzes:
-
-- React functional components
-- TypeScript interfaces  
-- JSX prop usage
-- Prop destructuring
-- Spread operators
-- Component hierarchies
-- Prop values and types
+Once configured, you can use the tools (`analyze_jsx_props`, `find_prop_usage`, etc.) in your MCP client.

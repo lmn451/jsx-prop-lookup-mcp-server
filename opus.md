@@ -22,9 +22,11 @@ This document provides a comprehensive architectural analysis of the JSX Prop Lo
 ## Project Overview
 
 ### Purpose
+
 The JSX Prop Lookup MCP Server is an AST-based analysis tool for React/TypeScript codebases that provides deep insights into component prop usage patterns. It leverages Babel's robust parsing capabilities to analyze JSX and TSX files, enabling developers to audit, refactor, and maintain large-scale React applications.
 
 ### Value Proposition
+
 - **Large-scale refactoring support**: Enables systematic prop usage analysis across monorepos and multi-package projects
 - **Missing prop detection**: Identifies components lacking required props, preventing runtime errors
 - **Component contract inventory**: Maps prop interfaces and usage patterns across entire codebases
@@ -32,6 +34,7 @@ The JSX Prop Lookup MCP Server is an AST-based analysis tool for React/TypeScrip
 - **Design system migration**: Facilitates transitions between component libraries by identifying usage patterns
 
 ### Primary Use Cases
+
 1. **Design System Migrations**: Audit existing component usage before migrating to new design systems
 2. **Code Quality Audits**: Ensure prop consistency and identify anti-patterns across teams
 3. **Developer Productivity**: Accelerate discovery of component contracts and impact analysis
@@ -39,6 +42,7 @@ The JSX Prop Lookup MCP Server is an AST-based analysis tool for React/TypeScrip
 5. **Documentation Generation**: Auto-generate prop usage documentation from actual code
 
 ### Non-Goals
+
 - Full semantic type analysis beyond AST shape recognition
 - Cross-project dependency graph resolution
 - Static type correctness guarantees
@@ -46,6 +50,7 @@ The JSX Prop Lookup MCP Server is an AST-based analysis tool for React/TypeScrip
 - CSS-in-JS or styling analysis
 
 ### Current Technical Stack
+
 - **Runtime**: Node.js 18+ with ESM modules
 - **Language**: TypeScript 5.0+
 - **Protocol**: MCP SDK 0.4.0 for stdio transport
@@ -61,18 +66,23 @@ The JSX Prop Lookup MCP Server is an AST-based analysis tool for React/TypeScrip
 ### System Design Patterns
 
 #### Protocol Adapter Pattern
+
 The server implements a protocol adapter pattern, translating MCP protocol requests into domain-specific analysis operations:
+
 ```
 MCP Client → StdioTransport → Server → Tool Handlers → Analyzer → Results
 ```
 
 #### Thin Server, Thick Analyzer
+
 - **Server Layer** (`src/index.ts`): Minimal orchestration, focused on protocol handling
 - **Analyzer Layer** (`src/jsx-analyzer.ts`): Heavy business logic for AST analysis
 - **Separation of Concerns**: Clear boundary between protocol and domain logic
 
 #### Visitor Pattern
+
 Leverages Babel's traverse visitor pattern for efficient AST walking:
+
 - Declarative node type handlers
 - Automatic recursion management
 - Path-based context preservation
@@ -80,7 +90,9 @@ Leverages Babel's traverse visitor pattern for efficient AST walking:
 ### Core Components
 
 #### 1. MCP Server (`src/index.ts`)
+
 **Responsibilities:**
+
 - Protocol initialization with MCP SDK
 - Tool registration and schema definition
 - Request routing to analyzer methods
@@ -88,42 +100,46 @@ Leverages Babel's traverse visitor pattern for efficient AST walking:
 - Process lifecycle management
 
 **Key elements:**
+
 - `Server` instance with capabilities declaration
 - `StdioServerTransport` for communication
 - Tool handlers mapping to analyzer methods
 - Signal handlers for graceful shutdown
 
 #### 2. JSX Analyzer (`src/jsx-analyzer.ts`)
+
 **Responsibilities:**
+
 - File discovery and validation
 - AST parsing with Babel
 - Traversal and prop extraction
 - Result aggregation and formatting
 
 **Data Models:**
+
 ```typescript
 interface PropUsage {
-  propName: string
-  componentName: string
-  file: string
-  line: number
-  column: number
-  value?: string
-  isSpread?: boolean
-  type?: string
+  propName: string;
+  componentName: string;
+  file: string;
+  line: number;
+  column: number;
+  value?: string;
+  isSpread?: boolean;
+  type?: string;
 }
 
 interface ComponentAnalysis {
-  componentName: string
-  file: string
-  props: PropUsage[]
-  propsInterface?: string
+  componentName: string;
+  file: string;
+  props: PropUsage[];
+  propsInterface?: string;
 }
 
 interface AnalysisResult {
-  summary: { totalFiles, totalComponents, totalProps }
-  components: ComponentAnalysis[]
-  propUsages: PropUsage[]
+  summary: { totalFiles; totalComponents; totalProps };
+  components: ComponentAnalysis[];
+  propUsages: PropUsage[];
 }
 ```
 
@@ -141,12 +157,14 @@ interface AnalysisResult {
 ### Technology Stack Evaluation
 
 #### Strengths
+
 - **Babel Parser**: Excellent JSX/TSX support with comprehensive plugin ecosystem
 - **MCP SDK**: Standardized protocol ensures compatibility
 - **TypeScript**: Type safety for development (though underutilized)
 - **ESM Modules**: Modern module system for better tree-shaking
 
 #### Weaknesses
+
 - **Synchronous I/O**: Blocks event loop on large codebases
 - **No Concurrency**: Sequential file processing limits performance
 - **Limited Type Safety**: `noImplicitAny: false` and `any` types prevalent
@@ -159,7 +177,9 @@ interface AnalysisResult {
 ### TypeScript Usage and Type Safety
 
 #### Current Issues
+
 1. **Loose Type Configuration**
+
    - `noImplicitAny: false` in tsconfig.json allows implicit `any` types
    - `@ts-ignore` used for Babel traverse import (line 3, jsx-analyzer.ts)
    - Multiple `any` typed parameters in traversal callbacks
@@ -172,10 +192,11 @@ interface AnalysisResult {
    ```
 
 #### Recommendations
+
 1. Enable `noImplicitAny: true` in tsconfig.json
 2. Fix traverse import with proper type handling:
    ```typescript
-   import traverse, { NodePath } from '@babel/traverse'
+   import traverse, { NodePath } from "@babel/traverse";
    ```
 3. Add explicit types for all AST paths and callbacks
 4. Create type guards for AST node types
@@ -183,13 +204,16 @@ interface AnalysisResult {
 ### Error Handling Patterns
 
 #### Current State
+
 - Multiple try-catch blocks with inconsistent handling
 - Mix of `console.error` and `console.warn` for logging
 - Generic error messages lacking context
 - Silent failures in some code paths
 
 #### Issues Identified
+
 1. **Inconsistent Error Propagation** (lines 51-58, jsx-analyzer.ts)
+
    ```typescript
    } catch (error) {
      console.error(`Error analyzing file ${file}:`, error);
@@ -199,32 +223,35 @@ interface AnalysisResult {
 
 2. **Generic Error Messages** (line 211, index.ts)
    ```typescript
-   text: `Error: ${error instanceof Error ? error.message : String(error)}`
+   text: `Error: ${error instanceof Error ? error.message : String(error)}`;
    // Lacks context about which operation failed
    ```
 
 #### Recommendations
+
 1. **Centralized Error Utility**
+
    ```typescript
    class AnalyzerError extends Error {
      constructor(
        message: string,
        public code: string,
-       public context?: Record<string, unknown>
+       public context?: Record<string, unknown>,
      ) {
-       super(message)
+       super(message);
      }
    }
    ```
 
 2. **Structured Error Responses**
+
    ```typescript
    interface ErrorResponse {
-     code: string
-     message: string
-     details?: Record<string, unknown>
-     file?: string
-     line?: number
+     code: string;
+     message: string;
+     details?: Record<string, unknown>;
+     file?: string;
+     line?: number;
    }
    ```
 
@@ -233,12 +260,15 @@ interface AnalysisResult {
 ### Code Organization and Modularity
 
 #### Strengths
+
 - Clear separation between server and analyzer
 - Well-defined data models
 - Consistent naming conventions
 
 #### Weaknesses
+
 1. **Analyzer Class Doing Too Much**
+
    - File I/O operations
    - AST parsing
    - Traversal logic
@@ -249,7 +279,9 @@ interface AnalysisResult {
    - Similar error handling patterns throughout
 
 #### Recommendations
+
 1. **Split Analyzer into Modules**
+
    ```
    src/
    ├── services/
@@ -267,13 +299,13 @@ interface AnalysisResult {
 2. **Extract Constants**
    ```typescript
    const BABEL_PARSER_OPTIONS = {
-     sourceType: 'module' as const,
+     sourceType: "module" as const,
      plugins: [
-       'jsx',
-       'typescript',
+       "jsx",
+       "typescript",
        // ... other plugins
-     ]
-   }
+     ],
+   };
    ```
 
 ---
@@ -283,93 +315,105 @@ interface AnalysisResult {
 ### Tool: `analyze_jsx_props`
 
 **Current Design:**
+
 - **Inputs**: `path` (required), `componentName`, `propName`, `includeTypes` (default: true)
 - **Output**: `AnalysisResult` with summary, components, and propUsages
 
 **Issues:**
+
 - No pagination for large result sets
 - No file size or count limits
 - Mixed concerns (components and usages in same response)
 
 **Recommendations:**
+
 ```typescript
 interface AnalyzePropsInput {
-  path: string
-  componentName?: string
-  propName?: string
-  includeTypes?: boolean
+  path: string;
+  componentName?: string;
+  propName?: string;
+  includeTypes?: boolean;
   // New additions:
-  maxResults?: number      // Default: 1000
-  offset?: number          // Default: 0
-  maxFileSize?: number     // Default: 5MB
-  ignorePatterns?: string[] // Additional ignore patterns
-  includeComponents?: boolean // Default: true
-  includeUsages?: boolean    // Default: true
+  maxResults?: number; // Default: 1000
+  offset?: number; // Default: 0
+  maxFileSize?: number; // Default: 5MB
+  ignorePatterns?: string[]; // Additional ignore patterns
+  includeComponents?: boolean; // Default: true
+  includeUsages?: boolean; // Default: true
 }
 ```
 
 ### Tool: `find_prop_usage`
 
 **Current Design:**
+
 - **Inputs**: `propName` (required), `directory` (default: '.'), `componentName`
 - **Output**: Array of `PropUsage`
 
 **Issues:**
+
 - Inconsistent naming (`directory` vs `path`)
 - No case sensitivity control
 - No result limiting
 
 **Recommendations:**
+
 ```typescript
 interface FindPropUsageInput {
-  propName: string
-  path?: string            // Renamed from directory
-  componentName?: string
-  caseSensitive?: boolean  // Default: true
-  maxResults?: number      // Default: 500
-  offset?: number         // Default: 0
-  extensions?: string[]   // Default: ['.tsx', '.jsx', '.ts', '.js']
+  propName: string;
+  path?: string; // Renamed from directory
+  componentName?: string;
+  caseSensitive?: boolean; // Default: true
+  maxResults?: number; // Default: 500
+  offset?: number; // Default: 0
+  extensions?: string[]; // Default: ['.tsx', '.jsx', '.ts', '.js']
 }
 ```
 
 ### Tool: `get_component_props`
 
 **Current Design:**
+
 - **Inputs**: `componentName` (required), `directory` (default: '.')
 - **Output**: Array of `ComponentAnalysis`
 
 **Issues:**
+
 - No type detail options
 - Inconsistent response format (unwrapped array)
 - Missing summary information
 
 **Recommendations:**
+
 ```typescript
 interface GetComponentPropsResponse {
-  ok: boolean
+  ok: boolean;
   data: {
-    components: ComponentAnalysis[]
+    components: ComponentAnalysis[];
     summary: {
-      totalInstances: number
-      uniqueProps: string[]
-      files: string[]
-    }
-  }
-  errors: ErrorResponse[]
+      totalInstances: number;
+      uniqueProps: string[];
+      files: string[];
+    };
+  };
+  errors: ErrorResponse[];
 }
 ```
 
 ### Tool: `find_components_without_prop`
 
 **Current Design:**
+
 - **Inputs**: `componentName`, `requiredProp` (required), `directory` (default: '.')
 - **Output**: Object with `missingPropUsages` and `summary`
 
 **Critical Bug:**
+
 - `totalInstances` equals `missingPropCount` (line 207, jsx-analyzer.ts)
 - Should count all component instances, not just missing ones
 
 **Recommendations:**
+
 ```typescript
 interface FindComponentsWithoutPropInput {
   componentName: string
@@ -388,20 +432,22 @@ const percentage = (missingCount / allInstances) * 100
 ### Cross-Cutting Recommendations
 
 1. **Standardized Response Envelope**
+
    ```typescript
    interface ToolResponse<T> {
-     ok: boolean
-     data?: T
-     errors?: ErrorResponse[]
+     ok: boolean;
+     data?: T;
+     errors?: ErrorResponse[];
      metadata?: {
-       duration: number
-       filesProcessed: number
-       truncated?: boolean
-     }
+       duration: number;
+       filesProcessed: number;
+       truncated?: boolean;
+     };
    }
    ```
 
 2. **Consistent Parameter Naming**
+
    - Use `path` consistently (not `directory`)
    - Use camelCase throughout
    - Add JSDoc comments for all parameters
@@ -409,10 +455,10 @@ const percentage = (missingCount / allInstances) * 100
 3. **Result Streaming for Large Datasets**
    ```typescript
    interface StreamableResponse {
-     chunk: number
-     totalChunks: number
-     hasMore: boolean
-     data: unknown[]
+     chunk: number;
+     totalChunks: number;
+     hasMore: boolean;
+     data: unknown[];
    }
    ```
 
@@ -423,16 +469,19 @@ const percentage = (missingCount / allInstances) * 100
 ### Current Performance Characteristics
 
 #### Synchronous I/O Operations
+
 - `readFileSync` and `statSync` block the event loop
 - Sequential file processing with no parallelization
 - No streaming for large files
 
 #### Memory Consumption
+
 - Entire AST held in memory per file
 - No garbage collection hints
 - Accumulates all results before returning
 
 #### CPU Utilization
+
 - Single-threaded parsing and traversal
 - No work distribution across cores
 - Repeated parsing of same files
@@ -440,11 +489,13 @@ const percentage = (missingCount / allInstances) * 100
 ### Identified Bottlenecks
 
 1. **File Discovery** (lines 220-254, jsx-analyzer.ts)
+
    - Synchronous glob operations
    - Multiple stat calls per file
    - No early termination on limits
 
 2. **AST Parsing** (lines 294-312, jsx-analyzer.ts)
+
    - Blocking parse operations
    - No timeout mechanism
    - Full file parsing even for targeted searches
@@ -457,104 +508,106 @@ const percentage = (missingCount / allInstances) * 100
 ### Performance Recommendations
 
 #### 1. Async I/O with Bounded Concurrency
-```typescript
-import { promises as fs } from 'node:fs'
-import pLimit from 'p-limit'
 
-const limit = pLimit(8) // Process 8 files concurrently
+```typescript
+import { promises as fs } from "node:fs";
+import pLimit from "p-limit";
+
+const limit = pLimit(8); // Process 8 files concurrently
 
 async function analyzeFiles(files: string[]) {
-  return Promise.all(
-    files.map(file => 
-      limit(() => this.analyzeFile(file))
-    )
-  )
+  return Promise.all(files.map((file) => limit(() => this.analyzeFile(file))));
 }
 ```
 
 #### 2. AST Caching
+
 ```typescript
 class ASTCache {
-  private cache = new Map<string, { ast: any, mtime: number }>()
-  
+  private cache = new Map<string, { ast: any; mtime: number }>();
+
   async get(filePath: string) {
-    const stats = await fs.stat(filePath)
-    const cached = this.cache.get(filePath)
-    
+    const stats = await fs.stat(filePath);
+    const cached = this.cache.get(filePath);
+
     if (cached && cached.mtime === stats.mtimeMs) {
-      return cached.ast
+      return cached.ast;
     }
-    
-    const content = await fs.readFile(filePath, 'utf-8')
-    const ast = parse(content, BABEL_PARSER_OPTIONS)
-    
-    this.cache.set(filePath, { ast, mtime: stats.mtimeMs })
-    return ast
+
+    const content = await fs.readFile(filePath, "utf-8");
+    const ast = parse(content, BABEL_PARSER_OPTIONS);
+
+    this.cache.set(filePath, { ast, mtime: stats.mtimeMs });
+    return ast;
   }
 }
 ```
 
 #### 3. Request-Level Limits
+
 ```typescript
 interface PerformanceLimits {
-  maxFiles?: number         // Default: 1000
-  maxFileSizeBytes?: number // Default: 5 * 1024 * 1024
-  timeoutMs?: number        // Default: 30000
+  maxFiles?: number; // Default: 1000
+  maxFileSizeBytes?: number; // Default: 5 * 1024 * 1024
+  timeoutMs?: number; // Default: 30000
 }
 
 async function analyzeWithLimits(path: string, limits: PerformanceLimits) {
   const timeout = setTimeout(() => {
-    throw new Error('Analysis timeout exceeded')
-  }, limits.timeoutMs)
-  
+    throw new Error("Analysis timeout exceeded");
+  }, limits.timeoutMs);
+
   try {
     // ... analysis logic
   } finally {
-    clearTimeout(timeout)
+    clearTimeout(timeout);
   }
 }
 ```
 
 #### 4. Worker Thread Pool for Parsing
+
 ```typescript
-import { Worker } from 'node:worker_threads'
-import os from 'node:os'
+import { Worker } from "node:worker_threads";
+import os from "node:os";
 
 class ParserPool {
-  private workers: Worker[] = []
-  private queue: Array<{ resolve: Function, reject: Function, task: any }> = []
-  
+  private workers: Worker[] = [];
+  private queue: Array<{ resolve: Function; reject: Function; task: any }> = [];
+
   constructor(size = os.cpus().length) {
     for (let i = 0; i < size; i++) {
-      this.workers.push(new Worker('./parser-worker.js'))
+      this.workers.push(new Worker("./parser-worker.js"));
     }
   }
-  
+
   async parse(content: string, options: any) {
     return new Promise((resolve, reject) => {
-      this.queue.push({ resolve, reject, task: { content, options } })
-      this.processQueue()
-    })
+      this.queue.push({ resolve, reject, task: { content, options } });
+      this.processQueue();
+    });
   }
 }
 ```
 
 #### 5. Incremental Processing
+
 ```typescript
 async function* analyzeIncremental(files: string[]) {
-  const CHUNK_SIZE = 100
-  
+  const CHUNK_SIZE = 100;
+
   for (let i = 0; i < files.length; i += CHUNK_SIZE) {
-    const chunk = files.slice(i, i + CHUNK_SIZE)
+    const chunk = files.slice(i, i + CHUNK_SIZE);
     const results = await Promise.all(
-      chunk.map(file => this.analyzeFile(file))
-    )
-    yield results
+      chunk.map((file) => this.analyzeFile(file)),
+    );
+    yield results;
   }
 }
 ```
 
 ### Performance Metrics to Track
+
 - File processing rate (files/second)
 - Memory usage over time
 - P95 response times
@@ -568,22 +621,26 @@ async function* analyzeIncremental(files: string[]) {
 ### Current Security Posture
 
 #### Strengths
+
 - Stdio transport limits network attack surface
 - No external network calls
 - Read-only file operations
 
 #### Weaknesses
+
 1. **Weak Node Version Check** (lines 4-7, index.ts)
+
    ```typescript
    // Current: String manipulation
    if (process.version.split('.')[0].slice(1) < '18')
-   
+
    // Should be: Semantic versioning
    import semver from 'semver'
    if (!semver.satisfies(process.versions.node, '>=18.0.0'))
    ```
 
 2. **Missing Process Handlers**
+
    - No `unhandledRejection` handler
    - No `uncaughtException` handler
    - Potential for silent failures
@@ -596,106 +653,115 @@ async function* analyzeIncremental(files: string[]) {
 ### Security Threats and Mitigations
 
 #### 1. Path Traversal Attacks
+
 **Threat**: Malicious paths like `../../etc/passwd`
 
 **Mitigation**:
+
 ```typescript
-import path from 'node:path'
+import path from "node:path";
 
 function validatePath(targetPath: string, allowedRoot: string) {
-  const resolved = path.resolve(targetPath)
-  const root = path.resolve(allowedRoot)
-  
+  const resolved = path.resolve(targetPath);
+  const root = path.resolve(allowedRoot);
+
   if (!resolved.startsWith(root)) {
-    throw new Error('Path outside allowed directory')
+    throw new Error("Path outside allowed directory");
   }
-  
-  return resolved
+
+  return resolved;
 }
 ```
 
 #### 2. Denial of Service
+
 **Threat**: Analyzing massive codebases or infinite loops
 
 **Mitigation**:
+
 ```typescript
 const LIMITS = {
   MAX_FILES: 10000,
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-  MAX_EXECUTION_TIME: 60000 // 60 seconds
-}
+  MAX_EXECUTION_TIME: 60000, // 60 seconds
+};
 
 function enforeLimits(files: string[]) {
   if (files.length > LIMITS.MAX_FILES) {
-    throw new Error(`File count exceeds limit: ${LIMITS.MAX_FILES}`)
+    throw new Error(`File count exceeds limit: ${LIMITS.MAX_FILES}`);
   }
 }
 ```
 
 #### 3. Parser Exploits
+
 **Threat**: Malformed code causing parser crashes
 
 **Mitigation**:
+
 ```typescript
 async function safeParse(content: string, timeout = 5000) {
   return Promise.race([
     parseInWorker(content),
-    new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Parse timeout')), timeout)
-    )
-  ])
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Parse timeout")), timeout),
+    ),
+  ]);
 }
 ```
 
 ### Reliability Improvements
 
 #### 1. Global Error Handlers
-```typescript
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection:', reason)
-  // Log to monitoring service
-  process.exit(1)
-})
 
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error)
+```typescript
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection:", reason);
+  // Log to monitoring service
+  process.exit(1);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
   // Attempt graceful shutdown
-  process.exit(1)
-})
+  process.exit(1);
+});
 ```
 
 #### 2. Health Checks
+
 ```typescript
 class HealthMonitor {
-  private lastActivity = Date.now()
-  private activeRequests = 0
-  
+  private lastActivity = Date.now();
+  private activeRequests = 0;
+
   isHealthy(): boolean {
-    const idle = Date.now() - this.lastActivity
-    return idle < 300000 && this.activeRequests < 100
+    const idle = Date.now() - this.lastActivity;
+    return idle < 300000 && this.activeRequests < 100;
   }
 }
 ```
 
 #### 3. Circuit Breaker Pattern
+
 ```typescript
 class CircuitBreaker {
-  private failures = 0
-  private lastFailure = 0
-  private state: 'closed' | 'open' | 'half-open' = 'closed'
-  
+  private failures = 0;
+  private lastFailure = 0;
+  private state: "closed" | "open" | "half-open" = "closed";
+
   async execute<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.state === 'open') {
-      throw new Error('Circuit breaker is open')
+    if (this.state === "open") {
+      throw new Error("Circuit breaker is open");
     }
-    
+
     try {
-      const result = await fn()
-      this.onSuccess()
-      return result
+      const result = await fn();
+      this.onSuccess();
+      return result;
     } catch (error) {
-      this.onFailure()
-      throw error
+      this.onFailure();
+      throw error;
     }
   }
 }
@@ -708,12 +774,14 @@ class CircuitBreaker {
 ### Current Workflow
 
 #### Development
+
 - **Hot Reload**: `npm run dev` uses tsx for development
 - **Type Checking**: Manual via `tsc --noEmit`
 - **Building**: `npm run build` compiles to dist/
 - **Publishing**: `prepublishOnly` hook ensures build
 
 #### Gaps
+
 - No automated testing
 - No linting configuration
 - No code formatting standards
@@ -723,6 +791,7 @@ class CircuitBreaker {
 ### Recommended Development Setup
 
 #### 1. Enhanced NPM Scripts
+
 ```json
 {
   "scripts": {
@@ -741,21 +810,23 @@ class CircuitBreaker {
 ```
 
 #### 2. Testing Strategy
+
 ```typescript
 // src/__tests__/analyzer.test.ts
-import { describe, it, expect } from 'vitest'
-import { JSXPropAnalyzer } from '../jsx-analyzer'
+import { describe, it, expect } from "vitest";
+import { JSXPropAnalyzer } from "../jsx-analyzer";
 
-describe('JSXPropAnalyzer', () => {
-  it('should find props in function components', async () => {
-    const analyzer = new JSXPropAnalyzer()
-    const result = await analyzer.analyzeProps('./fixtures/simple.tsx')
-    expect(result.propUsages).toHaveLength(3)
-  })
-})
+describe("JSXPropAnalyzer", () => {
+  it("should find props in function components", async () => {
+    const analyzer = new JSXPropAnalyzer();
+    const result = await analyzer.analyzeProps("./fixtures/simple.tsx");
+    expect(result.propUsages).toHaveLength(3);
+  });
+});
 ```
 
 #### 3. CI/CD Pipeline (GitHub Actions)
+
 ```yaml
 name: CI
 
@@ -771,13 +842,13 @@ jobs:
     strategy:
       matrix:
         node-version: [18, 20]
-    
+
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-      
+
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
@@ -788,12 +859,10 @@ jobs:
 #### 4. Development Tools Configuration
 
 **.eslintrc.json**
+
 ```json
 {
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended"
-  ],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   "rules": {
     "no-console": "warn",
     "@typescript-eslint/no-explicit-any": "error",
@@ -803,6 +872,7 @@ jobs:
 ```
 
 **.prettierrc**
+
 ```json
 {
   "semi": false,
@@ -813,6 +883,7 @@ jobs:
 ```
 
 #### 5. Release Process
+
 ```json
 {
   "engines": {
@@ -828,20 +899,22 @@ jobs:
 ```
 
 ### Bundling Optimization
+
 Consider using `tsup` for optimized bundles:
+
 ```typescript
 // tsup.config.ts
-import { defineConfig } from 'tsup'
+import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ['src/index.ts'],
-  format: ['esm'],
+  entry: ["src/index.ts"],
+  format: ["esm"],
   dts: true,
   splitting: false,
   sourcemap: true,
   clean: true,
-  minify: true
-})
+  minify: true,
+});
 ```
 
 ---
@@ -853,17 +926,16 @@ export default defineConfig({
 **Current State**: Inconsistent error handling with silent failures
 
 **Recommendation**: Implement Result pattern
+
 ```typescript
-type Result<T, E = Error> = 
-  | { ok: true; value: T }
-  | { ok: false; error: E }
+type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E };
 
 function parseFile(path: string): Result<AST> {
   try {
-    const ast = parse(content)
-    return { ok: true, value: ast }
+    const ast = parse(content);
+    return { ok: true, value: ast };
   } catch (error) {
-    return { ok: false, error }
+    return { ok: false, error };
   }
 }
 ```
@@ -876,6 +948,7 @@ function parseFile(path: string): Result<AST> {
 **Current State**: Synchronous, single-threaded processing
 
 **Recommendations**:
+
 - Implement async I/O with p-limit (Impact: High, Complexity: Low)
 - Add AST caching by file mtime (Impact: High, Complexity: Medium)
 - Introduce worker threads for parsing (Impact: Medium, Complexity: High)
@@ -885,26 +958,27 @@ function parseFile(path: string): Result<AST> {
 **Current State**: No tests
 
 **Recommendations**:
+
 ```typescript
 // Unit tests for core logic
-describe('PropExtractor', () => {
-  it('extracts props from JSX elements')
-  it('handles spread attributes')
-  it('identifies missing props')
-})
+describe("PropExtractor", () => {
+  it("extracts props from JSX elements");
+  it("handles spread attributes");
+  it("identifies missing props");
+});
 
 // Integration tests for MCP server
-describe('MCP Server', () => {
-  it('responds to analyze_jsx_props')
-  it('handles malformed requests')
-})
+describe("MCP Server", () => {
+  it("responds to analyze_jsx_props");
+  it("handles malformed requests");
+});
 
 // Benchmark tests
-describe('Performance', () => {
-  bench('analyze 1000 files', async () => {
-    await analyzer.analyzeProps('./large-codebase')
-  })
-})
+describe("Performance", () => {
+  bench("analyze 1000 files", async () => {
+    await analyzer.analyzeProps("./large-codebase");
+  });
+});
 ```
 
 **Impact**: Critical - Ensures correctness and prevents regressions
@@ -915,6 +989,7 @@ describe('Performance', () => {
 **Current State**: Basic README with usage examples
 
 **Recommendations**:
+
 - Add API reference with all parameters
 - Include performance tuning guide
 - Create troubleshooting section
@@ -927,21 +1002,23 @@ describe('Performance', () => {
 ### 5. Feature Enhancements
 
 #### TypeScript Type Extraction
+
 ```typescript
 // Support type aliases
 type ButtonProps = {
-  variant: 'primary' | 'secondary'
-  size: 'sm' | 'md' | 'lg'
-}
+  variant: "primary" | "secondary";
+  size: "sm" | "md" | "lg";
+};
 
 // Extract and include in analysis
 interface EnhancedPropUsage extends PropUsage {
-  typeDefinition?: string
-  possibleValues?: string[]
+  typeDefinition?: string;
+  possibleValues?: string[];
 }
 ```
 
 #### Smart Spread Analysis
+
 ```typescript
 // Detect common patterns
 const commonProps = { id, className, ...rest }
@@ -951,12 +1028,13 @@ const commonProps = { id, className, ...rest }
 ```
 
 #### Incremental Analysis
+
 ```typescript
 // Only analyze changed files
 interface IncrementalAnalysis {
-  since?: Date
-  gitRef?: string
-  changedFiles?: string[]
+  since?: Date;
+  gitRef?: string;
+  changedFiles?: string[];
 }
 ```
 
@@ -970,11 +1048,13 @@ interface IncrementalAnalysis {
 ### Critical Issues
 
 1. **Synchronous File I/O**
+
    - Location: Throughout jsx-analyzer.ts
    - Impact: Blocks event loop, limits scalability
    - Fix: Convert to async/await with fs.promises
 
 2. **Type Safety Gaps**
+
    - Location: `@ts-ignore` (line 3), `any` types throughout
    - Impact: Reduces maintainability, hides bugs
    - Fix: Enable strict TypeScript, add proper types
@@ -987,11 +1067,13 @@ interface IncrementalAnalysis {
 ### High Priority
 
 4. **Mixed Response Formats**
+
    - Location: Tool handlers in index.ts
    - Impact: Inconsistent API, harder client integration
    - Fix: Standardize response envelope
 
 5. **Duplicate Parser Options**
+
    - Location: jsx-analyzer.ts lines 138-152, 294-308
    - Impact: Maintenance burden
    - Fix: Extract to constant
@@ -1004,10 +1086,12 @@ interface IncrementalAnalysis {
 ### Medium Priority
 
 7. **No Test Coverage**
+
    - Impact: Can't safely refactor
    - Fix: Add test suite with >80% coverage
 
 8. **No CI/CD Pipeline**
+
    - Impact: Manual quality checks
    - Fix: Add GitHub Actions workflow
 
@@ -1028,34 +1112,38 @@ interface IncrementalAnalysis {
 ### Priority 0: Immediate (Week 1)
 
 1. **Fix Node Version Check**
+
    ```typescript
-   import semver from 'semver'
-   if (!semver.satisfies(process.versions.node, '>=18.0.0')) {
-     console.error('Node.js 18+ required')
-     process.exit(1)
+   import semver from "semver";
+   if (!semver.satisfies(process.versions.node, ">=18.0.0")) {
+     console.error("Node.js 18+ required");
+     process.exit(1);
    }
    ```
 
 2. **Add Process Handlers**
+
    ```typescript
-   process.on('unhandledRejection', (err) => {
-     console.error('Unhandled rejection:', err)
-     process.exit(1)
-   })
+   process.on("unhandledRejection", (err) => {
+     console.error("Unhandled rejection:", err);
+     process.exit(1);
+   });
    ```
 
 3. **Implement Async I/O**
+
    ```typescript
-   import { promises as fs } from 'node:fs'
-   const content = await fs.readFile(filePath, 'utf-8')
+   import { promises as fs } from "node:fs";
+   const content = await fs.readFile(filePath, "utf-8");
    ```
 
 4. **Add Request Limits**
+
    ```typescript
    interface RequestLimits {
-     maxFiles: number // 1000
-     maxFileSizeBytes: number // 5MB
-     timeoutMs: number // 30000
+     maxFiles: number; // 1000
+     maxFileSizeBytes: number; // 5MB
+     timeoutMs: number; // 30000
    }
    ```
 
@@ -1067,12 +1155,14 @@ interface IncrementalAnalysis {
 ### Priority 1: Near Term (Weeks 2-3)
 
 1. **Structured Logging**
+
    ```typescript
-   import pino from 'pino'
-   const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
+   import pino from "pino";
+   const logger = pino({ level: process.env.LOG_LEVEL || "info" });
    ```
 
 2. **AST Caching**
+
    - Implement cache with mtime checking
    - Add cache size limits
    - Add metrics for hit rate
@@ -1084,11 +1174,13 @@ interface IncrementalAnalysis {
 ### Priority 2: Medium Term (Month 2)
 
 1. **Worker Thread Pool**
+
    - Implement parser workers
    - Add job queue
    - Monitor thread utilization
 
 2. **Enhanced Type Support**
+
    - Parse TypeScript type aliases
    - Extract interface definitions
    - Include in results
@@ -1101,11 +1193,13 @@ interface IncrementalAnalysis {
 ### Priority 3: Long Term (Quarter 2)
 
 1. **Documentation Overhaul**
+
    - API reference
    - Architecture diagrams
    - Video tutorials
 
 2. **Performance Benchmarks**
+
    - Establish baselines
    - Add regression tests
    - Create performance dashboard
@@ -1136,35 +1230,35 @@ interface IncrementalAnalysis {
 ## Appendix: Code Examples
 
 ### Bounded Concurrency Implementation
+
 ```typescript
-import pLimit from 'p-limit'
+import pLimit from "p-limit";
 
 class ConcurrentAnalyzer {
-  private limit = pLimit(8)
-  
+  private limit = pLimit(8);
+
   async analyzeFiles(files: string[]) {
-    const tasks = files.map(file => 
-      this.limit(() => this.analyzeFile(file))
-    )
-    return Promise.all(tasks)
+    const tasks = files.map((file) => this.limit(() => this.analyzeFile(file)));
+    return Promise.all(tasks);
   }
 }
 ```
 
 ### Result Envelope Pattern
+
 ```typescript
 interface ApiResponse<T> {
-  ok: boolean
-  data?: T
+  ok: boolean;
+  data?: T;
   errors?: Array<{
-    code: string
-    message: string
-    field?: string
-  }>
+    code: string;
+    message: string;
+    field?: string;
+  }>;
   metadata?: {
-    duration: number
-    version: string
-  }
+    duration: number;
+    version: string;
+  };
 }
 
 function createResponse<T>(data: T): ApiResponse<T> {
@@ -1174,30 +1268,31 @@ function createResponse<T>(data: T): ApiResponse<T> {
     errors: [],
     metadata: {
       duration: Date.now() - startTime,
-      version: '1.0.3'
-    }
-  }
+      version: "1.0.3",
+    },
+  };
 }
 ```
 
 ### Worker Thread Parser
+
 ```typescript
 // parser-worker.js
-import { parentPort } from 'node:worker_threads'
-import { parse } from '@babel/parser'
+import { parentPort } from "node:worker_threads";
+import { parse } from "@babel/parser";
 
-parentPort?.on('message', ({ content, options }) => {
+parentPort?.on("message", ({ content, options }) => {
   try {
-    const ast = parse(content, options)
-    parentPort?.postMessage({ success: true, ast })
+    const ast = parse(content, options);
+    parentPort?.postMessage({ success: true, ast });
   } catch (error) {
-    parentPort?.postMessage({ success: false, error: error.message })
+    parentPort?.postMessage({ success: false, error: error.message });
   }
-})
+});
 ```
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: August 2025*  
-*Author: Architecture Team*
+_Document Version: 1.0_  
+_Last Updated: August 2025_  
+_Author: Architecture Team_
