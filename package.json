@@ -25,8 +25,8 @@
   "homepage": "https://github.com/lmn451/jsx-prop-lookup-mcp-server#readme",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "start": "bun dist/index.js",
+    "dev": "bun src/index.ts",
     "test": "vitest",
     "prepublishOnly": "npm run build",
     "pretest": "npm run build"
