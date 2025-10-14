@@ -10,29 +10,17 @@ Your MCP server is functioning correctly. The error -32000 "connection closed" i
 
 Ensure your MCP client config uses exactly this format:
 
-
-
 ```json
-
 {
-
   "mcpServers": {
-
     "jsx-prop-lookup": {
-
       "command": "bunx",
 
       "args": ["jsx-prop-lookup-mcp-server"]
-
     }
-
   }
-
 }
-
 ```
-
-
 
 ### 2. **Test Server Manually**
 
@@ -46,11 +34,7 @@ bunx jsx-prop-lookup-mcp-server
 
 ```
 
-
-
 ### 3. **Common MCP Client Locations**
-
-
 
 **Claude Desktop:**
 
@@ -58,17 +42,11 @@ bunx jsx-prop-lookup-mcp-server
 
 - Windows: `%APPDATA%/Claude/claude_desktop_config.json`
 
-
-
 **Cline (VS Code):**
 
 - Settings → Extensions → Cline → MCP Settings
 
-
-
 ### 4. **Alternative Configurations**
-
-
 
 If bunx doesn't work, try global installation:
 
@@ -78,29 +56,17 @@ bun install -g jsx-prop-lookup-mcp-server
 
 ```
 
-
-
 Then use:
 
 ```json
-
 {
-
   "mcpServers": {
-
     "jsx-prop-lookup": {
-
       "command": "jsx-prop-lookup-mcp-server"
-
     }
-
   }
-
 }
-
 ```
-
-
 
 ### 5. **Check Requirements**
 
@@ -108,11 +74,7 @@ Then use:
 
 - ✅ Internet connection (for bunx download)
 
-
-
 ## Still Having Issues?
-
-
 
 The server is working correctly, so the issue is likely:
 

@@ -15,54 +15,32 @@ The test shows the server is responding properly:
 
 Make sure your MCP client config is exactly:
 
-
-
 ```json
-
 {
-
   "mcpServers": {
-
     "jsx-prop-lookup": {
-
       "command": "bunx",
 
       "args": ["jsx-prop-lookup-mcp-server"]
-
     }
-
   }
-
 }
-
 ```
-
-
 
 ### 2. **Bun Path Issues**
 
 If bunx fails, try absolute paths:
 
-
-
 ```json
-
 {
-
   "mcpServers": {
-
     "jsx-prop-lookup": {
-
       "command": "/path/to/bun",
 
       "args": ["/path/to/jsx-prop-lookup-mcp-server/dist/index.js"]
-
     }
-
   }
-
 }
-
 ```
 
 ### 3. **Permission Issues**
@@ -91,8 +69,6 @@ Some MCP clients need explicit working directory:
 
 ## Testing Steps:
 
-
-
 ### 1. **Test Server Directly**
 
 ```bash
@@ -105,8 +81,6 @@ bun run start
 
 ```
 
-
-
 ### 2. **Test with bunx**
 
 ```bash
@@ -117,8 +91,6 @@ bunx jsx-prop-lookup-mcp-server
 
 ```
 
-
-
 ### 3. **Test MCP Protocol**
 
 ```bash
@@ -127,33 +99,21 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 ```
 
-
-
 ## Client-Specific Configurations:
-
-
 
 ### Claude Desktop
 
 File: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-
-
 ### Cline (VS Code)
 
 Add to Cline MCP settings in VS Code
-
-
 
 ### Custom MCP Client
 
 Ensure your client implements the MCP protocol correctly
 
-
-
 ## If Still Having Issues:
-
-
 
 1. **Check Bun version**: `bun --version`
 

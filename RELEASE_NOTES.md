@@ -20,8 +20,6 @@ This release focuses on modernizing the toolchain, improving performance, and en
 - Build Tool: Bun bundler + tsc for types
 - Test Runner: Vitest
 
-
-
 ## v1.0.0 - Initial Release
 
 ### Features

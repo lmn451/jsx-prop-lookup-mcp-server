@@ -6,12 +6,9 @@ if (process.version.split(".")[0].slice(1) < "18") {
   process.exit(1);
 }
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 import { JSXPropAnalyzer } from "./jsx-analyzer.js";
 import * as path from "path";
 
@@ -48,217 +45,154 @@ function validateAbsolutePath(
   return trimmedPath;
 }
 
-const server = new Server({
+const server = new McpServer({
   name: "jsx-prop-lookup-server",
   version: "1.0.0",
-  capabilities: {
-    tools: {},
-  },
 });
 
 const analyzer = new JSXPropAnalyzer();
 
-// List available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "analyze_jsx_props",
-        description: "Analyze JSX prop usage in files or directories",
-        inputSchema: {
-          type: "object",
-          properties: {
-            path: {
-              type: "string",
-              description:
-                "Absolute path to file or directory to analyze. Relative paths are not allowed.",
-            },
-            componentName: {
-              type: "string",
-              description: "Specific component name to analyze",
-            },
-            propName: {
-              type: "string",
-              description: "Optional: specific prop name to search for",
-            },
-            includeTypes: {
-              type: "boolean",
-              description: "Include TypeScript type information",
-              default: true,
-            },
-          },
-          required: ["path", "componentName"],
-        },
-      },
-      {
-        name: "find_prop_usage",
-        description: "Find all usages of a specific prop across JSX files",
-        inputSchema: {
-          type: "object",
-          properties: {
-            propName: {
-              type: "string",
-              description: "Name of the prop to search for",
-            },
-            path: {
-              type: "string",
-              description:
-                "Absolute path to directory to search in. Relative paths are not allowed.",
-            },
-            componentName: {
-              type: "string",
-              description: "Optional: limit search to specific component",
-            },
-          },
-          required: ["propName", "path", "componentName"],
-        },
-      },
-      {
-        name: "get_component_props",
-        description: "Get all props used by a specific component",
-        inputSchema: {
-          type: "object",
-          properties: {
-            componentName: {
-              type: "string",
-              description: "Name of the component to analyze",
-            },
-            path: {
-              type: "string",
-              description:
-                "Absolute path to directory to search in. Relative paths are not allowed.",
-            },
-          },
-          required: ["componentName", "path"],
-        },
-      },
-      {
-        name: "find_components_without_prop",
-        description:
-          "Find component instances that are missing a required prop (e.g., Select components without width prop)",
-        inputSchema: {
-          type: "object",
-          properties: {
-            componentName: {
-              type: "string",
-              description: 'Name of the component to check (e.g., "Select")',
-            },
-            requiredProp: {
-              type: "string",
-              description: 'Name of the required prop (e.g., "width")',
-            },
-            path: {
-              type: "string",
-              description:
-                "Absolute path to directory to search in. Relative paths are not allowed.",
-            },
-            assumeSpreadHasRequiredProp: {
-              type: "boolean",
-              description:
-                "If true, any JSX spread attribute is assumed to provide the required prop.",
-              default: true,
-            },
-          },
-          required: ["componentName", "requiredProp", "path"],
-        },
-      },
-    ],
-  };
-});
-
-// Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  if (!args) {
-    throw new Error("Missing arguments");
-  }
-
-  try {
-    switch (name) {
-      case "analyze_jsx_props": {
-        const validatedPath = validateAbsolutePath(args.path, "path");
-        const result = await analyzer.analyzeProps(
-          validatedPath,
-          args.componentName as string | undefined,
-          args.propName as string | undefined,
-          (args.includeTypes as boolean) ?? true,
-        );
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "find_prop_usage": {
-        const validatedPath = validateAbsolutePath(args.path, "path");
-        const result = await analyzer.findPropUsage(
-          args.propName as string,
-          validatedPath,
-          args.componentName as string | undefined,
-        );
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "get_component_props": {
-        const validatedPath = validateAbsolutePath(args.path, "path");
-        const result = await analyzer.getComponentProps(
-          args.componentName as string,
-          validatedPath,
-        );
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "find_components_without_prop": {
-        const validatedPath = validateAbsolutePath(args.path, "path");
-        const result = await analyzer.findComponentsWithoutProp(
-          args.componentName as string,
-          args.requiredProp as string,
-          validatedPath,
-        );
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-  } catch (error) {
+// Register tools using the McpServer API
+server.registerTool(
+  "analyze_jsx_props",
+  {
+    title: "Analyze JSX Props",
+    description: "Analyze JSX prop usage in files or directories",
+    inputSchema: {
+      path: z
+        .string()
+        .describe(
+          "Absolute path to file or directory to analyze. Relative paths are not allowed.",
+        ),
+      componentName: z
+        .string()
+        .optional()
+        .describe("Specific component name to analyze"),
+      propName: z
+        .string()
+        .optional()
+        .describe("Optional: specific prop name to search for"),
+      includeTypes: z
+        .boolean()
+        .default(true)
+        .describe("Include TypeScript type information"),
+    },
+  },
+  async ({ path: rawPath, componentName, propName, includeTypes }) => {
+    const validatedPath = validateAbsolutePath(rawPath, "path");
+    const result = await analyzer.analyzeProps(
+      validatedPath,
+      componentName,
+      propName,
+      includeTypes ?? true,
+    );
     return {
-      content: [
-        {
-          type: "text",
-          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
-      isError: true,
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
-  }
-});
+  },
+);
+
+server.registerTool(
+  "find_prop_usage",
+  {
+    title: "Find Prop Usage",
+    description: "Find all usages of a specific prop across JSX files",
+    inputSchema: {
+      propName: z.string().describe("Name of the prop to search for"),
+      path: z
+        .string()
+        .describe(
+          "Absolute path to directory to search in. Relative paths are not allowed.",
+        ),
+      componentName: z
+        .string()
+        .optional()
+        .describe("Optional: limit search to specific component"),
+    },
+  },
+  async ({ propName, path: rawPath, componentName }) => {
+    const validatedPath = validateAbsolutePath(rawPath, "path");
+    const result = await analyzer.findPropUsage(
+      propName,
+      validatedPath,
+      componentName,
+    );
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+server.registerTool(
+  "get_component_props",
+  {
+    title: "Get Component Props",
+    description: "Get all props used by a specific component",
+    inputSchema: {
+      componentName: z.string().describe("Name of the component to analyze"),
+      path: z
+        .string()
+        .describe(
+          "Absolute path to directory to search in. Relative paths are not allowed.",
+        ),
+    },
+  },
+  async ({ componentName, path: rawPath }) => {
+    const validatedPath = validateAbsolutePath(rawPath, "path");
+    const result = await analyzer.getComponentProps(
+      componentName,
+      validatedPath,
+    );
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+server.registerTool(
+  "find_components_without_prop",
+  {
+    title: "Find Components Missing Prop",
+    description:
+      "Find component instances that are missing a required prop (e.g., Select components without width prop)",
+    inputSchema: {
+      componentName: z
+        .string()
+        .describe('Name of the component to check (e.g., "Select")'),
+      requiredProp: z
+        .string()
+        .describe('Name of the required prop (e.g., "width")'),
+      path: z
+        .string()
+        .describe(
+          "Absolute path to directory to search in. Relative paths are not allowed.",
+        ),
+      assumeSpreadHasRequiredProp: z
+        .boolean()
+        .default(true)
+        .describe(
+          "If true, any JSX spread attribute is assumed to provide the required prop.",
+        ),
+    },
+  },
+  async ({
+    componentName,
+    requiredProp,
+    path: rawPath,
+    assumeSpreadHasRequiredProp,
+  }) => {
+    const validatedPath = validateAbsolutePath(rawPath, "path");
+    const result = await analyzer.findComponentsWithoutProp(
+      componentName,
+      requiredProp,
+      validatedPath,
+      assumeSpreadHasRequiredProp ?? true,
+    );
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
 
 async function main() {
   try {

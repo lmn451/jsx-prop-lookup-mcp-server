@@ -96,6 +96,7 @@ export class JSXPropAnalyzer {
     componentName: string,
     requiredProp: string,
     directory: string = ".",
+    assumeSpreadHasRequiredProp: boolean = true,
   ): Promise<{
     missingPropUsages: Array<{
       componentName: string;
@@ -189,8 +190,10 @@ export class JSXPropAnalyzer {
               } else if (t.isJSXSpreadAttribute(attribute)) {
                 existingProps.push("...spread");
                 // Note: We can't determine if spread contains the required prop
-                // so we'll assume it might and not flag this as missing
-                hasRequiredProp = true;
+                // Depending on the option, we may assume it provides the required prop
+                if (assumeSpreadHasRequiredProp) {
+                  hasRequiredProp = true;
+                }
               }
             }
 

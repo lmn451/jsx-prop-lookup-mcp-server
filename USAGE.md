@@ -18,8 +18,6 @@ npx jsx-prop-lookup-mcp-server
 
    ```
 
-
-
 2. **Build the server:**
 
    ```bash
@@ -27,8 +25,6 @@ npx jsx-prop-lookup-mcp-server
    bun run build
 
    ```
-
-
 
 3. **Test the server:**
 
