@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { Button } from './Button';
+import React from "react";
+import { Button } from "./Button";
 
 export interface CardProps {
   title: string;
