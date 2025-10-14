@@ -1,6 +1,8 @@
-# JSX Prop Lookup MCP Server
+# JSX Prop Analyzer (CLI & MCP Server)
 
-An MCP (Model Context Protocol) server that analyzes JSX prop usage in React/TypeScript codebases using AST parsing.
+A command-line tool and MCP (Model Context Protocol) server for analyzing JSX prop usage in React/TypeScript codebases using AST parsing.
+
+This tool can be used as a standalone CLI (`jsx-analyzer`) or as an MCP server (`jsx-prop-lookup-mcp-server`).
 
 ## Features
 
@@ -12,29 +14,58 @@ An MCP (Model Context Protocol) server that analyzes JSX prop usage in React/Typ
 
 ## Installation
 
-### Option 1: Use with npx (Recommended)
+### Standalone CLI
+
+```bash
+npm install -g jsx-prop-lookup-mcp-server
+
+# Now you can use the jsx-analyzer command
+jsx-analyzer --help
+```
+
+### MCP Server
+
+#### Option 1: Use with npx (Recommended)
 No installation required! Use directly with npx:
 
 ```bash
 npx jsx-prop-lookup-mcp-server
 ```
 
-### Option 2: Install Globally
+#### Option 2: Install Globally
 ```bash
 npm install -g jsx-prop-lookup-mcp-server
 jsx-prop-lookup-mcp-server
 ```
 
-### Option 3: Development Setup
+#### Option 3: Development Setup
 ```bash
-git clone https://github.com/your-username/jsx-prop-lookup-mcp-server.git
+git clone https://github.com/lmn451/jsx-prop-lookup-mcp-server.git
 cd jsx-prop-lookup-mcp-server
 npm install
 npm run build
 npm start
 ```
 
-## Usage
+## Standalone CLI Usage
+
+The `jsx-analyzer` command allows you to perform analysis directly from your terminal.
+
+**Commands:**
+
+- `analyze_jsx_props`: Analyze JSX prop usage in files or directories.
+  - `jsx-analyzer analyze_jsx_props --path <file_or_dir> [--componentName <name>] [--propName <name>]`
+
+- `find_prop_usage`: Find all usages of a specific prop across JSX files.
+  - `jsx-analyzer find_prop_usage --propName <prop_name> --path <directory>`
+
+- `get_component_props`: Get all props used by a specific component.
+  - `jsx-analyzer get_component_props --componentName <component_name> --path <directory>`
+
+- `find_components_without_prop`: Find component instances that are missing a required prop.
+  - `jsx-analyzer find_components_without_prop --componentName <name> --requiredProp <prop> --path <directory>`
+
+## MCP Server Usage
 
 The server provides four main tools:
 

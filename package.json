@@ -32,7 +32,8 @@
     "pretest": "npm run build"
   },
   "bin": {
-    "jsx-prop-lookup-mcp-server": "dist/index.js"
+    "jsx-prop-lookup-mcp-server": "dist/index.js",
+    "jsx-analyzer": "dist/cli.js"
   },
   "files": [
     "dist/**/*",
