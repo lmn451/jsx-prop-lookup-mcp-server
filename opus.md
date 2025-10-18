@@ -57,7 +57,7 @@ The JSX Prop Lookup MCP Server is an AST-based analysis tool for React/TypeScrip
 - **Parser**: Babel parser with traverse and types
 - **File Discovery**: Glob with pattern matching
 - **Build Tool**: TypeScript compiler (tsc)
-- **Development**: tsx for hot reloading
+- **Development**: Bun for development (use `bun --watch` for file watching)
 
 ---
 
@@ -775,7 +775,7 @@ class CircuitBreaker {
 
 #### Development
 
-- **Hot Reload**: `npm run dev` uses tsx for development
+- **Hot Reload**: Use Bun with `bun --watch src/index.ts` for development
 - **Type Checking**: Manual via `tsc --noEmit`
 - **Building**: `npm run build` compiles to dist/
 - **Publishing**: `prepublishOnly` hook ensures build
@@ -796,7 +796,7 @@ class CircuitBreaker {
 {
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
+    "dev": "bun --watch src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest",
     "test:coverage": "vitest --coverage",

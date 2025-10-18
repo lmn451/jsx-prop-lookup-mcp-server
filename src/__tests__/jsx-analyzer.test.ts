@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { JSXPropAnalyzer } from "../jsx-analyzer";
 import * as path from "path";
+import * as fs from "fs/promises";
 
 describe("JSXPropAnalyzer", () => {
   const analyzer = new JSXPropAnalyzer();
@@ -21,28 +22,46 @@ describe("JSXPropAnalyzer", () => {
     ]);
   });
 
-  it("should find all usages of a specific prop", async () => {
+  it("should find all usages of a specific prop, grouped by file", async () => {
     const propUsages = await analyzer.findPropUsage("onClick", fixturesPath);
-    expect(propUsages.length).toBeGreaterThan(0);
-    const buttonUsage = propUsages.find((p) => p.componentName === "Button");
-    expect(buttonUsage).toBeDefined();
-    expect(buttonUsage?.propName).toBe("onClick");
+    const files = Object.keys(propUsages);
+    expect(files.length).toBeGreaterThan(0);
+
+    const appFilePath = files.find((file) => file.endsWith("App.tsx"));
+    expect(appFilePath).toBeDefined();
+
+    if (appFilePath) {
+      const usagesInApp = propUsages[appFilePath];
+      expect(usagesInApp.length).toBeGreaterThan(0);
+
+      const buttonUsage = usagesInApp.find((p) => p.componentName === "Button");
+      expect(buttonUsage).toBeDefined();
+      expect(buttonUsage?.propName).toBe("onClick");
+    }
   });
 
-  it("should get all props for a specific component", async () => {
+  it("should get all props for a specific component, grouped by file", async () => {
     const components = await analyzer.getComponentProps("Card", fixturesPath);
-    expect(components).toHaveLength(1);
-    const cardComponent = components[0];
-    expect(cardComponent.componentName).toBe("Card");
-    expect(cardComponent.props.map((p) => p.propName)).toEqual([
-      "title",
-      "content",
-      "onAction",
-    ]);
+    const files = Object.keys(components);
+    expect(files.length).toBeGreaterThan(0);
+
+    const cardFilePath = files.find((file) => file.endsWith("Card.tsx"));
+    expect(cardFilePath).toBeDefined();
+
+    if (cardFilePath) {
+      const cardComponents = components[cardFilePath];
+      expect(cardComponents).toHaveLength(1);
+      const cardComponent = cardComponents[0];
+      expect(cardComponent.componentName).toBe("Card");
+      expect(cardComponent.props.map((p) => p.propName)).toEqual([
+        "title",
+        "content",
+        "onAction",
+      ]);
+    }
   });
 
-  it("should find components without a required prop", async () => {
-    // First, let's add a component without the required prop
+  it("should find components without a required prop, grouped by file", async () => {
     const appContent = `
 import React from 'react';
 import { Button } from './Button';
@@ -55,7 +74,6 @@ const App = () => {
   );
 };
 `;
-    const fs = await import("fs/promises");
     const tempFilePath = path.join(fixturesPath, "tempApp.tsx");
     await fs.writeFile(tempFilePath, appContent);
 
@@ -65,12 +83,21 @@ const App = () => {
       fixturesPath,
     );
 
-    // Cleanup the temp file
     await fs.unlink(tempFilePath);
 
-    expect(result.missingPropUsages.length).toBe(1);
-    const missingProp = result.missingPropUsages[0];
-    expect(missingProp.componentName).toBe("Button");
-    expect(missingProp.file).toContain("tempApp.tsx");
+    const files = Object.keys(result.missingPropUsages);
+    expect(files.length).toBe(1);
+
+    const missingPropFilePath = files.find((file) =>
+      file.endsWith("tempApp.tsx"),
+    );
+    expect(missingPropFilePath).toBeDefined();
+
+    if (missingPropFilePath) {
+      const missingPropsInFile = result.missingPropUsages[missingPropFilePath];
+      expect(missingPropsInFile.length).toBe(1);
+      const missingProp = missingPropsInFile[0];
+      expect(missingProp.componentName).toBe("Button");
+    }
   });
 });

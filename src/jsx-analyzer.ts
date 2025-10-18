@@ -77,19 +77,49 @@ export class JSXPropAnalyzer {
     propName: string,
     directory: string = ".",
     componentName?: string,
-  ): Promise<PropUsage[]> {
+  ): Promise<{ [key: string]: PropUsage[] }> {
     const result = await this.analyzeProps(directory, componentName, propName);
-    return result.propUsages.filter((usage) => usage.propName === propName);
+    const filteredUsages = result.propUsages.filter(
+      (usage) => usage.propName === propName,
+    );
+
+    const groupedByFile = filteredUsages.reduce(
+      (acc, usage) => {
+        const { file } = usage;
+        if (!acc[file]) {
+          acc[file] = [];
+        }
+        acc[file].push(usage);
+        return acc;
+      },
+      {} as { [key: string]: PropUsage[] },
+    );
+
+    return groupedByFile;
   }
 
   async getComponentProps(
     componentName: string,
     directory: string = ".",
-  ): Promise<ComponentAnalysis[]> {
+  ): Promise<{ [key: string]: ComponentAnalysis[] }> {
     const result = await this.analyzeProps(directory, componentName);
-    return result.components.filter(
+    const filteredComponents = result.components.filter(
       (comp) => comp.componentName === componentName,
     );
+
+    const groupedByFile = filteredComponents.reduce(
+      (acc, comp) => {
+        const { file } = comp;
+        if (!acc[file]) {
+          acc[file] = [];
+        }
+        acc[file].push(comp);
+        return acc;
+      },
+      {} as { [key: string]: ComponentAnalysis[] },
+    );
+
+    return groupedByFile;
   }
 
   async findComponentsWithoutProp(
@@ -98,13 +128,15 @@ export class JSXPropAnalyzer {
     directory: string = ".",
     assumeSpreadHasRequiredProp: boolean = true,
   ): Promise<{
-    missingPropUsages: Array<{
-      componentName: string;
-      file: string;
-      line: number;
-      column: number;
-      existingProps: string[];
-    }>;
+    missingPropUsages: {
+      [key: string]: Array<{
+        componentName: string;
+        file: string;
+        line: number;
+        column: number;
+        existingProps: string[];
+      }>;
+    };
     summary: {
       totalInstances: number;
       missingPropCount: number;
@@ -112,7 +144,7 @@ export class JSXPropAnalyzer {
     };
   }> {
     const files = await this.getFiles(directory);
-    const missingPropUsages: Array<{
+    const missingPropUsagesList: Array<{
       componentName: string;
       file: string;
       line: number;
@@ -200,7 +232,7 @@ export class JSXPropAnalyzer {
             // If the required prop is missing, record this usage
             if (!hasRequiredProp) {
               const loc = openingElement.loc;
-              missingPropUsages.push({
+              missingPropUsagesList.push({
                 componentName: elementName,
                 file,
                 line: loc?.start.line || 0,
@@ -215,14 +247,26 @@ export class JSXPropAnalyzer {
       }
     }
 
+    const groupedMissingProps = missingPropUsagesList.reduce(
+      (acc, usage) => {
+        const { file } = usage;
+        if (!acc[file]) {
+          acc[file] = [];
+        }
+        acc[file].push(usage);
+        return acc;
+      },
+      {} as { [key: string]: Array<any> },
+    );
+
     // Calculate summary statistics
-    const totalInstances = missingPropUsages.length;
-    const missingPropCount = missingPropUsages.length;
+    const totalInstances = missingPropUsagesList.length;
+    const missingPropCount = missingPropUsagesList.length;
     const missingPropPercentage =
       totalInstances > 0 ? (missingPropCount / totalInstances) * 100 : 0;
 
     return {
-      missingPropUsages,
+      missingPropUsages: groupedMissingProps,
       summary: {
         totalInstances,
         missingPropCount,

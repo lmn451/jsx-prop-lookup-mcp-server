@@ -38,8 +38,15 @@ describe("Standalone CLI Tests", () => {
     );
     expect(stderr).toBe("");
     const result = JSON.parse(stdout);
-    expect(result.length).toBeGreaterThan(0);
-    expect(result[0].propName).toBe("onClick");
+    const files = Object.keys(result);
+    expect(files.length).toBeGreaterThan(0);
+    const appFilePath = files.find((file) => file.endsWith("App.tsx"));
+    expect(appFilePath).toBeDefined();
+    if (appFilePath) {
+      const usagesInApp = result[appFilePath];
+      expect(usagesInApp.length).toBeGreaterThan(0);
+      expect(usagesInApp[0].propName).toBe("onClick");
+    }
   });
 
   it("should run get_component_props command", async () => {
@@ -48,7 +55,14 @@ describe("Standalone CLI Tests", () => {
     );
     expect(stderr).toBe("");
     const result = JSON.parse(stdout);
-    expect(result.length).toBe(1);
-    expect(result[0].componentName).toBe("Card");
+    const files = Object.keys(result);
+    expect(files.length).toBeGreaterThan(0);
+    const cardFilePath = files.find((file) => file.endsWith("Card.tsx"));
+    expect(cardFilePath).toBeDefined();
+    if (cardFilePath) {
+      const cardComponents = result[cardFilePath];
+      expect(cardComponents.length).toBe(1);
+      expect(cardComponents[0].componentName).toBe("Card");
+    }
   });
 });

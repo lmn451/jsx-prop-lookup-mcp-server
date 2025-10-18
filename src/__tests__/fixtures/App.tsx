@@ -1,5 +1,6 @@
 import React from "react";
 import { Card } from "./Card";
+import { Button } from "./Button";
 
 const App = () => {
   return (
@@ -10,6 +11,7 @@ const App = () => {
         content="This is a card component."
         onAction={() => console.log("Card action")}
       />
+      <Button onClick={() => console.log("Button clicked")}>Click me</Button>
     </div>
   );
 };

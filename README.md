@@ -151,7 +151,7 @@ Find component instances that are missing a required prop (e.g., Select componen
 - `.js` - JavaScript
 - `.jsx` - JavaScript with JSX
 - `.ts` - TypeScript
-- `.tsx` - TypeScript with JSX
+- `.tsx` - TypeScript with JSX (TypeScript is built with Bun and tsc; no tsx runner is used)
 
 ## MCP Client Configuration
 

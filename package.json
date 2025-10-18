@@ -1,6 +1,6 @@
 {
   "name": "jsx-prop-lookup-mcp-server",
-  "version": "3.4.1",
+  "version": "3.4.2-beta.0",
   "description": "MCP server for analyzing JSX prop usage using AST",
   "main": "dist/index.js",
   "type": "module",
@@ -26,13 +26,13 @@
   "scripts": {
     "build:js": "bun build ./src/index.ts ./src/cli.ts --outdir ./dist --target node",
     "build:types": "tsc --emitDeclarationOnly",
-    "build": "bun run build:js && bun run build:types",
+    "copy-test-fixtures": "cp -r src/__tests__/fixtures dist/__tests__/fixtures",
+    "build": "bun run build:js && bun run build:types && bun run copy-test-fixtures",
     "typecheck": "tsc --noEmit",
     "start": "bun dist/index.js",
     "dev": "bun src/index.ts",
     "test": "vitest",
-    "prepublishOnly": "bun run build",
-    "pretest": "bun run build"
+    "prepublishOnly": "bun run build"
   },
   "bin": {
     "jsx-prop-lookup-mcp-server": "dist/index.js",
@@ -54,7 +54,6 @@
   },
   "devDependencies": {
     "@types/node": "^24.7.2",
-    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
