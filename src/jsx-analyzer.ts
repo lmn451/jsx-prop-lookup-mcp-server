@@ -9,7 +9,6 @@ import { join, extname } from "path";
 export interface PropUsage {
   propName: string;
   componentName: string;
-  file: string;
   line: number;
   column: number;
   value?: string;
@@ -24,6 +23,8 @@ export interface ComponentAnalysis {
   propsInterface?: string;
 }
 
+export type PropUsagesByFile = Record<string, PropUsage[]>;
+
 export interface AnalysisResult {
   summary: {
     totalFiles: number;
@@ -31,7 +32,10 @@ export interface AnalysisResult {
     totalProps: number;
   };
   components: ComponentAnalysis[];
-  propUsages: PropUsage[];
+  propUsages: PropUsagesByFile;
+}
+function countGroupedPropUsages(grouped: PropUsagesByFile): number {
+  return Object.values(grouped).reduce((sum, arr) => sum + arr.length, 0);
 }
 
 export class JSXPropAnalyzer {
@@ -45,7 +49,7 @@ export class JSXPropAnalyzer {
   ): Promise<AnalysisResult> {
     const files = await this.getFiles(path);
     const components: ComponentAnalysis[] = [];
-    const allPropUsages: PropUsage[] = [];
+    const propUsagesByFile: PropUsagesByFile = {};
 
     for (const file of files) {
       try {
@@ -56,7 +60,9 @@ export class JSXPropAnalyzer {
           includeTypes,
         );
         components.push(...analysis.components);
-        allPropUsages.push(...analysis.propUsages);
+        if (analysis.propUsages.length > 0) {
+          propUsagesByFile[file] = analysis.propUsages;
+        }
       } catch (error) {
         console.error(`Error analyzing file ${file}:`, error);
       }
@@ -66,10 +72,10 @@ export class JSXPropAnalyzer {
       summary: {
         totalFiles: files.length,
         totalComponents: components.length,
-        totalProps: allPropUsages.length,
+        totalProps: countGroupedPropUsages(propUsagesByFile),
       },
       components,
-      propUsages: allPropUsages,
+      propUsages: propUsagesByFile,
     };
   }
 
@@ -79,9 +85,16 @@ export class JSXPropAnalyzer {
     componentName?: string,
   ): Promise<AnalysisResult> {
     const result = await this.analyzeProps(directory, componentName, propName);
-    result.propUsages = result.propUsages.filter(
-      (usage) => usage.propName === propName,
-    );
+    const filtered: PropUsagesByFile = {};
+    for (const [file, usages] of Object.entries(result.propUsages)) {
+      const fileFiltered = usages.filter(
+        (usage) => usage.propName === propName,
+      );
+      if (fileFiltered.length > 0) {
+        filtered[file] = fileFiltered;
+      }
+    }
+    result.propUsages = filtered;
     return result;
   }
 
@@ -460,8 +473,6 @@ export class JSXPropAnalyzer {
           targetProp,
         );
       },
-
-
     });
 
     return { components, propUsages };
@@ -486,7 +497,6 @@ export class JSXPropAnalyzer {
           const propUsage: PropUsage = {
             propName,
             componentName: componentAnalysis.componentName,
-            file: componentAnalysis.file,
             line: loc?.start.line || 0,
             column: loc?.start.column || 0,
           };
@@ -514,7 +524,6 @@ export class JSXPropAnalyzer {
         const propUsage: PropUsage = {
           propName,
           componentName,
-          file: filePath,
           line: loc?.start.line || 0,
           column: loc?.start.column || 0,
         };
@@ -525,7 +534,6 @@ export class JSXPropAnalyzer {
         const propUsage: PropUsage = {
           propName: "...rest",
           componentName,
-          file: filePath,
           line: loc?.start.line || 0,
           column: loc?.start.column || 0,
           isSpread: true,
@@ -577,7 +585,6 @@ export class JSXPropAnalyzer {
         const propUsage: PropUsage = {
           propName,
           componentName,
-          file: filePath,
           line: loc?.start.line || 0,
           column: loc?.start.column || 0,
           value,
@@ -589,7 +596,6 @@ export class JSXPropAnalyzer {
         const propUsage: PropUsage = {
           propName: "...spread",
           componentName,
-          file: filePath,
           line: loc?.start.line || 0,
           column: loc?.start.column || 0,
           isSpread: true,

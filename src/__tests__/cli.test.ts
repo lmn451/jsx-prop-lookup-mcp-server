@@ -8,7 +8,7 @@ describe("Standalone CLI Tests", () => {
   const fixturesPath = path.resolve(__dirname, "fixtures");
 
   const runCli = (
-    args: string,
+    args: string
   ): Promise<{ stdout: string; stderr: string }> => {
     return new Promise((resolve) => {
       exec(`node ${cliPath} ${args}`, (error, stdout, stderr) => {
@@ -24,29 +24,34 @@ describe("Standalone CLI Tests", () => {
 
   it("should run analyze_jsx_props command", async () => {
     const { stdout, stderr } = await runCli(
-      `analyze_jsx_props --path ${fixturesPath}`,
+      `analyze_jsx_props --path ${fixturesPath}`
     );
     expect(stderr).toBe("");
     const result = JSON.parse(stdout);
     expect(result.summary.totalFiles).toBe(4);
     expect(result.components.length).toBe(4);
-    expect(result.summary.totalProps).toBe(7);
+    expect(result.summary.totalProps).toBe(8);
   });
 
   it("should run find_prop_usage command", async () => {
     const { stdout, stderr } = await runCli(
-      `find_prop_usage --propName onClick --path ${fixturesPath}`,
+      `find_prop_usage --propName onClick --path ${fixturesPath}`
     );
     expect(stderr).toBe("");
     const result = JSON.parse(stdout);
-    expect(result.propUsages.length).toBe(3);
-    expect(result.propUsages[0].propName).toBe("onClick");
+    const totalUsages = Object.values(result.propUsages).reduce(
+      (sum: number, arr: any[]) => sum + arr.length,
+      0
+    );
+    expect(totalUsages).toBe(4);
+    const allUsages = Object.values(result.propUsages).flat();
+    expect(allUsages[0].propName).toBe("onClick");
     expect(result.summary.totalFiles).toBe(4);
   });
 
   it("should run get_component_props command", async () => {
     const { stdout, stderr } = await runCli(
-      `get_component_props --componentName Card --path ${fixturesPath}`,
+      `get_component_props --componentName Card --path ${fixturesPath}`
     );
     expect(stderr).toBe("");
     const result = JSON.parse(stdout);

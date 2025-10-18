@@ -12,6 +12,9 @@ const App = () => {
         onAction={() => console.log("Card action")}
       />
       <Button onClick={() => console.log("Button clicked")}>Click me</Button>
+      <Button onClick={() => console.log("Button clicked 2")}>
+        Click me 2
+      </Button>
     </div>
   );
 };

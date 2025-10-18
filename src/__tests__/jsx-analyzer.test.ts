@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { JSXPropAnalyzer } from "../jsx-analyzer";
+import { JSXPropAnalyzer, PropUsage } from "../jsx-analyzer";
 import * as path from "path";
 
 describe("JSXPropAnalyzer", () => {
@@ -23,8 +23,13 @@ describe("JSXPropAnalyzer", () => {
 
   it("should find all usages of a specific prop and return AnalysisResult", async () => {
     const result = await analyzer.findPropUsage("onClick", fixturesPath);
-    expect(result.propUsages.length).toBe(3);
-    const buttonUsage = result.propUsages.find((p) => p.componentName === "Button");
+    const totalUsages = Object.values(result.propUsages).reduce(
+      (sum: number, arr: PropUsage[]) => sum + arr.length,
+      0,
+    );
+    expect(totalUsages).toBe(4);
+    const allUsages = Object.values(result.propUsages).flat();
+    const buttonUsage = allUsages.find((p) => p.componentName === "Button");
     expect(buttonUsage).toBeDefined();
     expect(buttonUsage?.propName).toBe("onClick");
     expect(result.summary.totalFiles).toBe(4);
@@ -49,6 +54,17 @@ describe("JSXPropAnalyzer", () => {
         "onAction",
       ]);
     }
+  });
+
+  it("should group propUsages by file", async () => {
+    const result = await analyzer.analyzeProps(fixturesPath);
+    const propUsageFiles = Object.keys(result.propUsages);
+    expect(propUsageFiles.length).toBeGreaterThan(0);
+    propUsageFiles.forEach((file) => {
+      expect(typeof file).toBe("string");
+      expect(Array.isArray(result.propUsages[file])).toBe(true);
+      expect(result.propUsages[file].length).toBeGreaterThan(0);
+    });
   });
 
   it("should find components without a required prop", async () => {
