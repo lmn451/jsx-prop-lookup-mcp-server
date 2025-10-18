@@ -18,8 +18,9 @@ describe("Standalone CLI Tests", () => {
   };
 
   it("should show usage when no command is provided", async () => {
-    const { stdout, stderr } = await runCli("");
-    expect(stderr).toContain("Usage: jsx-analyzer <command> [options]");
+    const { stderr } = await runCli("");
+    expect(stderr).toContain("No command provided");
+    expect(stderr).toContain("analyze_jsx_props");
   });
 
   it("should run analyze_jsx_props command", async () => {
