@@ -16,16 +16,70 @@ const parseArgs = () => {
   return { command, namedArgs };
 };
 
+const showHelp = (isError = false) => {
+  const output = `jsx-analyzer - JSX prop usage analyzer
+
+Usage: jsx-analyzer <command> [options]
+
+Commands:
+
+  analyze_jsx_props
+    Analyzes JSX prop usage in files
+    Options:
+      --path <path>              Path to file or directory (default: current directory)
+      --componentName <name>     Filter by component name (optional)
+      --propName <name>          Filter by prop name (optional)
+
+  find_prop_usage
+    Finds all usages of a specific prop
+    Options:
+      --propName <name>          Prop name to search for (required)
+      --path <path>              Path to file or directory (default: current directory)
+      --componentName <name>     Filter by component name (optional)
+
+  get_component_props
+    Gets all props for a specific component
+    Options:
+      --componentName <name>     Component name to analyze (required)
+      --path <path>              Path to file or directory (default: current directory)
+
+  find_components_without_prop
+    Finds component instances missing a required prop
+    Options:
+      --componentName <name>     Component name to search for (required)
+      --requiredProp <prop>      Prop that should be present (required)
+      --path <path>              Path to file or directory (default: current directory)
+
+Examples:
+  jsx-analyzer analyze_jsx_props --path ./src
+  jsx-analyzer find_prop_usage --propName onClick --path ./components
+  jsx-analyzer get_component_props --componentName Button --path ./src
+  jsx-analyzer find_components_without_prop --componentName Select --requiredProp width --path ./examples
+
+Global Options:
+  -h, --help     Show this help message
+`;
+  if (isError) {
+    console.error(output);
+  } else {
+    console.log(output);
+  }
+};
+
 const main = async () => {
   const { command, namedArgs } = parseArgs();
   const analyzer = new JSXPropAnalyzer();
 
+  const isHelpRequested = command === "-h" || command === "--help" || namedArgs.h || namedArgs.help;
+  
   if (!command) {
-    console.error("Usage: jsx-analyzer <command> [options]");
-    console.error(
-      "Commands: analyze_jsx_props, find_prop_usage, get_component_props, find_components_without_prop",
-    );
+    showHelp(true);
     process.exit(1);
+  }
+
+  if (isHelpRequested) {
+    showHelp(false);
+    process.exit(0);
   }
 
   try {
