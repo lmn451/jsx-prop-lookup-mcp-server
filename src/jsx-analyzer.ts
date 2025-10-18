@@ -474,20 +474,7 @@ export class JSXPropAnalyzer {
         );
       },
 
-      JSXFragment: (path) => {
-        // Handle fragments that might contain JSX elements
-        path.traverse({
-          JSXElement: (innerPath) => {
-            this.analyzeJSXElement(
-              innerPath,
-              filePath,
-              propUsages,
-              targetComponent,
-              targetProp,
-            );
-          },
-        });
-      },
+
     });
 
     return { components, propUsages };
