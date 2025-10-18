@@ -28,8 +28,9 @@ describe("Standalone CLI Tests", () => {
     );
     expect(stderr).toBe("");
     const result = JSON.parse(stdout);
-    expect(result.summary.totalFiles).toBe(3);
-    expect(result.components.length).toBeGreaterThan(0);
+    expect(result.summary.totalFiles).toBe(4);
+    expect(result.components.length).toBe(4);
+    expect(result.summary.totalProps).toBe(7);
   });
 
   it("should run find_prop_usage command", async () => {
@@ -38,15 +39,9 @@ describe("Standalone CLI Tests", () => {
     );
     expect(stderr).toBe("");
     const result = JSON.parse(stdout);
-    const files = Object.keys(result);
-    expect(files.length).toBeGreaterThan(0);
-    const appFilePath = files.find((file) => file.endsWith("App.tsx"));
-    expect(appFilePath).toBeDefined();
-    if (appFilePath) {
-      const usagesInApp = result[appFilePath];
-      expect(usagesInApp.length).toBeGreaterThan(0);
-      expect(usagesInApp[0].propName).toBe("onClick");
-    }
+    expect(result.propUsages.length).toBe(3);
+    expect(result.propUsages[0].propName).toBe("onClick");
+    expect(result.summary.totalFiles).toBe(4);
   });
 
   it("should run get_component_props command", async () => {
@@ -56,7 +51,7 @@ describe("Standalone CLI Tests", () => {
     expect(stderr).toBe("");
     const result = JSON.parse(stdout);
     const files = Object.keys(result);
-    expect(files.length).toBeGreaterThan(0);
+    expect(files.length).toBe(1);
     const cardFilePath = files.find((file) => file.endsWith("Card.tsx"));
     expect(cardFilePath).toBeDefined();
     if (cardFilePath) {

@@ -77,25 +77,12 @@ export class JSXPropAnalyzer {
     propName: string,
     directory: string = ".",
     componentName?: string,
-  ): Promise<{ [key: string]: PropUsage[] }> {
+  ): Promise<AnalysisResult> {
     const result = await this.analyzeProps(directory, componentName, propName);
-    const filteredUsages = result.propUsages.filter(
+    result.propUsages = result.propUsages.filter(
       (usage) => usage.propName === propName,
     );
-
-    const groupedByFile = filteredUsages.reduce(
-      (acc, usage) => {
-        const { file } = usage;
-        if (!acc[file]) {
-          acc[file] = [];
-        }
-        acc[file].push(usage);
-        return acc;
-      },
-      {} as { [key: string]: PropUsage[] },
-    );
-
-    return groupedByFile;
+    return result;
   }
 
   async getComponentProps(
@@ -505,7 +492,6 @@ export class JSXPropAnalyzer {
           };
 
           componentAnalysis.props.push(propUsage);
-          propUsages.push(propUsage);
         }
       },
     });
@@ -534,7 +520,6 @@ export class JSXPropAnalyzer {
         };
 
         componentAnalysis.props.push(propUsage);
-        propUsages.push(propUsage);
       } else if (t.isRestElement(property)) {
         const loc = property.loc;
         const propUsage: PropUsage = {
@@ -547,7 +532,6 @@ export class JSXPropAnalyzer {
         };
 
         componentAnalysis.props.push(propUsage);
-        propUsages.push(propUsage);
       }
     }
   }

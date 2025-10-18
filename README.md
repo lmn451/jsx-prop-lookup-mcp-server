@@ -81,7 +81,7 @@ Analyze JSX prop usage in files or directories.
 
 ### 2. `find_prop_usage`
 
-Find all usages of a specific prop across JSX files.
+Find all usages of a specific prop across JSX files. Returns a full `AnalysisResult` object with the `propUsages` array filtered by the specified `propName`.
 
 **Parameters:**
 

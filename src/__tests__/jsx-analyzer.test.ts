@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { JSXPropAnalyzer } from "../jsx-analyzer";
 import * as path from "path";
-import * as fs from "fs/promises";
 
 describe("JSXPropAnalyzer", () => {
   const analyzer = new JSXPropAnalyzer();
@@ -22,22 +21,13 @@ describe("JSXPropAnalyzer", () => {
     ]);
   });
 
-  it("should find all usages of a specific prop, grouped by file", async () => {
-    const propUsages = await analyzer.findPropUsage("onClick", fixturesPath);
-    const files = Object.keys(propUsages);
-    expect(files.length).toBeGreaterThan(0);
-
-    const appFilePath = files.find((file) => file.endsWith("App.tsx"));
-    expect(appFilePath).toBeDefined();
-
-    if (appFilePath) {
-      const usagesInApp = propUsages[appFilePath];
-      expect(usagesInApp.length).toBeGreaterThan(0);
-
-      const buttonUsage = usagesInApp.find((p) => p.componentName === "Button");
-      expect(buttonUsage).toBeDefined();
-      expect(buttonUsage?.propName).toBe("onClick");
-    }
+  it("should find all usages of a specific prop and return AnalysisResult", async () => {
+    const result = await analyzer.findPropUsage("onClick", fixturesPath);
+    expect(result.propUsages.length).toBe(3);
+    const buttonUsage = result.propUsages.find((p) => p.componentName === "Button");
+    expect(buttonUsage).toBeDefined();
+    expect(buttonUsage?.propName).toBe("onClick");
+    expect(result.summary.totalFiles).toBe(4);
   });
 
   it("should get all props for a specific component, grouped by file", async () => {
@@ -61,35 +51,18 @@ describe("JSXPropAnalyzer", () => {
     }
   });
 
-  it("should find components without a required prop, grouped by file", async () => {
-    const appContent = `
-import React from 'react';
-import { Button } from './Button';
-
-const App = () => {
-  return (
-    <div>
-      <Button>Missing onClick</Button>
-    </div>
-  );
-};
-`;
-    const tempFilePath = path.join(fixturesPath, "tempApp.tsx");
-    await fs.writeFile(tempFilePath, appContent);
-
+  it("should find components without a required prop", async () => {
     const result = await analyzer.findComponentsWithoutProp(
       "Button",
       "onClick",
       fixturesPath,
     );
 
-    await fs.unlink(tempFilePath);
-
     const files = Object.keys(result.missingPropUsages);
     expect(files.length).toBe(1);
 
     const missingPropFilePath = files.find((file) =>
-      file.endsWith("tempApp.tsx"),
+      file.endsWith("AppWithMissingProp.tsx"),
     );
     expect(missingPropFilePath).toBeDefined();
 
