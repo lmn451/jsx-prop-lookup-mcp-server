@@ -1,0 +1,16 @@
+{
+  "name": "jsx-prop-analyzer",
+  "version": "4.0.0",
+  "sources": {
+    "dir": "src",
+    "subdirs": true
+  },
+  "package-specs": {
+    "module": "esmodule",
+    "in-source": true
+  },
+  "bs-dependencies": [],
+  "warnings": {
+    "error": "+8+27+32+39+44+45+50+55+60+61+62"
+  }
+}

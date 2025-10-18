@@ -1,7 +1,7 @@
 {
   "name": "jsx-prop-lookup-mcp-server",
-  "version": "3.4.2-beta.2",
-  "description": "MCP server for analyzing JSX prop usage using AST",
+  "version": "4.0.0",
+  "description": "MCP server for analyzing JSX prop usage using AST (ReScript + TypeScript)",
   "main": "dist/index.js",
   "type": "module",
   "keywords": [
@@ -11,7 +11,8 @@
     "ast",
     "props",
     "analysis",
-    "typescript"
+    "typescript",
+    "rescript"
   ],
   "author": "Rovo Dev",
   "license": "MIT",
@@ -28,10 +29,17 @@
     "build:types": "tsc --emitDeclarationOnly",
     "copy-test-fixtures": "cp -r src/__tests__/fixtures dist/__tests__/fixtures",
     "build": "bun run build:js && bun run build:types && bun run copy-test-fixtures",
+    "build:rescript": "rescript build",
+    "build:rescript:clean": "rescript clean && rescript build",
+    "dev:rescript": "rescript build -w",
     "typecheck": "tsc --noEmit",
+    "typecheck:rescript": "rescript build -dry-run",
     "start": "bun dist/index.js",
+    "start:rescript": "node src/mcp/Index.mjs",
     "dev": "bun src/index.ts",
+    "dev:rescript": "rescript build -w",
     "test": "vitest",
+    "test:rescript": "rescript build && bun test",
     "prepublishOnly": "bun run build"
   },
   "bin": {
@@ -40,6 +48,7 @@
   },
   "files": [
     "dist/**/*",
+    "src/**/*",
     "README.md",
     "LICENSE",
     "package.json"
@@ -49,15 +58,15 @@
     "@babel/traverse": "^7.28.4",
     "@babel/types": "^7.28.4",
     "@modelcontextprotocol/sdk": "^1.20.0",
-    "@rescript/std": "^11.1.4",
+    "zod": "^3.23.8",
     "glob": "^11.0.3",
-    "rescript-bun": "^2.0.2",
-    "zod": "^3.23.8"
+    "rescript-bun": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.7.2",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "rescript": "^12.0.0"
   },
   "packageManager": "bun@1.2.2"
 }

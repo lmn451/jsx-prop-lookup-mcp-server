@@ -8,7 +8,9 @@
         "@babel/traverse": "^7.28.4",
         "@babel/types": "^7.28.4",
         "@modelcontextprotocol/sdk": "^1.20.0",
+        "@rescript/std": "^11.1.4",
         "glob": "^11.0.3",
+        "rescript-bun": "^2.0.2",
         "zod": "^3.23.8",
       },
       "devDependencies": {
@@ -104,6 +106,20 @@
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
     "@modelcontextprotocol/sdk": ["@modelcontextprotocol/sdk@1.20.0", "", { "dependencies": { "ajv": "^6.12.6", "content-type": "^1.0.5", "cors": "^2.8.5", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "express": "^5.0.1", "express-rate-limit": "^7.5.0", "pkce-challenge": "^5.0.0", "raw-body": "^3.0.0", "zod": "^3.23.8", "zod-to-json-schema": "^3.24.1" } }, "sha512-kOQ4+fHuT4KbR2iq2IjeV32HiihueuOf1vJkq18z08CLZ1UQrTc8BXJpVfxZkq45+inLLD+D4xx4nBjUelJa4Q=="],
+
+    "@rescript/darwin-arm64": ["@rescript/darwin-arm64@12.0.0-rc.2", "", { "os": "darwin", "cpu": "arm64" }, "sha512-VADEIjad3f5ptd8R+wa0oNjD31jefpo6LEYzjZVfjyRjqMy90+TvbedLe2u23AjAzvemGC4agLQ3dFN7hyGwPg=="],
+
+    "@rescript/darwin-x64": ["@rescript/darwin-x64@12.0.0-rc.2", "", { "os": "darwin", "cpu": "x64" }, "sha512-t+nIspr7ZPutLRBeaPE/6vU7BmiwA3p+5x4GC997Wgax4UA/hoOkfgLhCOxb7uAEUNDLPGNvnIm6nQLcZrpRPA=="],
+
+    "@rescript/linux-arm64": ["@rescript/linux-arm64@12.0.0-rc.2", "", { "os": "linux", "cpu": "arm64" }, "sha512-vSEsw20NtkjkhIiwFgpL7IuSrb2StOvM0DXCsrrVu7KXJd/4OgyOZ/kKu4IFC+b30+408fmOuaCEFJkJHP7lVg=="],
+
+    "@rescript/linux-x64": ["@rescript/linux-x64@12.0.0-rc.2", "", { "os": "linux", "cpu": "x64" }, "sha512-Ey2UbjVukw4d/JswiYvK0Yw1hguljHQbLN6+OTzYHyGNOgBiaCagY2nJ9LVO9FPY6c18L8Od69iUSOvJ7UO34g=="],
+
+    "@rescript/runtime": ["@rescript/runtime@12.0.0-rc.2", "", {}, "sha512-VFF22f9+ZwFHeK7WKcLbYZBRydO5vhec29XLbeX95U/AyXhg6N07vyg/ibe4s5RG0OW8eyLnMR1xy+ZfSDbCXA=="],
+
+    "@rescript/std": ["@rescript/std@11.1.4", "", {}, "sha512-coR+xPh0fS4Mx0bDFUG8I9KhYv7FEXISKa775jvqVeus1zlVJjYf19/qj7mTzgrRmyCnxKBRvrfAM/BXYNUFCQ=="],
+
+    "@rescript/win32-x64": ["@rescript/win32-x64@12.0.0-rc.2", "", { "os": "win32", "cpu": "x64" }, "sha512-UhqMIH79BJRZ74PBRVu4cgu+mInzDhT5/wlYxCp/4FOXRRmomxgJa/fExqL/uj3zoVNrBHDeySrVmcB5MNCRGg=="],
 
     "@rollup/rollup-android-arm-eabi": ["@rollup/rollup-android-arm-eabi@4.52.4", "", { "os": "android", "cpu": "arm" }, "sha512-BTm2qKNnWIQ5auf4deoetINJm2JzvihvGb9R6K/ETwKLql/Bb3Eg2H1FBp1gUb4YGbydMA3jcmQTR73q7J+GAA=="],
 
@@ -372,6 +388,10 @@
     "range-parser": ["range-parser@1.2.1", "", {}, "sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg=="],
 
     "raw-body": ["raw-body@3.0.1", "", { "dependencies": { "bytes": "3.1.2", "http-errors": "2.0.0", "iconv-lite": "0.7.0", "unpipe": "1.0.0" } }, "sha512-9G8cA+tuMS75+6G/TzW8OtLzmBDMo8p1JRxN5AZ+LAp8uxGA8V8GZm4GQ4/N5QNQEnLmg6SS7wyuSmbKepiKqA=="],
+
+    "rescript": ["rescript@12.0.0-rc.2", "", { "dependencies": { "@rescript/runtime": "12.0.0-rc.2" }, "optionalDependencies": { "@rescript/darwin-arm64": "12.0.0-rc.2", "@rescript/darwin-x64": "12.0.0-rc.2", "@rescript/linux-arm64": "12.0.0-rc.2", "@rescript/linux-x64": "12.0.0-rc.2", "@rescript/win32-x64": "12.0.0-rc.2" }, "bin": { "bsc": "cli/bsc.js", "rescript": "cli/rescript.js", "bstracing": "cli/bstracing.js", "rescript-tools": "cli/rescript-tools.js", "rescript-legacy": "cli/rescript-legacy.js" } }, "sha512-oxrqffKJ134NH7H36e/UCBKBhKD/TIuy27YOARBIWZ1W58ptZYqTvPZ2wpe1UPleOF+JH/GXSQCbiGmI+hwwzA=="],
+
+    "rescript-bun": ["rescript-bun@2.0.2", "", { "peerDependencies": { "rescript": ">= 12.0.0-alpha.4" } }, "sha512-FT7tR0TwdsU5pRBrsRqgd4ZDghPrn1mq852cTDVINJoNigxv65ZxDOr8uXCzp2G1rj4JGO7dyzv+3leCyaT9Dw=="],
 
     "resolve-pkg-maps": ["resolve-pkg-maps@1.0.0", "", {}, "sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw=="],
 
