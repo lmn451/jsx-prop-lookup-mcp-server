@@ -36,6 +36,34 @@ export interface AnalysisResult {
 export class JSXPropAnalyzer {
   private readonly supportedExtensions = [".js", ".jsx", ".ts", ".tsx"];
 
+  /**
+   * Extract component name from JSX identifier or member expression
+   * Returns both full dotted name and local component name
+   */
+  private getJSXName(nameNode: t.JSXIdentifier | t.JSXMemberExpression): { full: string; local: string } {
+    if (t.isJSXIdentifier(nameNode)) {
+      return { full: nameNode.name, local: nameNode.name };
+    }
+    
+    const parts: string[] = [];
+    let curr: t.JSXMemberExpression | t.JSXIdentifier = nameNode;
+    
+    while (t.isJSXMemberExpression(curr)) {
+      if (t.isJSXIdentifier(curr.property)) {
+        parts.unshift(curr.property.name);
+      }
+      if (t.isJSXIdentifier(curr.object)) {
+        parts.unshift(curr.object.name);
+        break;
+      }
+      curr = curr.object as t.JSXMemberExpression | t.JSXIdentifier;
+    }
+    
+    const full = parts.join('.');
+    const local = parts[parts.length - 1] ?? full;
+    return { full, local };
+  }
+
   async analyzeProps(
     path: string,
     componentName?: string,
@@ -91,7 +119,7 @@ export class JSXPropAnalyzer {
     );
   }
 
-  async findComponentsWithoutProp(
+async findComponentsWithoutProp(
     componentName: string,
     requiredProp: string,
     directory: string = "."
@@ -117,164 +145,17 @@ export class JSXPropAnalyzer {
       column: number;
       existingProps: string[];
     }> = [];
+    let totalInstances = 0;
 
     for (const file of files) {
       try {
-        // Additional safety check for directories
-        const fileStat = statSync(file);
-        if (!fileStat.isFile()) {
-          console.warn(`Skipping non-file: ${file}`);
-          continue;
-        }
-
-        let content: string;
-        try {
-          content = readFileSync(file, "utf-8");
-        } catch (readError: any) {
-          if (readError.code === "EISDIR") {
-            console.warn(`Skipping directory (EISDIR): ${file}`);
-            continue;
-          }
-          throw readError;
-        }
-
-        let ast;
-
-        try {
-          ast = parse(content, {
-            sourceType: "module",
-            plugins: [
-              "jsx",
-              "typescript",
-              "decorators-legacy",
-              "classProperties",
-              "objectRestSpread",
-              "functionBind",
-              "exportDefaultFrom",
-              "exportNamespaceFrom",
-              "dynamicImport",
-              "nullishCoalescingOperator",
-              "optionalChaining",
-            ],
-          });
-        } catch (error) {
-          console.error(`Failed to parse ${file}:`, error);
-          continue;
-        }
-
-        const traverseDefault = (traverse as any).default || traverse;
-        traverseDefault(ast, {
-          JSXElement: (path) => {
-            const openingElement = path.node.openingElement;
-            if (!t.isJSXIdentifier(openingElement.name) && !t.isJSXMemberExpression(openingElement.name)) return;
-
-            const getJSXName = (nameNode: t.JSXIdentifier | t.JSXMemberExpression): { full: string; local: string } => {
-              if (t.isJSXIdentifier(nameNode)) {
-                return { full: nameNode.name, local: nameNode.name };
-              }
-              const parts: string[] = [];
-              let curr: t.JSXMemberExpression | t.JSXIdentifier = nameNode;
-              while (t.isJSXMemberExpression(curr)) {
-                if (t.isJSXIdentifier(curr.property)) parts.unshift(curr.property.name);
-                if (t.isJSXIdentifier(curr.object)) {
-                  parts.unshift(curr.object.name);
-                  break;
-                }
-                curr = curr.object as t.JSXMemberExpression | t.JSXIdentifier;
-              }
-              const full = parts.join('.');
-              const local = parts[parts.length - 1] ?? full;
-              return { full, local };
-            };
-
-            const { full: fullName, local: localName } = getJSXName(openingElement.name as any);
-            if (!(fullName === componentName || localName === componentName)) return;
-
-            // Get all props for this element
-            const existingProps: string[] = [];
-            let hasRequiredProp = false;
-
-            for (const attribute of openingElement.attributes) {
-              if (
-                t.isJSXAttribute(attribute) &&
-                t.isJSXIdentifier(attribute.name)
-              ) {
-                const propName = attribute.name.name;
-                existingProps.push(propName);
-                if (propName === requiredProp) {
-                  hasRequiredProp = true;
-                }
-              } else if (t.isJSXSpreadAttribute(attribute)) {
-                existingProps.push("...spread");
-                // Note: We can't determine if spread contains the required prop
-                // so we'll assume it might and not flag this as missing
-                hasRequiredProp = true;
-              }
-            }
-
-            // If the required prop is missing, record this usage
-            if (!hasRequiredProp) {
-              const loc = openingElement.loc;
-              missingPropUsages.push({
-                componentName: localName,
-                file,
-                line: loc?.start.line || 0,
-                column: loc?.start.column || 0,
-                existingProps,
-              });
-            }
-          },
-        });
+        const result = await this.analyzeFileForMissingProp(file, componentName, requiredProp);
+        missingPropUsages.push(...result.missingProps);
+        totalInstances += result.totalInstances;
       } catch (error) {
         console.error(`Error analyzing file ${file}:`, error);
       }
     }
-
-    // Calculate summary statistics
-    const totalInstances = (() => {
-      // We need to recount occurrences of the component in the files to get total instances.
-      // For simplicity here, approximate total as missing + instances where requiredProp was present.
-      // Since we marked spreads as present and only recorded missing ones, we cannot directly count presents without another pass.
-      // We will do a second traversal to count total instances of the target component.
-      let count = 0;
-      for (const file of files) {
-        try {
-          const content = readFileSync(file, 'utf-8');
-          const ast = parse(content, {
-            sourceType: 'module',
-            plugins: [
-              'jsx','typescript','decorators-legacy','classProperties','objectRestSpread','functionBind','exportDefaultFrom','exportNamespaceFrom','dynamicImport','nullishCoalescingOperator','optionalChaining'
-            ]
-          });
-          const traverseDefault2 = (traverse as any).default || traverse;
-          traverseDefault2(ast, {
-            JSXElement: (p) => {
-              const openingElement = p.node.openingElement;
-              if (!t.isJSXIdentifier(openingElement.name) && !t.isJSXMemberExpression(openingElement.name)) return;
-              const getJSXName = (nameNode: t.JSXIdentifier | t.JSXMemberExpression): { full: string; local: string } => {
-                if (t.isJSXIdentifier(nameNode)) return { full: nameNode.name, local: nameNode.name };
-                const parts: string[] = [];
-                let curr: t.JSXMemberExpression | t.JSXIdentifier = nameNode;
-                while (t.isJSXMemberExpression(curr)) {
-                  if (t.isJSXIdentifier(curr.property)) parts.unshift(curr.property.name);
-                  if (t.isJSXIdentifier(curr.object)) { parts.unshift(curr.object.name); break; }
-                  curr = curr.object as t.JSXMemberExpression | t.JSXIdentifier;
-                }
-                const full = parts.join('.');
-                const local = parts[parts.length - 1] ?? full;
-                return { full, local };
-              };
-              const { full: fullName2, local: localName2 } = getJSXName(openingElement.name as any);
-              if (!(fullName2 === componentName || localName2 === componentName)) return;
-              count++;
-            }
-          });
-        } catch {
-          // ignore file errors in summary pass
-        }
-      }
-      return count;
-    })();
 
     const missingPropCount = missingPropUsages.length;
     const missingPropPercentage = totalInstances > 0 ? (missingPropCount / totalInstances) * 100 : 0;
@@ -287,6 +168,156 @@ export class JSXPropAnalyzer {
         missingPropPercentage,
       },
     };
+  }
+
+  /**
+   * Analyze a single file for missing required props
+   */
+  private async analyzeFileForMissingProp(
+    file: string,
+    componentName: string,
+    requiredProp: string
+  ): Promise<{
+    missingProps: Array<{
+      componentName: string;
+      file: string;
+      line: number;
+      column: number;
+      existingProps: string[];
+    }>;
+    totalInstances: number;
+  }> {
+    // Additional safety check for directories
+    const fileStat = statSync(file);
+    if (!fileStat.isFile()) {
+      console.warn(`Skipping non-file: ${file}`);
+      return { missingProps: [], totalInstances: 0 };
+    }
+
+    let content: string;
+    try {
+      content = readFileSync(file, "utf-8");
+    } catch (readError: any) {
+      if (readError.code === "EISDIR") {
+        console.warn(`Skipping directory (EISDIR): ${file}`);
+        return { missingProps: [], totalInstances: 0 };
+      }
+      throw readError;
+    }
+
+    let ast;
+    try {
+      ast = parse(content, {
+        sourceType: "module",
+        plugins: [
+          "jsx",
+          "typescript",
+          "decorators-legacy",
+          "classProperties",
+          "objectRestSpread",
+          "functionBind",
+          "exportDefaultFrom",
+          "exportNamespaceFrom",
+          "dynamicImport",
+          "nullishCoalescingOperator",
+          "optionalChaining",
+        ],
+      });
+    } catch (error) {
+      console.error(`Failed to parse ${file}:`, error);
+      return { missingProps: [], totalInstances: 0 };
+    }
+
+    return this.traverseForMissingProps(ast, file, componentName, requiredProp);
+  }
+
+  /**
+   * Traverse AST to find missing props
+   */
+  private traverseForMissingProps(
+    ast: any,
+    file: string,
+    componentName: string,
+    requiredProp: string
+  ): {
+    missingProps: Array<{
+      componentName: string;
+      file: string;
+      line: number;
+      column: number;
+      existingProps: string[];
+    }>;
+    totalInstances: number;
+  } {
+    const missingProps: Array<{
+      componentName: string;
+      file: string;
+      line: number;
+      column: number;
+      existingProps: string[];
+    }> = [];
+    let totalInstances = 0;
+
+    const traverseDefault = (traverse as any).default || traverse;
+    traverseDefault(ast, {
+      JSXElement: (path) => {
+        const openingElement = path.node.openingElement;
+        if (!t.isJSXIdentifier(openingElement.name) && !t.isJSXMemberExpression(openingElement.name)) return;
+
+        const { full: fullName, local: localName } = this.getJSXName(openingElement.name as any);
+        if (!(fullName === componentName || localName === componentName)) return;
+
+        // Count total instances
+        totalInstances++;
+
+        // Analyze props for this element
+        const propAnalysis = this.analyzeElementProps(openingElement, requiredProp);
+        
+        if (!propAnalysis.hasRequiredProp) {
+          const loc = openingElement.loc;
+          missingProps.push({
+            componentName: localName,
+            file,
+            line: loc?.start.line || 0,
+            column: loc?.start.column || 0,
+            existingProps: propAnalysis.existingProps,
+          });
+        }
+      },
+    });
+
+    return { missingProps, totalInstances };
+  }
+
+  /**
+   * Analyze props of a JSX element to check for required prop
+   */
+  private analyzeElementProps(
+    openingElement: any,
+    requiredProp: string
+  ): {
+    existingProps: string[];
+    hasRequiredProp: boolean;
+  } {
+    const existingProps: string[] = [];
+    let hasRequiredProp = false;
+
+    for (const attribute of openingElement.attributes) {
+      if (t.isJSXAttribute(attribute) && t.isJSXIdentifier(attribute.name)) {
+        const propName = attribute.name.name;
+        existingProps.push(propName);
+        if (propName === requiredProp) {
+          hasRequiredProp = true;
+        }
+      } else if (t.isJSXSpreadAttribute(attribute)) {
+        existingProps.push("...spread");
+        // Note: We can't determine if spread contains the required prop
+        // so we'll assume it might and not flag this as missing
+        hasRequiredProp = true;
+      }
+    }
+
+    return { existingProps, hasRequiredProp };
   }
 
   private async getFiles(path: string): Promise<string[]> {
@@ -614,27 +645,9 @@ export class JSXPropAnalyzer {
     // Support both simple identifiers and member expressions (e.g., UI.Select)
     if (!t.isJSXIdentifier(openingElement.name) && !t.isJSXMemberExpression(openingElement.name)) return;
 
-    const getJSXName = (nameNode: t.JSXIdentifier | t.JSXMemberExpression): { full: string; local: string } => {
-      if (t.isJSXIdentifier(nameNode)) {
-        return { full: nameNode.name, local: nameNode.name };
-      }
-      // Build full dotted name and extract final identifier as local
-      const parts: string[] = [];
-      let curr: t.JSXMemberExpression | t.JSXIdentifier = nameNode;
-      while (t.isJSXMemberExpression(curr)) {
-        if (t.isJSXIdentifier(curr.property)) parts.unshift(curr.property.name);
-        if (t.isJSXIdentifier(curr.object)) {
-          parts.unshift(curr.object.name);
-          break;
-        }
-        curr = curr.object as t.JSXMemberExpression | t.JSXIdentifier;
-      }
-      const full = parts.join('.');
-      const local = parts[parts.length - 1] ?? full;
-      return { full, local };
-    };
+    
 
-    const { full: fullName, local: localName } = getJSXName(openingElement.name as any);
+    const { full: fullName, local: localName } = this.getJSXName(openingElement.name as any);
 
     if (targetComponent && !(targetComponent === fullName || targetComponent === localName)) return;
 

@@ -7,263 +7,214 @@ if (Number.isNaN(nodeMajorVersion) || nodeMajorVersion < 18) {
   process.exit(1);
 }
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 import { JSXPropAnalyzer } from "./jsx-analyzer.js";
 import * as path from "path";
 import * as fs from "fs";
 
-const server = new Server({
-  name: "jsx-prop-lookup-server",
-  version: "1.0.0",
-  capabilities: {
-    tools: {},
+// Tool argument interfaces
+interface AnalyzeJSXPropsArgs {
+  path: string;
+  componentName?: string;
+  propName?: string;
+  includeTypes?: boolean;
+}
+
+interface FindPropUsageArgs {
+  propName: string;
+  directory?: string;
+  componentName?: string;
+}
+
+interface GetComponentPropsArgs {
+  componentName: string;
+  directory?: string;
+}
+
+interface FindComponentsWithoutPropArgs {
+  componentName: string;
+  requiredProp: string;
+  directory?: string;
+}
+
+const server = new McpServer(
+  {
+    name: "jsx-prop-lookup-server",
+    version: "1.0.0",
   },
-});
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
 
 const analyzer = new JSXPropAnalyzer();
 
-// List available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "analyze_jsx_props",
-        description: "Analyze JSX prop usage in files or directories",
-        inputSchema: {
-          type: "object",
-          properties: {
-            path: {
-              type: "string",
-              description: "File or directory path to analyze",
-            },
-            componentName: {
-              type: "string",
-              description: "Optional: specific component name to analyze",
-            },
-            propName: {
-              type: "string",
-              description: "Optional: specific prop name to search for",
-            },
-            includeTypes: {
-              type: "boolean",
-              description: "Include TypeScript type information",
-              default: true,
-            },
-          },
-          required: ["path"],
-        },
-      },
-      {
-        name: "find_prop_usage",
-        description: "Find all usages of a specific prop across JSX files",
-        inputSchema: {
-          type: "object",
-          properties: {
-            propName: {
-              type: "string",
-              description: "Name of the prop to search for",
-            },
-            directory: {
-              type: "string",
-              description: "Directory to search in",
-              default: ".",
-            },
-            componentName: {
-              type: "string",
-              description: "Optional: limit search to specific component",
-            },
-          },
-          required: ["propName"],
-        },
-      },
-      {
-        name: "get_component_props",
-        description: "Get all props used by a specific component",
-        inputSchema: {
-          type: "object",
-          properties: {
-            componentName: {
-              type: "string",
-              description: "Name of the component to analyze",
-            },
-            directory: {
-              type: "string",
-              description: "Directory to search in",
-              default: ".",
-            },
-          },
-          required: ["componentName"],
-        },
-      },
-      {
-        name: "find_components_without_prop",
-        description:
-          "Find component instances that are missing a required prop (e.g., Select components without width prop)",
-        inputSchema: {
-          type: "object",
-          properties: {
-            componentName: {
-              type: "string",
-              description: 'Name of the component to check (e.g., "Select")',
-            },
-            requiredProp: {
-              type: "string",
-              description: 'Name of the required prop (e.g., "width")',
-            },
-            directory: {
-              type: "string",
-              description: "Directory to search in",
-              default: ".",
-            },
-          },
-          required: ["componentName", "requiredProp"],
-        },
-      },
-    ],
-  };
-});
-
-// Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  if (!args) {
-    throw new Error("Missing arguments");
+// Helper function for path validation
+const resolveAndValidatePath = (input: string, label: string): string => {
+  if (typeof input !== "string" || input.length === 0) {
+    throw new Error(`${label} must be a non-empty string`);
   }
-
-  const resolveAndValidatePath = (input: string, label: string): string => {
-    if (typeof input !== "string" || input.length === 0) {
-      throw new Error(`${label} must be a non-empty string`);
-    }
-    const abs = path.isAbsolute(input) ? input : path.resolve(process.cwd(), input);
-    try {
-      const stat = fs.statSync(abs);
-      if (!stat.isDirectory() && !stat.isFile()) {
-        throw new Error(`${label} exists but is neither a file nor directory: ${abs}`);
-      }
-    } catch (error) {
-      throw new Error(
-        `Invalid ${label}: ${input} -> ${abs} - ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-    return abs;
-  };
-
+  const abs = path.isAbsolute(input) ? input : path.resolve(process.cwd(), input);
   try {
-    switch (name) {
-      case "analyze_jsx_props": {
-        if (typeof (args as any).path !== "string" || !(args as any).path) {
-          throw new Error("Missing required argument: path");
-        }
-        const absPath = resolveAndValidatePath((args as any).path, "path");
-        const result = await analyzer.analyzeProps(
-          absPath,
-          (args as any).componentName as string | undefined,
-          (args as any).propName as string | undefined,
-          ((args as any).includeTypes as boolean) ?? true
-        );
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "find_prop_usage": {
-        if (
-          typeof (args as any).propName !== "string" || !(args as any).propName
-        ) {
-          throw new Error("Missing required argument: propName");
-        }
-        const dir = ((args as any).directory as string) ?? ".";
-        const absDir = resolveAndValidatePath(dir, "directory");
-        const result = await analyzer.findPropUsage(
-          (args as any).propName as string,
-          absDir,
-          (args as any).componentName as string | undefined
-        );
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "get_component_props": {
-        if (
-          typeof (args as any).componentName !== "string" ||
-          !(args as any).componentName
-        ) {
-          throw new Error("Missing required argument: componentName");
-        }
-        const dir = ((args as any).directory as string) ?? ".";
-        const absDir = resolveAndValidatePath(dir, "directory");
-        const result = await analyzer.getComponentProps(
-          (args as any).componentName as string,
-          absDir
-        );
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "find_components_without_prop": {
-        const componentName = (args as any).componentName as string;
-        const requiredProp = (args as any).requiredProp as string;
-        if (!componentName) {
-          throw new Error("Missing required argument: componentName");
-        }
-        if (!requiredProp) {
-          throw new Error("Missing required argument: requiredProp");
-        }
-        const dir = ((args as any).directory as string) ?? ".";
-        const absDir = resolveAndValidatePath(dir, "directory");
-        const result = await analyzer.findComponentsWithoutProp(
-          componentName,
-          requiredProp,
-          absDir
-        );
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
+    const stat = fs.statSync(abs);
+    if (!stat.isDirectory() && !stat.isFile()) {
+      throw new Error(`${label} exists but is neither a file nor directory: ${abs}`);
     }
   } catch (error) {
+    throw new Error(
+      `Invalid ${label}: ${input} -> ${abs} - ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  return abs;
+};
+
+// Define Zod schemas for tool inputs
+const AnalyzeJSXPropsSchema = z.object({
+  path: z.string().describe("File or directory path to analyze"),
+  componentName: z.string().optional().describe("Optional: specific component name to analyze"),
+  propName: z.string().optional().describe("Optional: specific prop name to search for"),
+  includeTypes: z.boolean().default(true).describe("Include TypeScript type information"),
+});
+
+const FindPropUsageSchema = z.object({
+  propName: z.string().describe("Name of the prop to search for"),
+  directory: z.string().default(".").describe("Directory to search in"),
+  componentName: z.string().optional().describe("Optional: limit search to specific component"),
+});
+
+const GetComponentPropsSchema = z.object({
+  componentName: z.string().describe("Name of the component to analyze"),
+  directory: z.string().default(".").describe("Directory to search in"),
+});
+
+const FindComponentsWithoutPropSchema = z.object({
+  componentName: z.string().describe('Name of the component to check (e.g., "Select")'),
+  requiredProp: z.string().describe('Name of the required prop (e.g., "width")'),
+  directory: z.string().default(".").describe("Directory to search in"),
+});
+
+// Helper function to format tool responses with error handling
+const formatToolResponse = (result: any, error?: Error) => {
+  if (error) {
     return {
       content: [
         {
-          type: "text",
-          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          type: "text" as const,
+          text: `Error: ${error.message}`,
         },
       ],
       isError: true,
     };
   }
-});
+  
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify(result, null, 2),
+      },
+    ],
+  };
+};
+
+// Register tools using the new API
+server.registerTool(
+  "analyze_jsx_props",
+  {
+    title: "Analyze JSX Props",
+    description: "Analyze JSX prop usage in files or directories",
+    inputSchema: AnalyzeJSXPropsSchema,
+  },
+  async (args) => {
+    try {
+      const parsed = AnalyzeJSXPropsSchema.parse(args);
+      const absPath = resolveAndValidatePath(parsed.path, "path");
+      const result = await analyzer.analyzeProps(
+        absPath,
+        parsed.componentName,
+        parsed.propName,
+        parsed.includeTypes
+      );
+      return formatToolResponse(result);
+    } catch (error) {
+      return formatToolResponse(null, error as Error);
+    }
+  }
+);
+
+server.registerTool(
+  "find_prop_usage",
+  {
+    title: "Find Prop Usage",
+    description: "Find all usages of a specific prop across JSX files",
+    inputSchema: FindPropUsageSchema,
+  },
+  async (args) => {
+    try {
+      const parsed = FindPropUsageSchema.parse(args);
+      const absDir = resolveAndValidatePath(parsed.directory, "directory");
+      const result = await analyzer.findPropUsage(
+        parsed.propName,
+        absDir,
+        parsed.componentName
+      );
+      return formatToolResponse(result);
+    } catch (error) {
+      return formatToolResponse(null, error as Error);
+    }
+  }
+);
+
+server.registerTool(
+  "get_component_props",
+  {
+    title: "Get Component Props",
+    description: "Get all props used by a specific component",
+    inputSchema: GetComponentPropsSchema,
+  },
+  async (args) => {
+    try {
+      const parsed = GetComponentPropsSchema.parse(args);
+      const absDir = resolveAndValidatePath(parsed.directory, "directory");
+      const result = await analyzer.getComponentProps(
+        parsed.componentName,
+        absDir
+      );
+      return formatToolResponse(result);
+    } catch (error) {
+      return formatToolResponse(null, error as Error);
+    }
+  }
+);
+
+server.registerTool(
+  "find_components_without_prop",
+  {
+    title: "Find Components Without Prop",
+    description: "Find component instances that are missing a required prop (e.g., Select components without width prop)",
+    inputSchema: FindComponentsWithoutPropSchema,
+  },
+  async (args) => {
+    try {
+      const parsed = FindComponentsWithoutPropSchema.parse(args);
+      const absDir = resolveAndValidatePath(parsed.directory, "directory");
+      const result = await analyzer.findComponentsWithoutProp(
+        parsed.componentName,
+        parsed.requiredProp,
+        absDir
+      );
+      return formatToolResponse(result);
+    } catch (error) {
+      return formatToolResponse(null, error as Error);
+    }
+  }
+);
+
+
 
 async function main() {
   try {
