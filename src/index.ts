@@ -99,26 +99,23 @@ const formatToolResponse = (result: any, error?: Error) => {
 };
 
 // Register tools using server.tool() with manual validation to bypass SDK issues
-server.registerTool(
+server.tool(
   "analyze_jsx_props",
+  "Analyze JSX prop usage in files or directories",
   {
-    title: "Analyze JSX Props",
-    description: "Analyze JSX prop usage in files or directories",
-    inputSchema: {
-      path: z.string().describe("File or directory path to analyze"),
-      componentName: z.string().optional().describe("Optional: specific component name to analyze"),
-      propName: z.string().optional().describe("Optional: specific prop name to search for"),
-      includeTypes: z.boolean().default(true).describe("Include TypeScript type information")
-    }
+    path: z.string().describe("File or directory path to analyze"),
+    componentName: z.string().optional().describe("Optional: specific component name to analyze"),
+    propName: z.string().optional().describe("Optional: specific prop name to search for"),
+    includeTypes: z.boolean().default(true).describe("Include TypeScript type information")
   },
-  async (args) => {
+  async ({ path, componentName, propName, includeTypes }) => {
     try {
-      const absPath = resolveAndValidatePath(args.path, "path");
+      const absPath = resolveAndValidatePath(path, "path");
       const result = await analyzer.analyzeProps(
         absPath,
-        args.componentName,
-        args.propName,
-        args.includeTypes
+        componentName,
+        propName,
+        includeTypes
       );
       return formatToolResponse(result);
     } catch (error) {
@@ -127,29 +124,21 @@ server.registerTool(
   }
 );
 
-server.registerTool(
+server.tool(
   "find_prop_usage",
+  "Find all usages of a specific prop across JSX files",
   {
-    title: "Find Prop Usage",
-    description: "Find all usages of a specific prop across JSX files",
-    inputSchema: {
-      propName: z.string().optional().describe("Name of the prop to search for"),
-      directory: z.string().default(".").describe("Directory to search in"),
-      componentName: z.string().optional().describe("Optional: limit search to specific component")
-    }
+    propName: z.string().describe("Name of the prop to search for"),
+    directory: z.string().default(".").describe("Directory to search in"),
+    componentName: z.string().optional().describe("Optional: limit search to specific component")
   },
-  async (args) => {
+  async ({ propName, directory, componentName }) => {
     try {
-      // Manual validation to ensure error message starts with "Error:"
-      if (!args.propName || typeof args.propName !== 'string') {
-        throw new Error("Missing required argument: propName");
-      }
-      
-      const absDir = resolveAndValidatePath(args.directory, "directory");
+      const absDir = resolveAndValidatePath(directory, "directory");
       const result = await analyzer.findPropUsage(
-        args.propName,
+        propName,
         absDir,
-        args.componentName
+        componentName
       );
       return formatToolResponse(result);
     } catch (error) {
@@ -158,21 +147,18 @@ server.registerTool(
   }
 );
 
-server.registerTool(
+server.tool(
   "get_component_props",
+  "Get all props used by a specific component",
   {
-    title: "Get Component Props",
-    description: "Get all props used by a specific component",
-    inputSchema: {
-      componentName: z.string().describe("Name of the component to analyze"),
-      directory: z.string().default(".").describe("Directory to search in")
-    }
+    componentName: z.string().describe("Name of the component to analyze"),
+    directory: z.string().default(".").describe("Directory to search in")
   },
-  async (args) => {
+  async ({ componentName, directory }) => {
     try {
-      const absDir = resolveAndValidatePath(args.directory, "directory");
+      const absDir = resolveAndValidatePath(directory, "directory");
       const result = await analyzer.getComponentProps(
-        args.componentName,
+        componentName,
         absDir
       );
       return formatToolResponse(result);
@@ -182,23 +168,20 @@ server.registerTool(
   }
 );
 
-server.registerTool(
+server.tool(
   "find_components_without_prop",
+  "Find component instances that are missing a required prop",
   {
-    title: "Find Components Without Prop",
-    description: "Find component instances that are missing a required prop",
-    inputSchema: {
-      componentName: z.string().describe("Name of the component to check"),
-      requiredProp: z.string().describe("Name of the required prop"),
-      directory: z.string().default(".").describe("Directory to search in")
-    }
+    componentName: z.string().describe("Name of the component to check"),
+    requiredProp: z.string().describe("Name of the required prop"),
+    directory: z.string().default(".").describe("Directory to search in")
   },
-  async (args) => {
+  async ({ componentName, requiredProp, directory }) => {
     try {
-      const absDir = resolveAndValidatePath(args.directory, "directory");
+      const absDir = resolveAndValidatePath(directory, "directory");
       const result = await analyzer.findComponentsWithoutProp(
-        args.componentName,
-        args.requiredProp,
+        componentName,
+        requiredProp,
         absDir
       );
       return formatToolResponse(result);

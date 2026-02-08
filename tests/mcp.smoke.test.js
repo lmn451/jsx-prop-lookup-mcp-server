@@ -303,11 +303,19 @@ describe('MCP Server Integration', () => {
         name: 'find_prop_usage',
         arguments: {} // Missing required propName
       });
-      
+
       assert.ok(response.result, 'Should have result');
       assert.ok(response.result.content, 'Should have content');
       assert.strictEqual(response.result.isError, true, 'Should be marked as error');
-      assert.ok(response.result.content[0].text.includes('Error:'), 'Should contain error message');
+      // SEP-1303: Check for validation error indicators (not specific text)
+      const errorText = response.result.content[0].text.toLowerCase();
+      assert.ok(
+        errorText.includes('invalid') ||
+        errorText.includes('required') ||
+        errorText.includes('validation') ||
+        errorText.includes('error'),
+        'Error message should explain the validation failure'
+      );
     } finally {
       client.close();
     }
