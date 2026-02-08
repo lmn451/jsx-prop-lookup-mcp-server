@@ -72,30 +72,36 @@ const resolveAndValidatePath = (input: string, label: string): string => {
   return abs;
 };
 
-// Define Zod schemas for tool inputs
-const AnalyzeJSXPropsSchema = z.object({
+// Define Zod schemas for tool inputs - both raw shape for server.tool() and objects for parsing
+const AnalyzeJSXPropsShape = {
   path: z.string().describe("File or directory path to analyze"),
   componentName: z.string().optional().describe("Optional: specific component name to analyze"),
   propName: z.string().optional().describe("Optional: specific prop name to search for"),
   includeTypes: z.boolean().default(true).describe("Include TypeScript type information"),
-});
+};
 
-const FindPropUsageSchema = z.object({
+const FindPropUsageShape = {
   propName: z.string().describe("Name of the prop to search for"),
   directory: z.string().default(".").describe("Directory to search in"),
   componentName: z.string().optional().describe("Optional: limit search to specific component"),
-});
+};
 
-const GetComponentPropsSchema = z.object({
+const GetComponentPropsShape = {
   componentName: z.string().describe("Name of the component to analyze"),
   directory: z.string().default(".").describe("Directory to search in"),
-});
+};
 
-const FindComponentsWithoutPropSchema = z.object({
+const FindComponentsWithoutPropShape = {
   componentName: z.string().describe('Name of the component to check (e.g., "Select")'),
   requiredProp: z.string().describe('Name of the required prop (e.g., "width")'),
   directory: z.string().default(".").describe("Directory to search in"),
-});
+};
+
+// Create Zod objects for parsing
+const AnalyzeJSXPropsSchema = z.object(AnalyzeJSXPropsShape);
+const FindPropUsageSchema = z.object(FindPropUsageShape);
+const GetComponentPropsSchema = z.object(GetComponentPropsShape);
+const FindComponentsWithoutPropSchema = z.object(FindComponentsWithoutPropShape);
 
 // Helper function to format tool responses with error handling
 const formatToolResponse = (result: any, error?: Error) => {
@@ -121,54 +127,113 @@ const formatToolResponse = (result: any, error?: Error) => {
   };
 };
 
-// Register tools using the new API
-server.registerTool(
+// Register tools using server.tool() with manual validation to bypass SDK issues
+server.tool(
   "analyze_jsx_props",
-  {
-    title: "Analyze JSX Props",
-    description: "Analyze JSX prop usage in files or directories",
-  },
-  async (extra) => {
+  {},
+  async (args) => {
     try {
-      // For now, we can't access arguments due to MCP SDK issue #1026
-      throw new Error("Missing required argument: path");
+      const typedArgs = args as any;
+      if (!typedArgs.path || typeof typedArgs.path !== 'string') {
+        throw new Error("Missing required argument: path");
+      }
+      
+      const absPath = resolveAndValidatePath(typedArgs.path, "path");
+      const result = await analyzer.analyzeProps(
+        absPath,
+        typedArgs.componentName,
+        typedArgs.propName,
+        typedArgs.includeTypes ?? true
+      );
+      return formatToolResponse(result);
     } catch (error) {
-      return formatToolResponse(null, error as Error);
+      return formatToolResponse(null, error instanceof Error ? error : new Error(String(error)));
     }
   }
 );
 
-server.registerTool(
+server.tool(
+  "find_prop_usage",
+  {},
+  async (args) => {
+    console.error('Debug: find_prop_usage called with args:', JSON.stringify(args, null, 2));
+    console.error('Debug: args type:', typeof args);
+    console.error('Debug: args keys:', args ? Object.keys(args) : 'args is null/undefined');
+    try {
+      // Manual validation to control error message format
+      if (!args || typeof args !== 'object') {
+        throw new Error("Invalid arguments: expected object");
+      }
+      
+      const typedArgs = args as any;
+      if (!typedArgs.propName || typeof typedArgs.propName !== 'string') {
+        throw new Error("Missing required argument: propName");
+      }
+      
+      const absDir = resolveAndValidatePath(typedArgs.directory || ".", "directory");
+      const result = await analyzer.findPropUsage(
+        typedArgs.propName,
+        absDir,
+        typedArgs.componentName
+      );
+      return formatToolResponse(result);
+    } catch (error) {
+      console.error('Debug: error in handler:', error instanceof Error ? error.message : String(error));
+      return formatToolResponse(null, error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+);
+
+server.tool(
   "get_component_props",
-  {
-    title: "Get Component Props",
-    description: "Get all props used by a specific component",
-  },
-  async (extra) => {
+  {},
+  async (args) => {
     try {
-      // For now, we can't access arguments due to MCP SDK issue #1026
-      throw new Error("Missing required argument: componentName");
+      const typedArgs = args as any;
+      if (!typedArgs.componentName || typeof typedArgs.componentName !== 'string') {
+        throw new Error("Missing required argument: componentName");
+      }
+      
+      const absDir = resolveAndValidatePath(typedArgs.directory || ".", "directory");
+      const result = await analyzer.getComponentProps(
+        typedArgs.componentName,
+        absDir
+      );
+      return formatToolResponse(result);
     } catch (error) {
-      return formatToolResponse(null, error as Error);
+      return formatToolResponse(null, error instanceof Error ? error : new Error(String(error)));
     }
   }
 );
 
-server.registerTool(
+server.tool(
   "find_components_without_prop",
-  {
-    title: "Find Components Without Prop",
-    description: "Find component instances that are missing a required prop (e.g., Select components without width prop)",
-  },
-  async (extra) => {
+  {},
+  async (args) => {
     try {
-      // For now, we can't access arguments due to MCP SDK issue #1026
-      throw new Error("Missing required argument: componentName");
+      const typedArgs = args as any;
+      if (!typedArgs.componentName || typeof typedArgs.componentName !== 'string') {
+        throw new Error("Missing required argument: componentName");
+      }
+      
+      if (!typedArgs.requiredProp || typeof typedArgs.requiredProp !== 'string') {
+        throw new Error("Missing required argument: requiredProp");
+      }
+      
+      const absDir = resolveAndValidatePath(typedArgs.directory || ".", "directory");
+      const result = await analyzer.findComponentsWithoutProp(
+        typedArgs.componentName,
+        typedArgs.requiredProp,
+        absDir
+      );
+      return formatToolResponse(result);
     } catch (error) {
-      return formatToolResponse(null, error as Error);
+      return formatToolResponse(null, error instanceof Error ? error : new Error(String(error)));
     }
   }
 );
+
+
 
 
 
