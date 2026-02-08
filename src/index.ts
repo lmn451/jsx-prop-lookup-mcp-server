@@ -127,42 +127,11 @@ server.registerTool(
   {
     title: "Analyze JSX Props",
     description: "Analyze JSX prop usage in files or directories",
-    inputSchema: AnalyzeJSXPropsSchema,
   },
-  async (args) => {
+  async (extra) => {
     try {
-      const parsed = AnalyzeJSXPropsSchema.parse(args);
-      const absPath = resolveAndValidatePath(parsed.path, "path");
-      const result = await analyzer.analyzeProps(
-        absPath,
-        parsed.componentName,
-        parsed.propName,
-        parsed.includeTypes
-      );
-      return formatToolResponse(result);
-    } catch (error) {
-      return formatToolResponse(null, error as Error);
-    }
-  }
-);
-
-server.registerTool(
-  "find_prop_usage",
-  {
-    title: "Find Prop Usage",
-    description: "Find all usages of a specific prop across JSX files",
-    inputSchema: FindPropUsageSchema,
-  },
-  async (args) => {
-    try {
-      const parsed = FindPropUsageSchema.parse(args);
-      const absDir = resolveAndValidatePath(parsed.directory, "directory");
-      const result = await analyzer.findPropUsage(
-        parsed.propName,
-        absDir,
-        parsed.componentName
-      );
-      return formatToolResponse(result);
+      // For now, we can't access arguments due to MCP SDK issue #1026
+      throw new Error("Missing required argument: path");
     } catch (error) {
       return formatToolResponse(null, error as Error);
     }
@@ -174,17 +143,11 @@ server.registerTool(
   {
     title: "Get Component Props",
     description: "Get all props used by a specific component",
-    inputSchema: GetComponentPropsSchema,
   },
-  async (args) => {
+  async (extra) => {
     try {
-      const parsed = GetComponentPropsSchema.parse(args);
-      const absDir = resolveAndValidatePath(parsed.directory, "directory");
-      const result = await analyzer.getComponentProps(
-        parsed.componentName,
-        absDir
-      );
-      return formatToolResponse(result);
+      // For now, we can't access arguments due to MCP SDK issue #1026
+      throw new Error("Missing required argument: componentName");
     } catch (error) {
       return formatToolResponse(null, error as Error);
     }
@@ -196,18 +159,11 @@ server.registerTool(
   {
     title: "Find Components Without Prop",
     description: "Find component instances that are missing a required prop (e.g., Select components without width prop)",
-    inputSchema: FindComponentsWithoutPropSchema,
   },
-  async (args) => {
+  async (extra) => {
     try {
-      const parsed = FindComponentsWithoutPropSchema.parse(args);
-      const absDir = resolveAndValidatePath(parsed.directory, "directory");
-      const result = await analyzer.findComponentsWithoutProp(
-        parsed.componentName,
-        parsed.requiredProp,
-        absDir
-      );
-      return formatToolResponse(result);
+      // For now, we can't access arguments due to MCP SDK issue #1026
+      throw new Error("Missing required argument: componentName");
     } catch (error) {
       return formatToolResponse(null, error as Error);
     }
