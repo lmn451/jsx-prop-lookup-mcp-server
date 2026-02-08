@@ -72,36 +72,7 @@ const resolveAndValidatePath = (input: string, label: string): string => {
   return abs;
 };
 
-// Define Zod schemas for tool inputs - both raw shape for server.tool() and objects for parsing
-const AnalyzeJSXPropsShape = {
-  path: z.string().describe("File or directory path to analyze"),
-  componentName: z.string().optional().describe("Optional: specific component name to analyze"),
-  propName: z.string().optional().describe("Optional: specific prop name to search for"),
-  includeTypes: z.boolean().default(true).describe("Include TypeScript type information"),
-};
 
-const FindPropUsageShape = {
-  propName: z.string().describe("Name of the prop to search for"),
-  directory: z.string().default(".").describe("Directory to search in"),
-  componentName: z.string().optional().describe("Optional: limit search to specific component"),
-};
-
-const GetComponentPropsShape = {
-  componentName: z.string().describe("Name of the component to analyze"),
-  directory: z.string().default(".").describe("Directory to search in"),
-};
-
-const FindComponentsWithoutPropShape = {
-  componentName: z.string().describe('Name of the component to check (e.g., "Select")'),
-  requiredProp: z.string().describe('Name of the required prop (e.g., "width")'),
-  directory: z.string().default(".").describe("Directory to search in"),
-};
-
-// Create Zod objects for parsing
-const AnalyzeJSXPropsSchema = z.object(AnalyzeJSXPropsShape);
-const FindPropUsageSchema = z.object(FindPropUsageShape);
-const GetComponentPropsSchema = z.object(GetComponentPropsShape);
-const FindComponentsWithoutPropSchema = z.object(FindComponentsWithoutPropShape);
 
 // Helper function to format tool responses with error handling
 const formatToolResponse = (result: any, error?: Error) => {
