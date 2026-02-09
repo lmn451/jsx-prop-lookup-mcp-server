@@ -3,6 +3,7 @@
 ## ✅ Server Status: Working Correctly
 
 The test shows the server is responding properly:
+
 - ✅ Starts successfully
 - ✅ Responds to initialize message
 - ✅ Returns proper capabilities
@@ -11,6 +12,7 @@ The test shows the server is responding properly:
 ## Common MCP Error -32000 "Connection Closed" Causes:
 
 ### 1. **Incorrect MCP Configuration**
+
 Make sure your MCP client config is exactly:
 
 ```json
@@ -25,6 +27,7 @@ Make sure your MCP client config is exactly:
 ```
 
 ### 2. **Node.js Path Issues**
+
 If npx fails, try absolute paths:
 
 ```json
@@ -39,12 +42,15 @@ If npx fails, try absolute paths:
 ```
 
 ### 3. **Permission Issues**
+
 Ensure the binary is executable:
+
 ```bash
 chmod +x dist/index.js
 ```
 
 ### 4. **Working Directory**
+
 Some MCP clients need explicit working directory:
 
 ```json
@@ -62,6 +68,7 @@ Some MCP clients need explicit working directory:
 ## Testing Steps:
 
 ### 1. **Test Server Directly**
+
 ```bash
 node dist/index.js
 # Should show: "JSX Prop Lookup MCP Server running on stdio"
@@ -69,12 +76,14 @@ node dist/index.js
 ```
 
 ### 2. **Test with npx**
+
 ```bash
 npx jsx-prop-lookup-mcp-server
 # Should download and run the server
 ```
 
 ### 3. **Test MCP Protocol**
+
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}' | npx jsx-prop-lookup-mcp-server
 ```
@@ -82,12 +91,15 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ## Client-Specific Configurations:
 
 ### Claude Desktop
+
 File: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 ### Cline (VS Code)
+
 Add to Cline MCP settings in VS Code
 
 ### Custom MCP Client
+
 Ensure your client implements the MCP protocol correctly
 
 ## If Still Having Issues:

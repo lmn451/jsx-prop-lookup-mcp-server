@@ -12,7 +12,9 @@ export const ArrowWithIdentifier: React.FC<Props> = (p) => {
     if (p.onClick) p.onClick();
   };
   return (
-    <button disabled={p.disabled} onClick={handle}>{p.label}</button>
+    <button disabled={p.disabled} onClick={handle}>
+      {p.label}
+    </button>
   );
 };
 

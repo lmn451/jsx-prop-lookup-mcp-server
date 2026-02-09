@@ -11,6 +11,8 @@ import path from 'node:path';
   const onClickUsages = await analyzer.findPropUsage('onClick', dir);
   console.log('onClick usages count:', onClickUsages.length);
   for (const u of onClickUsages) {
-    console.log(`${u.file}:${u.line}:${u.column} ${u.componentName}.${u.propName} value=${u.value ?? ''}`);
+    console.log(
+      `${u.file}:${u.line}:${u.column} ${u.componentName}.${u.propName} value=${u.value ?? ''}`
+    );
   }
 })();

@@ -3,6 +3,7 @@
 ## Git Repository Setup
 
 1. **Create GitHub repository:**
+
    ```bash
    # Go to GitHub and create a new repository named: jsx-prop-lookup-mcp-server
    ```
@@ -17,6 +18,7 @@
 ## NPM Publishing
 
 1. **Login to NPM:**
+
    ```bash
    npm login
    ```
@@ -36,6 +38,7 @@ Consider submitting to the MCP server registry once it's available.
 ## Post-Publishing
 
 1. **Update README with installation instructions:**
+
    ```bash
    npm install -g jsx-prop-lookup-mcp-server
    ```
@@ -47,7 +50,7 @@ Consider submitting to the MCP server registry once it's available.
 ## Current Status
 
 ✅ Code committed to git
-✅ Built successfully 
+✅ Built successfully
 ✅ Ready for publishing
 
 **Next steps:** Update GitHub username in package.json and push to your repository!

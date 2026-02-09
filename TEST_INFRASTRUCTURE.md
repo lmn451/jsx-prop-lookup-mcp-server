@@ -5,6 +5,7 @@ This project uses Node.js built-in test runner for testing. The test suite verif
 ## Test Structure
 
 ### Unit & Integration Tests
+
 - `tests/analyzer.test.js` - Tests the core JSXPropAnalyzer functionality
   - Positive tests: Expected findings in example components
   - Negative tests: Non-existent components/props should return empty results
@@ -12,7 +13,8 @@ This project uses Node.js built-in test runner for testing. The test suite verif
   - TypeScript interface detection
   - Spread operator handling
 
-### MCP Integration Tests  
+### MCP Integration Tests
+
 - `tests/mcp.smoke.test.js` - Tests the full MCP server protocol
   - Server initialization and tool listing
   - All 4 MCP tools with valid inputs
@@ -22,12 +24,14 @@ This project uses Node.js built-in test runner for testing. The test suite verif
 ## Running Tests
 
 ### Prerequisites
+
 ```bash
 npm install
 npm run build  # Required for MCP tests that use dist/index.js
 ```
 
 ### Test Commands
+
 ```bash
 # Run all tests
 npm test
@@ -44,15 +48,18 @@ node --test tests/mcp.smoke.test.js
 ```
 
 ## Test Data
+
 Tests use the components in `examples/sample-components/`:
+
 - `App.tsx` - Main app with Button and Card usage
 - `Button.tsx` - Component with ButtonProps interface and destructured props
-- `Card.tsx` - Component with CardProps interface  
+- `Card.tsx` - Component with CardProps interface
 - `SelectExample.tsx` - Select component with missing width examples
 
 ## Expected Test Behavior
 
 ### Positive Test Cases
+
 - ✅ Find Button component with props: children, onClick, disabled, variant, className, ...rest
 - ✅ Find Card component with props: title, children, className, footer
 - ✅ Find Select component with props: options, value, onChange, width
@@ -62,12 +69,14 @@ Tests use the components in `examples/sample-components/`:
 - ✅ Detect spread operators (...rest, ...spread)
 
 ### Negative Test Cases
+
 - ❌ Non-existent components return empty results
 - ❌ Non-existent props return empty results
 - ❌ Invalid paths throw appropriate errors
 - ❌ Components with spread props are not flagged as missing required props
 
 ### MCP Protocol Tests
+
 - ✅ Server initializes and responds to protocol handshake
 - ✅ Lists 4 available tools with correct schemas
 - ✅ All tools accept valid inputs and return structured responses
@@ -75,7 +84,9 @@ Tests use the components in `examples/sample-components/`:
 - ✅ Server doesn't crash on malformed requests
 
 ## Test Coverage
+
 The test suite covers:
+
 - All 4 analyzer methods: analyzeProps, findPropUsage, getComponentProps, findComponentsWithoutProp
 - All 4 MCP tools with the same names
 - TypeScript interface detection
@@ -84,21 +95,27 @@ The test suite covers:
 - Path resolution (relative/absolute)
 
 ## CI/CD Integration
+
 Tests are designed to run in any Node.js 18+ environment:
+
 - No external dependencies beyond npm packages
 - Uses built-in Node.js test runner (no additional test framework)
 - Self-contained test data in examples/ directory
 - Deterministic assertions that don't depend on file system specifics
 
 ## Debugging Tests
+
 To debug failing tests:
+
 1. Run individual test files: `node --test tests/analyzer.test.js`
 2. Add console.log statements in test files to inspect actual vs expected data
 3. Check that examples/ directory contains expected components
 4. Verify build output exists in dist/ for MCP tests
 
 ## Adding New Tests
+
 When adding new features:
+
 1. Add corresponding example components to `examples/sample-components/`
 2. Add positive tests to verify the feature works
 3. Add negative tests to verify edge cases

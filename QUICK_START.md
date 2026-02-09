@@ -17,13 +17,14 @@ The easiest way to use the JSX Prop Lookup MCP Server:
 }
 ```
 
-### 2. That's it! 
+### 2. That's it!
 
 The server will be automatically downloaded and run when your MCP client needs it.
 
 ## 🔧 Popular MCP Clients
 
 ### Claude Desktop
+
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
@@ -38,6 +39,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```
 
 ### Cline (VS Code Extension)
+
 Add to your Cline MCP configuration:
 
 ```json
@@ -56,11 +58,13 @@ Add to your Cline MCP configuration:
 Once configured, you can use these tools in your MCP client:
 
 1. **Analyze entire project:**
+
    ```
    Use the analyze_jsx_props tool on "./src" to find all React component props
    ```
 
 2. **Find specific prop usage:**
+
    ```
    Use find_prop_usage to search for "onClick" prop usage in my codebase
    ```
@@ -81,7 +85,7 @@ Once configured, you can use these tools in your MCP client:
 ## 🔍 What it analyzes:
 
 - React functional components
-- TypeScript interfaces  
+- TypeScript interfaces
 - JSX prop usage
 - Prop destructuring
 - Spread operators

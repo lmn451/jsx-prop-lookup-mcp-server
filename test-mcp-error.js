@@ -11,7 +11,7 @@ const serverPath = path.resolve(__dirname, 'src/index.ts');
 console.log('Testing MCP server error handling...');
 
 const server = spawn('node', ['--import=tsx', serverPath], {
-  stdio: ['pipe', 'pipe', 'pipe']
+  stdio: ['pipe', 'pipe', 'pipe'],
 });
 
 let responseBuffer = '';
@@ -20,10 +20,10 @@ let requestId = 1;
 server.stdout.on('data', (data) => {
   responseBuffer += data.toString();
   console.log('Server output:', data.toString());
-  
+
   const lines = responseBuffer.split('\n');
   responseBuffer = lines.pop() || '';
-  
+
   for (const line of lines) {
     if (line.trim()) {
       try {
@@ -48,8 +48,8 @@ const initRequest = {
   params: {
     protocolVersion: '2024-11-05',
     capabilities: {},
-    clientInfo: { name: 'test-client', version: '1.0.0' }
-  }
+    clientInfo: { name: 'test-client', version: '1.0.0' },
+  },
 };
 
 console.log('Sending initialize request...');
@@ -64,12 +64,12 @@ setTimeout(() => {
     method: 'tools/call',
     params: {
       name: 'find_prop_usage',
-      arguments: {} // Missing required propName
-    }
+      arguments: {}, // Missing required propName
+    },
   };
-  
+
   server.stdin.write(JSON.stringify(toolRequest) + '\n');
-  
+
   // Wait for response then timeout
   setTimeout(() => {
     console.log('Test timeout - closing server');

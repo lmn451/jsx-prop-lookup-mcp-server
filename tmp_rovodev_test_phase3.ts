@@ -14,13 +14,17 @@ import path from 'node:path';
   const missing = await analyzer.findComponentsWithoutProp('Select', 'width', dir);
   console.log('Missing summary:', missing.summary);
   for (const m of missing.missingPropUsages) {
-    console.log(`Missing width: ${m.file}:${m.line}:${m.column} existing=[${m.existingProps.join(', ')}]`);
+    console.log(
+      `Missing width: ${m.file}:${m.line}:${m.column} existing=[${m.existingProps.join(', ')}]`
+    );
   }
 
   console.log('\nTesting namespaced JSX matching with full name...');
   const missingFull = await analyzer.findComponentsWithoutProp('UI.Select', 'width', dir);
   console.log('Missing summary (full):', missingFull.summary);
   for (const m of missingFull.missingPropUsages) {
-    console.log(`Missing width (full): ${m.file}:${m.line}:${m.column} existing=[${m.existingProps.join(', ')}]`);
+    console.log(
+      `Missing width (full): ${m.file}:${m.line}:${m.column} existing=[${m.existingProps.join(', ')}]`
+    );
   }
 })();
