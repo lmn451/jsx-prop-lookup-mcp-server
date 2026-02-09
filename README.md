@@ -14,6 +14,7 @@ An MCP (Model Context Protocol) server that analyzes JSX prop usage in React/Typ
 ## Installation
 
 ### Option 1: Use with npx (Recommended)
+
 No installation required! Use directly with npx:
 
 ```bash
@@ -21,12 +22,14 @@ npx jsx-prop-lookup-mcp-server
 ```
 
 ### Option 2: Install Globally
+
 ```bash
 npm install -g jsx-prop-lookup-mcp-server
 jsx-prop-lookup-mcp-server
 ```
 
 ### Option 3: Development Setup
+
 ```bash
 git clone https://github.com/your-username/jsx-prop-lookup-mcp-server.git
 cd jsx-prop-lookup-mcp-server
@@ -40,33 +43,41 @@ npm start
 The server provides four main tools:
 
 ### 1. `analyze_jsx_props`
+
 Analyze JSX prop usage in files or directories.
 
 **Parameters:**
+
 - `path` (required): File or directory path to analyze
 - `componentName` (optional): Specific component name to analyze
 - `propName` (optional): Specific prop name to search for
 - `includeTypes` (optional): Include TypeScript type information (default: true)
 
 ### 2. `find_prop_usage`
+
 Find all usages of a specific prop across JSX files. The `directory` must be an absolute path.
 
 **Parameters:**
+
 - `propName` (required): Name of the prop to search for
 - `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
 - `componentName` (optional): Limit search to specific component
 
 ### 3. `get_component_props`
+
 Get all props used by a specific component. The `directory` must be an absolute path.
 
 **Parameters:**
+
 - `componentName` (required): Name of the component to analyze
 - `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
 
 ### 4. `find_components_without_prop`
+
 Find component instances that are missing a required prop (e.g., Select components without width prop). The `directory` must be an absolute path.
 
 **Parameters:**
+
 - `componentName` (required): Name of the component to check (e.g., "Select")
 - `requiredProp` (required): Name of the required prop (e.g., "width")
 - `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
@@ -110,6 +121,7 @@ Find component instances that are missing a required prop (e.g., Select componen
 ```
 
 ### Component name matching
+
 - Namespaced JSX components (e.g., `UI.Select`) are supported. You can target either the full dotted name (e.g., `UI.Select`) or the local component name (e.g., `Select`) in tool inputs. Results record the full dotted name where applicable.
 
 ## Supported File Types
@@ -122,6 +134,7 @@ Find component instances that are missing a required prop (e.g., Select componen
 ## MCP Client Configuration
 
 ### Using with npx (Recommended)
+
 Add to your MCP client configuration:
 
 ```json
@@ -136,6 +149,7 @@ Add to your MCP client configuration:
 ```
 
 ### Using with global installation
+
 ```json
 {
   "mcpServers": {
@@ -147,6 +161,7 @@ Add to your MCP client configuration:
 ```
 
 ### Using with local development
+
 ```json
 {
   "mcpServers": {
@@ -166,3 +181,21 @@ npm run dev  # Run in development mode
 npm run build  # Build for production
 npm start  # Run built version
 ```
+
+## Security and safe operation
+
+Important: this MCP server reads files and directories on disk based on client-provided paths. Do NOT expose the stdio-based server to untrusted or network-exposed clients. By default there is no filesystem whitelist; to restrict filesystem access, set the `ALLOWED_ROOTS` environment variable to a comma-separated list of allowed root directories (absolute or workspace-relative). When configured, any tool request that refers to a path outside the allowed roots will be rejected.
+
+Example (restrict to the repository root):
+
+```bash
+export ALLOWED_ROOTS="."
+npm run dev
+```
+
+Recommended practices:
+
+- Run this server only in trusted environments, or behind an authenticated proxy.
+- Use `ALLOWED_ROOTS` to limit the scope of accessible files.
+- Do not run the server as a privileged user; run under a least-privileged account.
+- Consider further sandboxing (containerization) when servicing untrusted inputs.

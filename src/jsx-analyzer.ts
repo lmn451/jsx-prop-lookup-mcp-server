@@ -1,9 +1,10 @@
-import { parse } from "@babel/parser";
-import traverse from "@babel/traverse";
-import * as t from "@babel/types";
-import { readFileSync, statSync } from "fs";
-import { glob } from "glob";
-import { join, extname } from "path";
+import { parse } from '@babel/parser';
+import traverse from '@babel/traverse';
+import type { NodePath } from '@babel/traverse';
+import * as t from '@babel/types';
+import { readFileSync, statSync } from 'fs';
+import { glob } from 'glob';
+import { join, extname } from 'path';
 
 export interface PropUsage {
   propName: string;
@@ -34,20 +35,26 @@ export interface AnalysisResult {
 }
 
 export class JSXPropAnalyzer {
-  private readonly supportedExtensions = [".js", ".jsx", ".ts", ".tsx"];
+  private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
+  // Normalize babel-traverse default export once for reuse (avoid `any` cast)
+  private readonly traverseDefault = ((traverse as unknown) as { default?: typeof traverse }).default ||
+    traverse;
 
   /**
    * Extract component name from JSX identifier or member expression
    * Returns both full dotted name and local component name
    */
-  private getJSXName(nameNode: t.JSXIdentifier | t.JSXMemberExpression): { full: string; local: string } {
+  private getJSXName(nameNode: t.JSXIdentifier | t.JSXMemberExpression): {
+    full: string;
+    local: string;
+  } {
     if (t.isJSXIdentifier(nameNode)) {
       return { full: nameNode.name, local: nameNode.name };
     }
-    
+
     const parts: string[] = [];
     let curr: t.JSXMemberExpression | t.JSXIdentifier = nameNode;
-    
+
     while (t.isJSXMemberExpression(curr)) {
       if (t.isJSXIdentifier(curr.property)) {
         parts.unshift(curr.property.name);
@@ -58,7 +65,7 @@ export class JSXPropAnalyzer {
       }
       curr = curr.object as t.JSXMemberExpression | t.JSXIdentifier;
     }
-    
+
     const full = parts.join('.');
     const local = parts[parts.length - 1] ?? full;
     return { full, local };
@@ -76,12 +83,7 @@ export class JSXPropAnalyzer {
 
     for (const file of files) {
       try {
-        const analysis = await this.analyzeFile(
-          file,
-          componentName,
-          propName,
-          includeTypes
-        );
+        const analysis = await this.analyzeFile(file, componentName, propName, includeTypes);
         components.push(...analysis.components);
         allPropUsages.push(...analysis.propUsages);
       } catch (error) {
@@ -102,7 +104,7 @@ export class JSXPropAnalyzer {
 
   async findPropUsage(
     propName: string,
-    directory: string = ".",
+    directory: string = '.',
     componentName?: string
   ): Promise<PropUsage[]> {
     const result = await this.analyzeProps(directory, componentName, propName);
@@ -111,18 +113,16 @@ export class JSXPropAnalyzer {
 
   async getComponentProps(
     componentName: string,
-    directory: string = "."
+    directory: string = '.'
   ): Promise<ComponentAnalysis[]> {
     const result = await this.analyzeProps(directory, componentName);
-    return result.components.filter(
-      (comp) => comp.componentName === componentName
-    );
+    return result.components.filter((comp) => comp.componentName === componentName);
   }
 
-async findComponentsWithoutProp(
+  async findComponentsWithoutProp(
     componentName: string,
     requiredProp: string,
-    directory: string = "."
+    directory: string = '.'
   ): Promise<{
     missingPropUsages: Array<{
       componentName: string;
@@ -153,12 +153,14 @@ async findComponentsWithoutProp(
         missingPropUsages.push(...result.missingProps);
         totalInstances += result.totalInstances;
       } catch (error) {
-        console.error(`Error analyzing file ${file}:`, error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error(`Error analyzing file ${file}:`, err.message);
       }
     }
 
     const missingPropCount = missingPropUsages.length;
-    const missingPropPercentage = totalInstances > 0 ? (missingPropCount / totalInstances) * 100 : 0;
+    const missingPropPercentage =
+      totalInstances > 0 ? (missingPropCount / totalInstances) * 100 : 0;
 
     return {
       missingPropUsages,
@@ -196,31 +198,36 @@ async findComponentsWithoutProp(
 
     let content: string;
     try {
-      content = readFileSync(file, "utf-8");
-    } catch (readError: any) {
-      if (readError.code === "EISDIR") {
+      content = readFileSync(file, 'utf-8');
+    } catch (readError) {
+      const re = readError instanceof Error ? readError : new Error(String(readError));
+      // If reading a directory, skip
+      // Some platforms include a `code` property on the error object
+      // Use a safe check rather than typing the error as `any`.
+      const maybeErr = re as unknown as NodeJS.ErrnoException;
+      if (maybeErr.code === 'EISDIR') {
         console.warn(`Skipping directory (EISDIR): ${file}`);
         return { missingProps: [], totalInstances: 0 };
       }
-      throw readError;
+      throw re;
     }
 
     let ast;
     try {
       ast = parse(content, {
-        sourceType: "module",
+        sourceType: 'module',
         plugins: [
-          "jsx",
-          "typescript",
-          "decorators-legacy",
-          "classProperties",
-          "objectRestSpread",
-          "functionBind",
-          "exportDefaultFrom",
-          "exportNamespaceFrom",
-          "dynamicImport",
-          "nullishCoalescingOperator",
-          "optionalChaining",
+          'jsx',
+          'typescript',
+          'decorators-legacy',
+          'classProperties',
+          'objectRestSpread',
+          'functionBind',
+          'exportDefaultFrom',
+          'exportNamespaceFrom',
+          'dynamicImport',
+          'nullishCoalescingOperator',
+          'optionalChaining',
         ],
       });
     } catch (error) {
@@ -235,7 +242,7 @@ async findComponentsWithoutProp(
    * Traverse AST to find missing props
    */
   private traverseForMissingProps(
-    ast: any,
+    ast: t.File,
     file: string,
     componentName: string,
     requiredProp: string
@@ -258,13 +265,19 @@ async findComponentsWithoutProp(
     }> = [];
     let totalInstances = 0;
 
-    const traverseDefault = (traverse as any).default || traverse;
+    const traverseDefault = this.traverseDefault;
     traverseDefault(ast, {
-      JSXElement: (path) => {
+      JSXElement: (path: NodePath<t.JSXElement>) => {
         const openingElement = path.node.openingElement;
-        if (!t.isJSXIdentifier(openingElement.name) && !t.isJSXMemberExpression(openingElement.name)) return;
+        if (
+          !t.isJSXIdentifier(openingElement.name) &&
+          !t.isJSXMemberExpression(openingElement.name)
+        )
+          return;
 
-        const { full: fullName, local: localName } = this.getJSXName(openingElement.name as any);
+        const { full: fullName, local: localName } = this.getJSXName(
+          openingElement.name as t.JSXIdentifier | t.JSXMemberExpression
+        );
         if (!(fullName === componentName || localName === componentName)) return;
 
         // Count total instances
@@ -272,7 +285,7 @@ async findComponentsWithoutProp(
 
         // Analyze props for this element
         const propAnalysis = this.analyzeElementProps(openingElement, requiredProp);
-        
+
         if (!propAnalysis.hasRequiredProp) {
           const loc = openingElement.loc;
           missingProps.push({
@@ -293,7 +306,7 @@ async findComponentsWithoutProp(
    * Analyze props of a JSX element to check for required prop
    */
   private analyzeElementProps(
-    openingElement: any,
+    openingElement: t.JSXOpeningElement,
     requiredProp: string
   ): {
     existingProps: string[];
@@ -310,7 +323,7 @@ async findComponentsWithoutProp(
           hasRequiredProp = true;
         }
       } else if (t.isJSXSpreadAttribute(attribute)) {
-        existingProps.push("...spread");
+        existingProps.push('...spread');
         // Note: We can't determine if spread contains the required prop
         // so we'll assume it might and not flag this as missing
         hasRequiredProp = true;
@@ -329,9 +342,9 @@ async findComponentsWithoutProp(
       }
 
       if (stat.isDirectory()) {
-        const pattern = join(path, "**/*.{js,jsx,ts,tsx}");
+        const pattern = join(path, '**/*.{js,jsx,ts,tsx}');
         const files = await glob(pattern, {
-          ignore: ["**/node_modules/**", "**/dist/**", "**/build/**"],
+          ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
           nodir: true, // Explicitly exclude directories
         });
 
@@ -340,14 +353,12 @@ async findComponentsWithoutProp(
         for (const file of files) {
           try {
             const fileStat = statSync(file);
-            if (
-              fileStat.isFile() &&
-              this.supportedExtensions.includes(extname(file))
-            ) {
+            if (fileStat.isFile() && this.supportedExtensions.includes(extname(file))) {
               validFiles.push(file);
             }
-          } catch (error: any) {
-            console.warn(`Skipping invalid file: ${file}`, error.message);
+          } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            console.warn(`Skipping invalid file: ${file}`, err.message);
           }
         }
 
@@ -355,8 +366,9 @@ async findComponentsWithoutProp(
       }
 
       return [];
-    } catch (error: any) {
-      throw new Error(`Cannot access path: ${path} - ${error.message}`);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      throw new Error(`Cannot access path: ${path} - ${err.message}`);
     }
   }
 
@@ -377,20 +389,23 @@ async findComponentsWithoutProp(
         console.warn(`Skipping non-file: ${filePath}`);
         return { components: [], propUsages: [] };
       }
-    } catch (error: any) {
-      console.warn(`Cannot access file: ${filePath}`, error);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.warn(`Cannot access file: ${filePath}`, err.message);
       return { components: [], propUsages: [] };
     }
 
     let content: string;
     try {
-      content = readFileSync(filePath, "utf-8");
-    } catch (error: any) {
-      if (error.code === "EISDIR") {
+      content = readFileSync(filePath, 'utf-8');
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      const maybeErr = err as unknown as NodeJS.ErrnoException;
+      if (maybeErr.code === 'EISDIR') {
         console.warn(`Skipping directory (EISDIR): ${filePath}`);
         return { components: [], propUsages: [] };
       }
-      throw new Error(`Failed to read file ${filePath}: ${error.message}`);
+      throw new Error(`Failed to read file ${filePath}: ${err.message}`);
     }
     const components: ComponentAnalysis[] = [];
     const propUsages: PropUsage[] = [];
@@ -398,38 +413,39 @@ async findComponentsWithoutProp(
     let ast;
     try {
       ast = parse(content, {
-        sourceType: "module",
+        sourceType: 'module',
         plugins: [
-          "jsx",
-          "typescript",
-          "decorators-legacy",
-          "classProperties",
-          "objectRestSpread",
-          "functionBind",
-          "exportDefaultFrom",
-          "exportNamespaceFrom",
-          "dynamicImport",
-          "nullishCoalescingOperator",
-          "optionalChaining",
+          'jsx',
+          'typescript',
+          'decorators-legacy',
+          'classProperties',
+          'objectRestSpread',
+          'functionBind',
+          'exportDefaultFrom',
+          'exportNamespaceFrom',
+          'dynamicImport',
+          'nullishCoalescingOperator',
+          'optionalChaining',
         ],
       });
     } catch (error) {
-      throw new Error(`Failed to parse ${filePath}: ${error}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to parse ${filePath}: ${msg}`);
     }
 
     // Track component definitions and their prop interfaces
     const componentInterfaces = new Map<string, string>();
 
-    // Handle default export from traverse
-    const traverseDefault = (traverse as any).default || traverse;
+    // Handle TypeScript/type and JSX traversal using normalized traverse
+    const traverseDefault = this.traverseDefault;
     traverseDefault(ast, {
       // Handle TypeScript interfaces for props
       TSInterfaceDeclaration: (path) => {
         if (!includeTypes) return;
 
         const interfaceName = path.node.id.name;
-        if (interfaceName.endsWith("Props")) {
-          const componentName = interfaceName.replace(/Props$/, "");
+        if (interfaceName.endsWith('Props')) {
+          const componentName = interfaceName.replace(/Props$/, '');
           componentInterfaces.set(componentName, interfaceName);
         }
       },
@@ -439,8 +455,8 @@ async findComponentsWithoutProp(
         if (!includeTypes) return;
 
         const aliasName = path.node.id.name;
-        if (aliasName.endsWith("Props")) {
-          const componentName = aliasName.replace(/Props$/, "");
+        if (aliasName.endsWith('Props')) {
+          const componentName = aliasName.replace(/Props$/, '');
           componentInterfaces.set(componentName, aliasName);
         }
       },
@@ -487,10 +503,7 @@ async findComponentsWithoutProp(
 
       // Handle arrow function components
       VariableDeclarator: (path) => {
-        if (
-          !t.isIdentifier(path.node.id) ||
-          !t.isArrowFunctionExpression(path.node.init)
-        ) {
+        if (!t.isIdentifier(path.node.id) || !t.isArrowFunctionExpression(path.node.init)) {
           return;
         }
 
@@ -531,26 +544,14 @@ async findComponentsWithoutProp(
 
       // Handle JSX elements and their props
       JSXElement: (path) => {
-        this.analyzeJSXElement(
-          path,
-          filePath,
-          propUsages,
-          targetComponent,
-          targetProp
-        );
+        this.analyzeJSXElement(path, filePath, propUsages, targetComponent, targetProp);
       },
 
       JSXFragment: (path) => {
         // Handle fragments that might contain JSX elements
         path.traverse({
           JSXElement: (innerPath) => {
-            this.analyzeJSXElement(
-              innerPath,
-              filePath,
-              propUsages,
-              targetComponent,
-              targetProp
-            );
+            this.analyzeJSXElement(innerPath, filePath, propUsages, targetComponent, targetProp);
           },
         });
       },
@@ -560,20 +561,20 @@ async findComponentsWithoutProp(
   }
 
   private findPropsInFunctionBody(
-    functionPath: any,
+    functionPath: NodePath<t.Node>,
     componentAnalysis: ComponentAnalysis,
     propUsages: PropUsage[],
     targetProp: string | undefined,
     paramName: string
   ) {
     functionPath.traverse({
-      MemberExpression(path: any) {
+      MemberExpression(path: NodePath<t.MemberExpression>) {
         if (
           t.isIdentifier(path.node.object) &&
           path.node.object.name === paramName &&
           t.isIdentifier(path.node.property)
         ) {
-          const propName = path.node.property.name;
+          const propName = (path.node.property as t.Identifier).name;
           if (targetProp && propName !== targetProp) return;
 
           const loc = path.node.loc;
@@ -619,7 +620,7 @@ async findComponentsWithoutProp(
       } else if (t.isRestElement(property)) {
         const loc = property.loc;
         const propUsage: PropUsage = {
-          propName: "...rest",
+          propName: '...rest',
           componentName,
           file: filePath,
           line: loc?.start.line || 0,
@@ -634,7 +635,7 @@ async findComponentsWithoutProp(
   }
 
   private analyzeJSXElement(
-    path: any,
+    path: NodePath<t.JSXElement>,
     filePath: string,
     propUsages: PropUsage[],
     targetComponent?: string,
@@ -643,11 +644,12 @@ async findComponentsWithoutProp(
     const openingElement = path.node.openingElement;
 
     // Support both simple identifiers and member expressions (e.g., UI.Select)
-    if (!t.isJSXIdentifier(openingElement.name) && !t.isJSXMemberExpression(openingElement.name)) return;
+    if (!t.isJSXIdentifier(openingElement.name) && !t.isJSXMemberExpression(openingElement.name))
+      return;
 
-    
-
-    const { full: fullName, local: localName } = this.getJSXName(openingElement.name as any);
+    const { full: fullName, local: localName } = this.getJSXName(
+      openingElement.name as t.JSXIdentifier | t.JSXMemberExpression
+    );
 
     if (targetComponent && !(targetComponent === fullName || targetComponent === localName)) return;
 
@@ -691,7 +693,7 @@ async findComponentsWithoutProp(
       } else if (t.isJSXSpreadAttribute(attribute)) {
         const loc = attribute.loc;
         const propUsage: PropUsage = {
-          propName: "...spread",
+          propName: '...spread',
           componentName,
           file: filePath,
           line: loc?.start.line || 0,
