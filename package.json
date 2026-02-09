@@ -60,5 +60,6 @@
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "eslint-config-prettier": "^9.0.0",
     "prettier": "^3.0.0"
+    ,"@types/babel__traverse": "^7.18.2"
   }
 }

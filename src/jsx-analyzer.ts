@@ -440,7 +440,7 @@ export class JSXPropAnalyzer {
     const traverseDefault = this.traverseDefault;
     traverseDefault(ast, {
       // Handle TypeScript interfaces for props
-      TSInterfaceDeclaration: (path) => {
+      TSInterfaceDeclaration: (path: NodePath<t.TSInterfaceDeclaration>) => {
         if (!includeTypes) return;
 
         const interfaceName = path.node.id.name;
@@ -451,7 +451,7 @@ export class JSXPropAnalyzer {
       },
 
       // Handle TypeScript type aliases for props (e.g., type ButtonProps = {...})
-      TSTypeAliasDeclaration: (path) => {
+      TSTypeAliasDeclaration: (path: NodePath<t.TSTypeAliasDeclaration>) => {
         if (!includeTypes) return;
 
         const aliasName = path.node.id.name;
@@ -462,7 +462,7 @@ export class JSXPropAnalyzer {
       },
 
       // Handle function components
-      FunctionDeclaration: (path) => {
+      FunctionDeclaration: (path: NodePath<t.FunctionDeclaration>) => {
         const functionName = path.node.id?.name;
         if (!functionName) return;
 
@@ -502,7 +502,7 @@ export class JSXPropAnalyzer {
       },
 
       // Handle arrow function components
-      VariableDeclarator: (path) => {
+      VariableDeclarator: (path: NodePath<t.VariableDeclarator>) => {
         if (!t.isIdentifier(path.node.id) || !t.isArrowFunctionExpression(path.node.init)) {
           return;
         }
@@ -543,14 +543,13 @@ export class JSXPropAnalyzer {
       },
 
       // Handle JSX elements and their props
-      JSXElement: (path) => {
+      JSXElement: (path: NodePath<t.JSXElement>) => {
         this.analyzeJSXElement(path, filePath, propUsages, targetComponent, targetProp);
       },
-
-      JSXFragment: (path) => {
+      JSXFragment: (path: NodePath<t.JSXFragment>) => {
         // Handle fragments that might contain JSX elements
         path.traverse({
-          JSXElement: (innerPath) => {
+          JSXElement: (innerPath: NodePath<t.JSXElement>) => {
             this.analyzeJSXElement(innerPath, filePath, propUsages, targetComponent, targetProp);
           },
         });
@@ -665,17 +664,9 @@ export class JSXPropAnalyzer {
           if (t.isStringLiteral(attribute.value)) {
             value = attribute.value.value;
           } else if (t.isJSXExpressionContainer(attribute.value)) {
-            // Try to extract simple expression values
-            const expression = attribute.value.expression;
-            if (t.isStringLiteral(expression)) {
-              value = expression.value;
-            } else if (t.isNumericLiteral(expression)) {
-              value = expression.value.toString();
-            } else if (t.isBooleanLiteral(expression)) {
-              value = expression.value.toString();
-            } else if (t.isIdentifier(expression)) {
-              value = `{${expression.name}}`;
-            }
+            // Try to extract readable expression values for common cases
+            const expression = attribute.value.expression as t.Expression | null;
+            value = this.stringifyExpression(expression);
           }
         }
 
@@ -704,5 +695,75 @@ export class JSXPropAnalyzer {
         propUsages.push(propUsage);
       }
     }
+  }
+
+  /**
+   * Attempt to produce a readable string for common expression node types.
+   * Handles Identifier, MemberExpression, CallExpression, ArrowFunctionExpression,
+   * TemplateLiteral and basic literals. Returns undefined when not representable.
+   */
+  private stringifyExpression(expression?: t.Expression | null): string | undefined {
+    if (!expression) return undefined;
+
+    if (t.isStringLiteral(expression)) return expression.value;
+    if (t.isNumericLiteral(expression)) return String(expression.value);
+    if (t.isBooleanLiteral(expression)) return String(expression.value);
+    if (t.isNullLiteral(expression)) return 'null';
+
+    if (t.isIdentifier(expression)) return expression.name;
+
+    if (t.isMemberExpression(expression)) {
+      const obj = this.stringifyExpression(expression.object as t.Expression | null);
+      let prop: string | undefined;
+      if (t.isIdentifier(expression.property) && !expression.computed) {
+        prop = expression.property.name;
+      } else if (expression.computed) {
+        // Try to stringify computed property if it's a literal or identifier
+        prop = this.stringifyExpression(expression.property as t.Expression | null);
+        if (prop) prop = `[${prop}]`;
+      }
+
+      if (obj && prop) return `${obj}.${prop}`.replace(/\.\[/g, '[');
+      if (obj && prop === undefined) return `${obj}.?`;
+      return prop ?? obj;
+    }
+
+    if (t.isCallExpression(expression)) {
+      const callee = this.stringifyExpression(expression.callee as t.Expression | null) || 'fn';
+      const args = expression.arguments
+        .map((a) => {
+          if (t.isExpression(a)) return this.stringifyExpression(a) ?? '...';
+          return '...';
+        })
+        .join(',');
+      return `${callee}(${args})`;
+    }
+
+    if (t.isArrowFunctionExpression(expression)) {
+      const params = expression.params
+        .map((p) => {
+          if (t.isIdentifier(p)) return p.name;
+          return 'arg';
+        })
+        .join(',');
+      return `(${params}) => …`;
+    }
+
+    if (t.isTemplateLiteral(expression)) {
+      let out = '';
+      expression.quasis.forEach((q, i) => {
+        out += q.value.cooked ?? q.value.raw;
+        if (i < expression.expressions.length) {
+          const maybe = this.stringifyExpression(expression.expressions[i] as t.Expression | null);
+          out += maybe ?? '${...}';
+        }
+      });
+      return out;
+    }
+
+    if (t.isObjectExpression(expression)) return '{...}';
+    if (t.isArrayExpression(expression)) return '[...]';
+
+    return undefined;
   }
 }

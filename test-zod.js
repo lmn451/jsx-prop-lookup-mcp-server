@@ -7,9 +7,9 @@ console.log('Testing Zod validation...');
 
 // Create the same schema we use in our server
 const FindPropUsageSchema = z.object({
-  propName: z.string().describe("Name of the prop to search for"),
-  directory: z.string().default(".").describe("Directory to search in"),
-  componentName: z.string().optional().describe("Optional: limit search to specific component"),
+  propName: z.string().describe('Name of the prop to search for'),
+  directory: z.string().default('.').describe('Directory to search in'),
+  componentName: z.string().optional().describe('Optional: limit search to specific component'),
 });
 
 console.log('Schema created successfully');
@@ -17,7 +17,7 @@ console.log('Schema created successfully');
 // Test 1: Valid input
 console.log('\n=== Test 1: Valid input ===');
 try {
-  const validInput = { propName: "onClick", directory: "." };
+  const validInput = { propName: 'onClick', directory: '.' };
   console.log('Parsing valid input:', validInput);
   const result = FindPropUsageSchema.parse(validInput);
   console.log('✅ Success:', result);
