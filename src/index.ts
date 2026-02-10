@@ -150,10 +150,18 @@ Use this tool when you need to:
 - Analyze prop usage patterns in a project
 - Get TypeScript interface information for components
 
-Examples:
-- Analyze all components in "src/components" directory
-- Find all props used by "Button" component
-- List all available props for a specific component
+EXAMPLES:
+1. Analyze all components in src/components:
+   { "path": "src/components", "includeTypes": true }
+
+2. Find all props for Button component:
+   { "path": "src", "componentName": "Button", "includeTypes": true }
+
+3. Find all usages of onClick prop:
+   { "path": ".", "propName": "onClick", "includeTypes": false }
+
+4. Analyze specific file with type info:
+   { "path": "src/App.tsx", "includeTypes": true }
 
 Returns:
 - Component names and their props
@@ -186,10 +194,18 @@ Use this tool when you need to:
 - Audit prop usage for refactoring or deprecation
 - Understand prop propagation patterns
 
-Examples:
-- Find all usages of "onClick" prop across the project
-- Find where "disabled" prop is used on "Button" components only
-- Locate all "style" prop usages for CSS-in-JS migration
+EXAMPLES:
+1. Find all onClick handlers in the project:
+   { "propName": "onClick" }
+
+2. Find className usage in components directory:
+   { "propName": "className", "directory": "src/components" }
+
+3. Find variant prop only on Button components:
+   { "propName": "variant", "componentName": "Button" }
+
+4. Find all disabled props in specific directory:
+   { "propName": "disabled", "directory": "src/forms" }
 
 Returns:
 - List of component instances using the prop
@@ -221,10 +237,18 @@ Use this tool when you need to:
 - Check if a component has certain props before using it
 - Analyze component interfaces
 
-Examples:
-- Get all props for "Button" component
-- Check what props "Modal" component accepts
-- Document "Card" component API
+EXAMPLES:
+1. Get all props for Button component:
+   { "componentName": "Button" }
+
+2. Check Modal component props in specific directory:
+   { "componentName": "Modal", "directory": "src/components" }
+
+3. Document Card component API:
+   { "componentName": "Card", "directory": "src/ui" }
+
+4. Analyze Input component interface:
+   { "componentName": "Input" }
 
 Returns:
 - All props used by the component
@@ -256,11 +280,18 @@ Use this tool when you need to:
 - Enforce prop requirements across the codebase
 - Refactor components and ensure all usages are updated
 
-Examples:
-- Find all "Select" components missing "width" prop
-- Find "Image" components without "alt" text (accessibility audit)
-- Find "Button" components missing "type" prop
-- Audit "Input" components for missing "label" association
+EXAMPLES:
+1. Find Select components missing width prop:
+   { "componentName": "Select", "requiredProp": "width" }
+
+2. Audit Image components for missing alt text:
+   { "componentName": "Image", "requiredProp": "alt" }
+
+3. Find Button components missing type prop:
+   { "componentName": "Button", "requiredProp": "type", "directory": "src" }
+
+4. Check Input components for missing label:
+   { "componentName": "Input", "requiredProp": "aria-label", "directory": "src/forms" }
 
 Returns:
 - List of component instances missing the required prop
@@ -282,6 +313,107 @@ Returns:
     }
   }
 );
+
+// CLI Help text
+const showHelp = () => {
+  console.log(`
+JSX Prop Lookup MCP Server v3.1.0-beta.0
+
+USAGE:
+  npx jsx-prop-lookup-mcp-server [options]
+
+OPTIONS:
+  --help, -h              Show this help message
+  --allowed-roots <paths> Comma-separated list of allowed filesystem roots
+                          (env: ALLOWED_ROOTS)
+
+MODE:
+  This server runs in MCP (Model Context Protocol) mode and communicates
+  via stdio. It provides tools for analyzing JSX/React component props.
+
+AVAILABLE TOOLS:
+  1. analyze_jsx_props
+     Analyze JSX/React component prop usage across files and directories
+     
+     Parameters:
+       - path (required): File or directory path to analyze
+       - componentName (optional): Filter to specific component
+       - propName (optional): Filter to specific prop
+       - includeTypes (optional): Include TypeScript types (default: true)
+     
+     Examples:
+       { "path": "src/components" }
+       { "path": "src/App.tsx", "componentName": "Button" }
+       { "path": ".", "propName": "onClick" }
+
+  2. find_prop_usage
+     Find all usages of a specific prop across JSX files
+     
+     Parameters:
+       - propName (required): Name of the prop to search for
+       - directory (optional): Directory to search (default: ".")
+       - componentName (optional): Limit to specific component
+     
+     Examples:
+       { "propName": "onClick" }
+       { "propName": "className", "directory": "src/components" }
+       { "propName": "variant", "componentName": "Button" }
+
+  3. get_component_props
+     Get detailed information about all props used by a specific component
+     
+     Parameters:
+       - componentName (required): Name of the component to analyze
+       - directory (optional): Directory to search (default: ".")
+     
+     Examples:
+       { "componentName": "Button" }
+       { "componentName": "Modal", "directory": "src/components" }
+
+  4. find_components_without_prop
+     Find component instances missing a required prop
+     
+     Parameters:
+       - componentName (required): Name of the component to check
+       - requiredProp (required): Name of the required prop
+       - directory (optional): Directory to search (default: ".")
+     
+     Examples:
+       { "componentName": "Select", "requiredProp": "width" }
+       { "componentName": "Image", "requiredProp": "alt" }
+       { "componentName": "Button", "requiredProp": "type", "directory": "src" }
+
+SECURITY:
+  Use --allowed-roots to restrict filesystem access to specific directories:
+    npx jsx-prop-lookup-mcp-server --allowed-roots=/home/project/src,/home/project/lib
+    
+  Or set environment variable:
+    ALLOWED_ROOTS=/home/project/src npx jsx-prop-lookup-mcp-server
+
+MCP CONFIGURATION:
+  Add to your MCP client settings (e.g., Claude Desktop, Cursor):
+  
+  {
+    "mcpServers": {
+      "jsx-prop-lookup": {
+        "command": "npx",
+        "args": ["jsx-prop-lookup-mcp-server@latest"],
+        "env": {
+          "ALLOWED_ROOTS": "/path/to/your/project"
+        }
+      }
+    }
+  }
+
+For more information, visit: https://github.com/lmn451/jsx-prop-lookup-mcp-server
+`);
+};
+
+// Check for help flag before starting server
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  showHelp();
+  process.exit(0);
+}
 
 async function main() {
   try {
