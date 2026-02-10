@@ -20,7 +20,17 @@ const server = new McpServer(
   {
     name: 'jsx-prop-lookup-server',
     version: '1.0.0',
-  },
+    description: `MCP server for analyzing JSX/React component props and usage patterns.
+
+This server helps you understand, audit, and refactor React/JSX codebases by providing
+tools to analyze component props, find prop usages, and ensure prop requirements.
+
+Capabilities:
+- Analyze component prop usage across files
+- Find specific prop usages (e.g., all onClick handlers)
+- Audit components for missing required props
+- Get component API documentation
+- Support TypeScript and JavaScript projects`},
   {
     capabilities: {
       tools: {},
@@ -129,15 +139,31 @@ const formatToolResponse = (result: unknown, error?: Error) => {
   };
 };
 
-// Register tools using server.tool() with manual validation to bypass SDK issues
+// Register tools using server.tool() with detailed descriptions for LLM understanding
 server.tool(
   'analyze_jsx_props',
-  'Analyze JSX prop usage in files or directories',
+  `Analyze JSX/React component prop usage across files and directories.
+
+Use this tool when you need to:
+- Understand what props a component accepts
+- Find all components in a codebase and their props
+- Analyze prop usage patterns in a project
+- Get TypeScript interface information for components
+
+Examples:
+- Analyze all components in "src/components" directory
+- Find all props used by "Button" component
+- List all available props for a specific component
+
+Returns:
+- Component names and their props
+- Prop types (when includeTypes is true)
+- File locations where components are defined`,
   {
-    path: z.string().describe('File or directory path to analyze'),
-    componentName: z.string().optional().describe('Optional: specific component name to analyze'),
-    propName: z.string().optional().describe('Optional: specific prop name to search for'),
-    includeTypes: z.boolean().default(true).describe('Include TypeScript type information'),
+    path: z.string().describe('Absolute or relative path to file or directory to analyze (e.g., "src/components" or "src/App.tsx")'),
+    componentName: z.string().optional().describe('Filter: analyze only this specific component name (e.g., "Button")'),
+    propName: z.string().optional().describe('Filter: search only for this specific prop name (e.g., "onClick")'),
+    includeTypes: z.boolean().default(true).describe('Include TypeScript type information in results'),
   },
   async ({ path, componentName, propName, includeTypes }) => {
     try {
@@ -152,11 +178,27 @@ server.tool(
 
 server.tool(
   'find_prop_usage',
-  'Find all usages of a specific prop across JSX files',
+  `Find all usages of a specific prop across JSX/React files.
+
+Use this tool when you need to:
+- Locate where a prop is used throughout the codebase
+- Find all components that use a specific prop like "onClick", "className", etc.
+- Audit prop usage for refactoring or deprecation
+- Understand prop propagation patterns
+
+Examples:
+- Find all usages of "onClick" prop across the project
+- Find where "disabled" prop is used on "Button" components only
+- Locate all "style" prop usages for CSS-in-JS migration
+
+Returns:
+- List of component instances using the prop
+- File paths and line numbers
+- Values passed to the prop`,
   {
-    propName: z.string().describe('Name of the prop to search for'),
-    directory: z.string().default('.').describe('Directory to search in'),
-    componentName: z.string().optional().describe('Optional: limit search to specific component'),
+    propName: z.string().describe('Name of the prop to search for (e.g., "onClick", "className", "variant")'),
+    directory: z.string().default('.').describe('Directory to search in (defaults to current directory)'),
+    componentName: z.string().optional().describe('Filter: only search within this component name (e.g., "Button")'),
   },
   async ({ propName, directory, componentName }) => {
     try {
@@ -171,10 +213,26 @@ server.tool(
 
 server.tool(
   'get_component_props',
-  'Get all props used by a specific component',
+  `Get detailed information about all props used by a specific component.
+
+Use this tool when you need to:
+- Understand what props a component accepts and uses
+- Document component APIs
+- Check if a component has certain props before using it
+- Analyze component interfaces
+
+Examples:
+- Get all props for "Button" component
+- Check what props "Modal" component accepts
+- Document "Card" component API
+
+Returns:
+- All props used by the component
+- Prop types and default values
+- Usage statistics across the codebase`,
   {
-    componentName: z.string().describe('Name of the component to analyze'),
-    directory: z.string().default('.').describe('Directory to search in'),
+    componentName: z.string().describe('Name of the component to analyze (e.g., "Button", "Modal", "Card")'),
+    directory: z.string().default('.').describe('Directory to search in (defaults to current directory)'),
   },
   async ({ componentName, directory }) => {
     try {
@@ -189,11 +247,30 @@ server.tool(
 
 server.tool(
   'find_components_without_prop',
-  'Find component instances that are missing a required prop',
+  `Find component instances that are missing a required prop (e.g., Select components without width prop).
+
+Use this tool when you need to:
+- Audit components for missing required props
+- Ensure accessibility props are present (e.g., missing aria-label)
+- Check for missing styling props (e.g., missing width or height)
+- Enforce prop requirements across the codebase
+- Refactor components and ensure all usages are updated
+
+Examples:
+- Find all "Select" components missing "width" prop
+- Find "Image" components without "alt" text (accessibility audit)
+- Find "Button" components missing "type" prop
+- Audit "Input" components for missing "label" association
+
+Returns:
+- List of component instances missing the required prop
+- File paths and line numbers
+- Existing props on those instances
+- Summary statistics (total instances vs missing count)`,
   {
-    componentName: z.string().describe('Name of the component to check'),
-    requiredProp: z.string().describe('Name of the required prop'),
-    directory: z.string().default('.').describe('Directory to search in'),
+    componentName: z.string().describe('Name of the component to check (e.g., "Select", "Button", "Image")'),
+    requiredProp: z.string().describe('Name of the required prop that should be present (e.g., "width", "alt", "aria-label")'),
+    directory: z.string().default('.').describe('Directory to search in (defaults to current directory)'),
   },
   async ({ componentName, requiredProp, directory }) => {
     try {
