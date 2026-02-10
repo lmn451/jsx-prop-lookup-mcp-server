@@ -30,9 +30,9 @@
     "lint": "eslint \"src/**/*.{js,ts,tsx}\" --ext .js,.ts,.tsx",
     "lint:fix": "eslint \"src/**/*.{js,ts,tsx}\" --ext .js,.ts,.tsx --fix",
     "format": "prettier --write \"**/*.{js,ts,tsx,json,md}\"",
-    "test": "node --test tests/**/*.test.js",
-    "test:watch": "node --test --watch tests/**/*.test.js",
-    "test:coverage": "node --test --experimental-test-coverage tests/**/*.test.js"
+    "test": "node --test 'tests/**/*.test.js'",
+    "test:watch": "node --test --watch 'tests/**/*.test.js'",
+    "test:coverage": "node --test --experimental-test-coverage 'tests/**/*.test.js'"
   },
   "bin": {
     "jsx-prop-lookup-mcp-server": "dist/index.js"
