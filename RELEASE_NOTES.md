@@ -30,6 +30,7 @@
 ## v1.0.0 - Initial Release
 
 ### Features
+
 - ✅ **Complete MCP Server** for JSX prop analysis using AST parsing
 - ✅ **Three Analysis Tools**:
   - `analyze_jsx_props` - Comprehensive prop analysis
@@ -43,12 +44,14 @@
 - ✅ **Prop Value Extraction** - String literals, expressions, identifiers
 
 ### Technical Details
+
 - Built with MCP SDK v0.4.0
 - Babel parser with comprehensive plugin support
 - TypeScript compilation target: ES2022
 - Node.js ESM modules
 
 ### Tested With
+
 - React functional components
 - TypeScript interfaces
 - Arrow functions and function declarations
@@ -57,6 +60,7 @@
 - Complex component hierarchies
 
 ### Ready For
+
 - Production use
 - Integration with MCP clients
 - Large React codebases
