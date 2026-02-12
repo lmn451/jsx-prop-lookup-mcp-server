@@ -22,11 +22,11 @@ export interface RequestLogData {
   componentName?: string;
   propName?: string;
   formatType: 'full' | 'compact' | 'minimal';
-  requestParams: Record<string, any>;
+  requestParams: Record<string, unknown>;
   responseTimeMs: number;
   success: boolean;
   errorType?: string;
-  responseData?: Record<string, any>;
+  responseData?: Record<string, unknown>;
 }
 
 export interface ComponentData {
@@ -41,6 +41,8 @@ export interface ComponentData {
   codeContext?: string;
   createdAt: Date;
 }
+
+
 
 export interface PerformanceMetrics {
   id: string;
@@ -75,5 +77,5 @@ export interface LogEntry {
 export interface AnalyticsEvent {
   type: 'request_start' | 'request_end' | 'error' | 'session_start';
   timestamp: Date;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }

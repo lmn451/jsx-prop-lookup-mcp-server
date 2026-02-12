@@ -1,11 +1,22 @@
 import { ComponentData } from '../types/logging-types.js';
 
+interface PropData {
+  name?: string;
+  propName?: string;
+  value?: unknown;
+  type?: string;
+  propType?: string;
+  line?: number;
+  lineNumber?: number;
+  context?: string;
+}
+
 /**
  * Extract component data from analysis results for detailed logging
  */
 export function extractComponentData(
   requestId: string,
-  analysisResult: any,
+  analysisResult: unknown,
   filePath?: string
 ): ComponentData[] {
   const componentData: ComponentData[] = [];
@@ -14,14 +25,22 @@ export function extractComponentData(
     return componentData;
   }
 
+  const result = analysisResult as { 
+    components?: unknown[]; 
+    propUsages?: unknown[]; 
+    summary?: unknown;
+    files?: unknown[];
+    [key: string]: unknown;
+  };
+
   try {
     // Handle different response formats
-    if (Array.isArray(analysisResult)) {
+    if (Array.isArray(result)) {
       // Array format - iterate through results
-      analysisResult.forEach(item => {
+      result.forEach(item => {
         componentData.push(...extractFromItem(requestId, item, filePath));
       });
-    } else if (analysisResult.files) {
+    } else if (result.files) {
       // Files format - iterate through files
       Object.entries(analysisResult.files).forEach(([file, data]) => {
         componentData.push(...extractFromItem(requestId, data, file));
@@ -40,29 +59,33 @@ export function extractComponentData(
 /**
  * Extract component data from a single analysis item
  */
-function extractFromItem(requestId: string, item: any, filePath?: string): ComponentData[] {
+function extractFromItem(requestId: string, item: unknown, filePath?: string): ComponentData[] {
   const componentData: ComponentData[] = [];
 
   if (!item || typeof item !== 'object') {
     return componentData;
   }
 
+  const analysisItem = item as { components?: unknown[]; props?: unknown[]; file?: string; componentName?: string; name?: string };
+
   try {
     // Handle components array
-    if (item.components && Array.isArray(item.components)) {
-      item.components.forEach((component: any) => {
-        if (component.props && Array.isArray(component.props)) {
-          component.props.forEach((prop: any) => {
+    if (analysisItem.components && Array.isArray(analysisItem.components)) {
+      analysisItem.components.forEach((component: unknown) => {
+        const comp = component as { props?: unknown[]; name?: string; componentName?: string; file?: string; line?: number; context?: string };
+        if (comp.props && Array.isArray(comp.props)) {
+          comp.props.forEach((prop: unknown) => {
+            const propData = prop as PropData;
             componentData.push({
               id: crypto.randomUUID(),
               requestId,
-              filePath: filePath || item.file || component.file || '',
-              componentName: component.name || component.componentName || '',
-              propName: prop.name || prop.propName || '',
-              propValue: prop.value ? JSON.stringify(prop.value) : undefined,
-              propType: prop.type || prop.propType || undefined,
-              lineNumber: prop.line || prop.lineNumber || component.line || undefined,
-              codeContext: prop.context || component.context || undefined,
+              filePath: filePath || analysisItem.file || comp.file || '',
+              componentName: comp.name || comp.componentName || '',
+              propName: propData.name || propData.propName || '',
+              propValue: propData.value ? JSON.stringify(propData.value) : undefined,
+              propType: propData.type || propData.propType || undefined,
+              lineNumber: propData.line || propData.lineNumber || comp.line || undefined,
+              codeContext: propData.context || comp.context || undefined,
               createdAt: new Date(),
             });
           });
@@ -71,35 +94,36 @@ function extractFromItem(requestId: string, item: any, filePath?: string): Compo
     }
 
     // Handle direct props array
-    if (item.props && Array.isArray(item.props)) {
-      item.props.forEach((prop: any) => {
+    if (analysisItem.props && Array.isArray(analysisItem.props)) {
+      analysisItem.props.forEach((prop: unknown) => {
+        const propData = prop as PropData;
         componentData.push({
           id: crypto.randomUUID(),
           requestId,
-          filePath: filePath || item.file || '',
-          componentName: item.componentName || item.name || '',
-          propName: prop.name || prop.propName || '',
-          propValue: prop.value ? JSON.stringify(prop.value) : undefined,
-          propType: prop.type || prop.propType || undefined,
-          lineNumber: prop.line || prop.lineNumber || undefined,
-          codeContext: prop.context || undefined,
+          filePath: filePath || analysisItem.file || '',
+          componentName: analysisItem.componentName || analysisItem.name || '',
+          propName: propData.name || propData.propName || '',
+          propValue: propData.value ? JSON.stringify(propData.value) : undefined,
+          propType: propData.type || propData.propType || undefined,
+          lineNumber: propData.line || propData.lineNumber || undefined,
+          codeContext: propData.context || undefined,
           createdAt: new Date(),
         });
       });
     }
 
     // Handle single prop
-    if (item.propName || item.name) {
+    if (analysisItem.propName || analysisItem.name) {
       componentData.push({
         id: crypto.randomUUID(),
         requestId,
-        filePath: filePath || item.file || '',
-        componentName: item.componentName || '',
-        propName: item.propName || item.name || '',
-        propValue: item.value ? JSON.stringify(item.value) : undefined,
-        propType: item.type || item.propType || undefined,
-        lineNumber: item.line || item.lineNumber || undefined,
-        codeContext: item.context || undefined,
+        filePath: filePath || analysisItem.file || '',
+        componentName: analysisItem.componentName || '',
+        propName: (analysisItem.propName || analysisItem.name) as string,
+        propValue: analysisItem.value ? JSON.stringify(analysisItem.value) : undefined,
+        propType: (analysisItem.type || analysisItem.propType) as string | undefined,
+        lineNumber: (analysisItem.line || analysisItem.lineNumber) as number | undefined,
+        codeContext: (analysisItem.context) as string | undefined,
         createdAt: new Date(),
       });
     }
@@ -113,7 +137,7 @@ function extractFromItem(requestId: string, item: any, filePath?: string): Compo
 /**
  * Sanitize sensitive data from request parameters
  */
-export function sanitizeRequestParams(params: Record<string, any>): Record<string, any> {
+export function sanitizeRequestParams(params: Record<string, unknown>): Record<string, unknown> {
   const sanitized = { ...params };
 
   // Remove potentially sensitive data
