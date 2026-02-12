@@ -4,7 +4,7 @@ import type { NodePath } from '@babel/traverse';
 import * as t from '@babel/types';
 import { readFileSync, statSync } from 'fs';
 import { glob } from 'glob';
-import { join, extname } from 'path';
+import { join, extname, resolve, isAbsolute } from 'path';
 
 export interface PropUsage {
   propName: string;
@@ -335,14 +335,17 @@ export class JSXPropAnalyzer {
 
   private async getFiles(path: string): Promise<string[]> {
     try {
-      const stat = statSync(path);
+      // Ensure path is absolute
+      const absolutePath = isAbsolute(path) ? path : resolve(path);
+
+      const stat = statSync(absolutePath);
 
       if (stat.isFile()) {
-        return this.supportedExtensions.includes(extname(path)) ? [path] : [];
+        return this.supportedExtensions.includes(extname(absolutePath)) ? [absolutePath] : [];
       }
 
       if (stat.isDirectory()) {
-        const pattern = join(path, '**/*.{js,jsx,ts,tsx}');
+        const pattern = join(absolutePath, '**/*.{js,jsx,ts,tsx}');
         const files = await glob(pattern, {
           ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
           nodir: true, // Explicitly exclude directories
@@ -354,7 +357,9 @@ export class JSXPropAnalyzer {
           try {
             const fileStat = statSync(file);
             if (fileStat.isFile() && this.supportedExtensions.includes(extname(file))) {
-              validFiles.push(file);
+              // Ensure file path is also absolute
+              const absoluteFile = isAbsolute(file) ? file : resolve(file);
+              validFiles.push(absoluteFile);
             }
           } catch (error) {
             const err = error instanceof Error ? error : new Error(String(error));

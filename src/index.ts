@@ -151,16 +151,19 @@ Use this tool when you need to:
 - Get TypeScript interface information for components
 
 EXAMPLES:
-1. Analyze all components in src/components:
+1. Analyze all components in current directory:
+   { "includeTypes": true }
+
+2. Analyze all components in src/components:
    { "path": "src/components", "includeTypes": true }
 
-2. Find all props for Button component:
-   { "path": "src", "componentName": "Button", "includeTypes": true }
+3. Find all props for Button component in current directory:
+   { "componentName": "Button", "includeTypes": true }
 
-3. Find all usages of onClick prop:
-   { "path": ".", "propName": "onClick", "includeTypes": false }
+4. Find all usages of onClick prop in current directory:
+   { "propName": "onClick", "includeTypes": false }
 
-4. Analyze specific file with type info:
+5. Analyze specific file with type info:
    { "path": "src/App.tsx", "includeTypes": true }
 
 Returns:
@@ -168,7 +171,7 @@ Returns:
 - Prop types (when includeTypes is true)
 - File locations where components are defined`,
   {
-    path: z.string().describe('Absolute or relative path to file or directory to analyze (e.g., "src/components" or "src/App.tsx")'),
+    path: z.string().default('.').describe('Absolute or relative path to file or directory to analyze (e.g., "src/components" or "src/App.tsx", defaults to current directory)'),
     componentName: z.string().optional().describe('Filter: analyze only this specific component name (e.g., "Button")'),
     propName: z.string().optional().describe('Filter: search only for this specific prop name (e.g., "onClick")'),
     includeTypes: z.boolean().default(true).describe('Include TypeScript type information in results'),
@@ -195,13 +198,13 @@ Use this tool when you need to:
 - Understand prop propagation patterns
 
 EXAMPLES:
-1. Find all onClick handlers in the project:
+1. Find all onClick handlers in current directory:
    { "propName": "onClick" }
 
 2. Find className usage in components directory:
    { "propName": "className", "directory": "src/components" }
 
-3. Find variant prop only on Button components:
+3. Find variant prop only on Button components in current directory:
    { "propName": "variant", "componentName": "Button" }
 
 4. Find all disabled props in specific directory:
@@ -238,16 +241,16 @@ Use this tool when you need to:
 - Analyze component interfaces
 
 EXAMPLES:
-1. Get all props for Button component:
+1. Get all props for Button component in current directory:
    { "componentName": "Button" }
 
 2. Check Modal component props in specific directory:
    { "componentName": "Modal", "directory": "src/components" }
 
-3. Document Card component API:
+3. Document Card component API in UI directory:
    { "componentName": "Card", "directory": "src/ui" }
 
-4. Analyze Input component interface:
+4. Analyze Input component interface in current directory:
    { "componentName": "Input" }
 
 Returns:
@@ -281,16 +284,16 @@ Use this tool when you need to:
 - Refactor components and ensure all usages are updated
 
 EXAMPLES:
-1. Find Select components missing width prop:
+1. Find Select components missing width prop in current directory:
    { "componentName": "Select", "requiredProp": "width" }
 
-2. Audit Image components for missing alt text:
+2. Audit Image components for missing alt text in current directory:
    { "componentName": "Image", "requiredProp": "alt" }
 
-3. Find Button components missing type prop:
+3. Find Button components missing type prop in src directory:
    { "componentName": "Button", "requiredProp": "type", "directory": "src" }
 
-4. Check Input components for missing label:
+4. Check Input components for missing label in forms directory:
    { "componentName": "Input", "requiredProp": "aria-label", "directory": "src/forms" }
 
 Returns:
@@ -335,53 +338,54 @@ AVAILABLE TOOLS:
   1. analyze_jsx_props
      Analyze JSX/React component prop usage across files and directories
      
-     Parameters:
-       - path (required): File or directory path to analyze
-       - componentName (optional): Filter to specific component
-       - propName (optional): Filter to specific prop
-       - includeTypes (optional): Include TypeScript types (default: true)
-     
-     Examples:
-       { "path": "src/components" }
-       { "path": "src/App.tsx", "componentName": "Button" }
-       { "path": ".", "propName": "onClick" }
+Parameters:
+        - path (optional): File or directory path to analyze (default: current directory)
+        - componentName (optional): Filter to specific component
+        - propName (optional): Filter to specific prop
+        - includeTypes (optional): Include TypeScript types (default: true)
+      
+      Examples:
+        { "path": "src/components" }
+        { "componentName": "Button" }
+        { "propName": "onClick" }
+        { "path": "src/App.tsx", "componentName": "Button" }
 
   2. find_prop_usage
      Find all usages of a specific prop across JSX files
      
-     Parameters:
-       - propName (required): Name of the prop to search for
-       - directory (optional): Directory to search (default: ".")
-       - componentName (optional): Limit to specific component
-     
-     Examples:
-       { "propName": "onClick" }
-       { "propName": "className", "directory": "src/components" }
-       { "propName": "variant", "componentName": "Button" }
+Parameters:
+        - propName (required): Name of the prop to search for
+        - directory (optional): Directory to search (default: current directory)
+        - componentName (optional): Limit to specific component
+      
+      Examples:
+        { "propName": "onClick" }
+        { "propName": "className", "directory": "src/components" }
+        { "propName": "variant", "componentName": "Button" }
 
   3. get_component_props
      Get detailed information about all props used by a specific component
      
-     Parameters:
-       - componentName (required): Name of the component to analyze
-       - directory (optional): Directory to search (default: ".")
-     
-     Examples:
-       { "componentName": "Button" }
-       { "componentName": "Modal", "directory": "src/components" }
+Parameters:
+        - componentName (required): Name of the component to analyze
+        - directory (optional): Directory to search (default: current directory)
+      
+      Examples:
+        { "componentName": "Button" }
+        { "componentName": "Modal", "directory": "src/components" }
 
   4. find_components_without_prop
      Find component instances missing a required prop
      
-     Parameters:
-       - componentName (required): Name of the component to check
-       - requiredProp (required): Name of the required prop
-       - directory (optional): Directory to search (default: ".")
-     
-     Examples:
-       { "componentName": "Select", "requiredProp": "width" }
-       { "componentName": "Image", "requiredProp": "alt" }
-       { "componentName": "Button", "requiredProp": "type", "directory": "src" }
+Parameters:
+        - componentName (required): Name of the component to check
+        - requiredProp (required): Name of the required prop
+        - directory (optional): Directory to search (default: current directory)
+      
+      Examples:
+        { "componentName": "Select", "requiredProp": "width" }
+        { "componentName": "Image", "requiredProp": "alt" }
+        { "componentName": "Button", "requiredProp": "type", "directory": "src" }
 
 SECURITY:
   Use --allowed-roots to restrict filesystem access to specific directories:
