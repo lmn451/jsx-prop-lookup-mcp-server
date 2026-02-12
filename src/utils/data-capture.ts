@@ -29,7 +29,7 @@ export function extractComponentData(
     components?: unknown[]; 
     propUsages?: unknown[]; 
     summary?: unknown;
-    files?: unknown[];
+    files?: Record<string, unknown>;
     [key: string]: unknown;
     propName?: string;
     name?: string;
@@ -50,7 +50,7 @@ export function extractComponentData(
       });
     } else if (result.files) {
       // Files format - iterate through files
-      Object.entries(analysisResult.files).forEach(([file, data]) => {
+      Object.entries(result.files).forEach(([file, data]) => {
         componentData.push(...extractFromItem(requestId, data, file));
       });
     } else {
