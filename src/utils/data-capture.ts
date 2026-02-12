@@ -31,6 +31,14 @@ export function extractComponentData(
     summary?: unknown;
     files?: unknown[];
     [key: string]: unknown;
+    propName?: string;
+    name?: string;
+    value?: unknown;
+    type?: string;
+    propType?: string;
+    line?: number;
+    lineNumber?: number;
+    context?: string;
   };
 
   try {
@@ -66,13 +74,38 @@ function extractFromItem(requestId: string, item: unknown, filePath?: string): C
     return componentData;
   }
 
-  const analysisItem = item as { components?: unknown[]; props?: unknown[]; file?: string; componentName?: string; name?: string };
+  const analysisItem = item as { 
+    components?: unknown[]; 
+    props?: unknown[]; 
+    file?: string; 
+    componentName?: string; 
+    name?: string;
+    propName?: string;
+    value?: unknown;
+    type?: string;
+    propType?: string;
+    line?: number;
+    lineNumber?: number;
+    context?: string;
+  };
 
   try {
     // Handle components array
     if (analysisItem.components && Array.isArray(analysisItem.components)) {
       analysisItem.components.forEach((component: unknown) => {
-        const comp = component as { props?: unknown[]; name?: string; componentName?: string; file?: string; line?: number; context?: string };
+        const comp = component as { 
+          props?: unknown[]; 
+          name?: string; 
+          componentName?: string; 
+          file?: string; 
+          line?: number; 
+          context?: string;
+          propName?: string;
+          value?: unknown;
+          type?: string;
+          propType?: string;
+          lineNumber?: number;
+        };
         if (comp.props && Array.isArray(comp.props)) {
           comp.props.forEach((prop: unknown) => {
             const propData = prop as PropData;
