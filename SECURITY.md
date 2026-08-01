@@ -1,27 +1,54 @@
-Security and safe operation
+# Security and safe operation
 
-Important: this MCP server reads files and directories on disk based on client-provided paths. Do NOT expose the stdio-based server to untrusted or network-exposed clients. By default there is no filesystem whitelist; to restrict filesystem access, set the `ALLOWED_ROOTS` environment variable to a comma-separated list of allowed root directories (absolute or workspace-relative), or pass the same setting using the `--allowed-roots` CLI flag. When configured, any tool request that refers to a path outside the allowed roots will be rejected.
+This MCP server reads files and directories named in client-provided tool arguments. It runs over stdio and is intended to be launched by a trusted local MCP client. Do not expose the process directly to untrusted or network-accessible clients.
 
-Environment variable example (restrict to the repository root):
+## Restrict readable roots
+
+By default, no filesystem whitelist is applied. Configure a comma-separated list of roots with either:
+
+- the `ALLOWED_ROOTS` environment variable; or
+- the `--allowed-roots` CLI flag.
+
+The CLI flag takes precedence if both are present. Roots may be absolute or relative to the server process working directory; absolute paths are recommended in MCP client configuration.
+
+Environment example:
 
 ```bash
-export ALLOWED_ROOTS="."
-npm run dev
+ALLOWED_ROOTS="/workspace/project" npx --yes jsx-prop-lookup-mcp-server
 ```
 
-CLI examples:
+CLI example:
 
 ```bash
-# Restrict to the current repository root (workspace-relative)
-node --import=tsx src/index.ts --allowed-roots .
-
-# Or provide absolute paths (comma-separated)
-node --import=tsx src/index.ts --allowed-roots /home/user/project,/tmp/safe-area
+npx --yes jsx-prop-lookup-mcp-server --allowed-roots "/workspace/project,/workspace/shared"
 ```
 
-Recommended practices:
+MCP client example:
 
-- Run this server only in trusted environments, or behind an authenticated proxy.
-- Use `ALLOWED_ROOTS` or the CLI flag to limit the scope of accessible files.
-- Do not run the server as a privileged user; run under a least-privileged account.
-- Consider further sandboxing (containerization) when servicing untrusted inputs.
+```json
+{
+  "mcpServers": {
+    "jsx-prop-lookup": {
+      "command": "npx",
+      "args": ["--yes", "jsx-prop-lookup-mcp-server"],
+      "env": {
+        "ALLOWED_ROOTS": "/workspace/project"
+      }
+    }
+  }
+}
+```
+
+When roots are configured, every tool path must resolve within one of them. Targets outside the configured roots are rejected. The containment check resolves symlinks, so a symlink inside an allowed root cannot be used to access an existing target outside it.
+
+## Operational guidance
+
+- Grant access only to directories the analysis requires.
+- Run the server as an unprivileged account.
+- Treat the MCP client as trusted code because it chooses tool arguments.
+- Keep secrets and credential files outside allowed roots where possible.
+- Do not place credentials in MCP configuration beyond values required by the client itself; this server does not require credentials.
+- Use additional process or container sandboxing when the client or analyzed project is not fully trusted.
+- Keep server diagnostics on stderr so stdout remains dedicated to MCP stdio messages.
+
+The project implements tools only. It does not provide an HTTP listener, resources, or prompts.

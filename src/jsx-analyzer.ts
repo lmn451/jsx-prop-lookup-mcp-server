@@ -37,8 +37,8 @@ export interface AnalysisResult {
 export class JSXPropAnalyzer {
   private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
   // Normalize babel-traverse default export once for reuse (avoid `any` cast)
-  private readonly traverseDefault = ((traverse as unknown) as { default?: typeof traverse }).default ||
-    traverse;
+  private readonly traverseDefault =
+    (traverse as unknown as { default?: typeof traverse }).default || traverse;
 
   /**
    * Extract component name from JSX identifier or member expression
@@ -204,7 +204,7 @@ export class JSXPropAnalyzer {
       // If reading a directory, skip
       // Some platforms include a `code` property on the error object
       // Use a safe check rather than typing the error as `any`.
-      const maybeErr = re as unknown as NodeJS.ErrnoException;
+      const maybeErr = re as Error & { code?: string };
       if (maybeErr.code === 'EISDIR') {
         console.warn(`Skipping directory (EISDIR): ${file}`);
         return { missingProps: [], totalInstances: 0 };
@@ -373,7 +373,7 @@ export class JSXPropAnalyzer {
       return [];
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      throw new Error(`Cannot access path: ${path} - ${err.message}`);
+      throw new Error(`Cannot access path: ${path} - ${err.message}`, { cause: error });
     }
   }
 
@@ -405,12 +405,12 @@ export class JSXPropAnalyzer {
       content = readFileSync(filePath, 'utf-8');
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      const maybeErr = err as unknown as NodeJS.ErrnoException;
+      const maybeErr = err as Error & { code?: string };
       if (maybeErr.code === 'EISDIR') {
         console.warn(`Skipping directory (EISDIR): ${filePath}`);
         return { components: [], propUsages: [] };
       }
-      throw new Error(`Failed to read file ${filePath}: ${err.message}`);
+      throw new Error(`Failed to read file ${filePath}: ${err.message}`, { cause: error });
     }
     const components: ComponentAnalysis[] = [];
     const propUsages: PropUsage[] = [];
@@ -435,7 +435,7 @@ export class JSXPropAnalyzer {
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to parse ${filePath}: ${msg}`);
+      throw new Error(`Failed to parse ${filePath}: ${msg}`, { cause: error });
     }
 
     // Track component definitions and their prop interfaces

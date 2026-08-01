@@ -1,123 +1,80 @@
 # Test Infrastructure
 
-This project uses Node.js built-in test runner for testing. The test suite verifies both the JSX analyzer functionality and the MCP server integration.
+This project uses Node.js's built-in test runner. The suite covers the AST analyzer, filesystem containment, and the MCP v2 stdio boundary.
 
-## Test Structure
+## Test structure
 
-### Unit & Integration Tests
+### Analyzer tests
 
-- `tests/analyzer.test.js` - Tests the core JSXPropAnalyzer functionality
-  - Positive tests: Expected findings in example components
-  - Negative tests: Non-existent components/props should return empty results
-  - Error handling: Invalid paths, empty directories
-  - TypeScript interface detection
-  - Spread operator handling
+`tests/analyzer.test.js` covers:
 
-### MCP Integration Tests
+- JavaScript, JSX, TypeScript, and TSX parsing;
+- component and prop discovery;
+- TypeScript interface detection;
+- destructured and identifier-based prop access;
+- namespaced JSX names;
+- spread attributes;
+- common JSX expression values;
+- invalid-path and parse-error handling; and
+- missing-required-prop analysis.
 
-- `tests/mcp.smoke.test.js` - Tests the full MCP server protocol
-  - Server initialization and tool listing
-  - All 4 MCP tools with valid inputs
-  - Error handling with invalid inputs
-  - Relative vs absolute path handling
+### MCP integration tests
 
-## Running Tests
+`tests/mcp.smoke.test.js` uses `@modelcontextprotocol/client` v2 and `StdioClientTransport` to exercise:
 
-### Prerequisites
+- pinning and negotiating protocol/specification `2026-07-28`;
+- server identity and discovery;
+- the exact four-tool inventory;
+- valid calls to all four tools;
+- invalid arguments and tool-level errors;
+- relative paths from the configured working directory; and
+- clean client-owned process shutdown.
+
+### Filesystem security tests
+
+`tests/allowed_roots.test.js` covers:
+
+- access within configured roots;
+- rejection outside configured roots;
+- CLI and environment configuration; and
+- symlink targets that resolve outside an allowed root.
+
+## Running tests
 
 ```bash
-npm install
-npm run build  # Required for MCP tests that use dist/index.js
+npm ci
+npm run typecheck
+npm run lint
+npm run build
+npm test
 ```
 
-### Test Commands
+Individual suites:
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode (re-runs on file changes)
-npm run test:watch
-
-# Run with coverage (experimental Node.js feature)
-npm run test:coverage
-
-# Run specific test file
 node --test tests/analyzer.test.js
 node --test tests/mcp.smoke.test.js
+node --test tests/allowed_roots.test.js
 ```
 
-## Test Data
+Coverage uses Node's experimental built-in instrumentation:
 
-Tests use the components in `examples/sample-components/`:
+```bash
+npm run test:coverage
+```
 
-- `App.tsx` - Main app with Button and Card usage
-- `Button.tsx` - Component with ButtonProps interface and destructured props
-- `Card.tsx` - Component with CardProps interface
-- `SelectExample.tsx` - Select component with missing width examples
+## Test data
 
-## Expected Test Behavior
+Tests use `examples/sample-components/`:
 
-### Positive Test Cases
+- `App.tsx` — Button and Card usage;
+- `Button.tsx` — destructured props and `ButtonProps`;
+- `Card.tsx` — `CardProps`;
+- `SelectExample.tsx` — required-prop and spread scenarios; and
+- additional namespaced and identifier-access fixtures.
 
-- ✅ Find Button component with props: children, onClick, disabled, variant, className, ...rest
-- ✅ Find Card component with props: title, children, className, footer
-- ✅ Find Select component with props: options, value, onChange, width
-- ✅ Detect TypeScript interfaces: ButtonProps, CardProps, SelectProps
-- ✅ Find onClick usage in Button definitions and JSX elements
-- ✅ Find Select components missing width prop
-- ✅ Detect spread operators (...rest, ...spread)
+## CI expectations
 
-### Negative Test Cases
+The supported runtime is Node.js 20 or newer. Tests are deterministic, use no network services, and communicate with the MCP server over local stdio only. The integration test starts `src/index.ts` through `tsx`; `npm run build` separately verifies the published `dist/` output.
 
-- ❌ Non-existent components return empty results
-- ❌ Non-existent props return empty results
-- ❌ Invalid paths throw appropriate errors
-- ❌ Components with spread props are not flagged as missing required props
-
-### MCP Protocol Tests
-
-- ✅ Server initializes and responds to protocol handshake
-- ✅ Lists 4 available tools with correct schemas
-- ✅ All tools accept valid inputs and return structured responses
-- ✅ Tools handle invalid inputs gracefully with error responses
-- ✅ Server doesn't crash on malformed requests
-
-## Test Coverage
-
-The test suite covers:
-
-- All 4 analyzer methods: analyzeProps, findPropUsage, getComponentProps, findComponentsWithoutProp
-- All 4 MCP tools with the same names
-- TypeScript interface detection
-- Spread operator handling in both component definitions and JSX usage
-- Error conditions and edge cases
-- Path resolution (relative/absolute)
-
-## CI/CD Integration
-
-Tests are designed to run in any Node.js 18+ environment:
-
-- No external dependencies beyond npm packages
-- Uses built-in Node.js test runner (no additional test framework)
-- Self-contained test data in examples/ directory
-- Deterministic assertions that don't depend on file system specifics
-
-## Debugging Tests
-
-To debug failing tests:
-
-1. Run individual test files: `node --test tests/analyzer.test.js`
-2. Add console.log statements in test files to inspect actual vs expected data
-3. Check that examples/ directory contains expected components
-4. Verify build output exists in dist/ for MCP tests
-
-## Adding New Tests
-
-When adding new features:
-
-1. Add corresponding example components to `examples/sample-components/`
-2. Add positive tests to verify the feature works
-3. Add negative tests to verify edge cases
-4. Add MCP integration tests if new tools are added
-5. Update this documentation with new test expectations
+When adding a tool, update the MCP v2 integration inventory and call coverage, then update the current four-tool documentation and release notes.

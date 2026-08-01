@@ -1,69 +1,55 @@
 # Release Notes
 
-## v1.0.2 - EISDIR Error Fix (Latest)
+## Current supported line: MCP SDK v2
 
-### 🐛 Critical Bug Fix
-- **Fixed EISDIR Error**: Resolved "illegal operation on directory, read" crashes
-- **Enhanced File Handling**: Multiple safety checks for directory detection
-- **Robust Analysis**: Gracefully handles complex file system structures
-- **Better Error Messages**: Improved debugging with detailed error context
+The active implementation uses the official split TypeScript package `@modelcontextprotocol/server` v2 with the `2026-07-28` protocol/specification line.
 
-### 🔧 Technical Improvements
-- Added `nodir: true` to glob options
-- Multiple `statSync()` verification layers
-- Proper TypeScript error typing
-- Enhanced warning system for problematic paths
+### Runtime and transport
 
-## v1.0.1 - Missing Props Detection
+- Node.js 20 or newer is required.
+- The server communicates over stdio.
+- The server exposes tools only; it does not expose HTTP transport, resources, or prompts.
 
-### ✨ New Feature
-- **find_components_without_prop**: Find components missing required props
-- **Code Auditing**: Perfect for ensuring consistent prop usage
-- **Smart Spread Handling**: Assumes spread operators might contain required props
-- **Detailed Results**: File locations, line numbers, and existing props listed
+### Current tool set
 
-### 📊 Use Cases
-- Find Select components without width prop
-- Identify Button components missing onClick handlers
-- Audit accessibility props across components
+The product exposes exactly four tools:
 
-## v1.0.0 - Initial Release
+1. `analyze_jsx_props`
+2. `find_prop_usage`
+3. `get_component_props`
+4. `find_components_without_prop`
 
-### Features
+### Analysis and security behavior
 
-- ✅ **Complete MCP Server** for JSX prop analysis using AST parsing
-- ✅ **Three Analysis Tools**:
-  - `analyze_jsx_props` - Comprehensive prop analysis
-  - `find_prop_usage` - Search specific prop usage
-  - `get_component_props` - Extract component props
-- ✅ **React/TypeScript Support** - Full JSX/TSX parsing
-- ✅ **Babel AST Parser** - Accurate code analysis
-- ✅ **TypeScript Interface Detection** - Prop type information
-- ✅ **Spread Operator Handling** - `...rest` and `...spread` props
-- ✅ **Location Tracking** - Line/column information for all findings
-- ✅ **Prop Value Extraction** - String literals, expressions, identifiers
+- Namespaced JSX such as `UI.Select` can be matched by its full dotted name or local name.
+- `ALLOWED_ROOTS` and `--allowed-roots` restrict filesystem access to configured roots.
+- The CLI allowed-roots setting takes precedence over the environment setting.
+- Existing targets reached through symlinks are checked by their resolved location.
 
-### Technical Details
+### Migration note
 
-- Built with MCP SDK v0.4.0
-- Babel parser with comprehensive plugin support
-- TypeScript compilation target: ES2022
-- Node.js ESM modules
+MCP v2 is the implementation target. Clients and integrations that depend on MCP v1 package paths, APIs, or protocol assumptions must migrate; there is no parallel v1 compatibility implementation.
 
-### Tested With
+Package release numbers and MCP SDK major versions are separate version lines. The historical package notes below do not describe the current MCP protocol target.
 
-- React functional components
-- TypeScript interfaces
-- Arrow functions and function declarations
-- JSX prop destructuring
-- Spread operators
-- Complex component hierarchies
+## Historical package releases
 
-### Ready For
+### v1.0.2 - EISDIR error fix
 
-- Production use
-- Integration with MCP clients
-- Large React codebases
-- Development tooling
+- Prevented directory paths from being read as files.
+- Added directory filtering and file-type checks.
+- Improved error context for problematic filesystem paths.
 
-**Installation:** `npm install jsx-prop-lookup-mcp-server`
+### v1.0.1 - Missing-prop detection
+
+- Introduced `find_components_without_prop`.
+- Reported file locations, line numbers, and existing props.
+- Treated spread attributes conservatively because they may contain the required prop.
+
+### v1.0.0 - Initial package release
+
+- Established AST-based JSX and TSX prop analysis.
+- Added component, prop-usage, TypeScript-interface, spread-attribute, and source-location analysis.
+- Used Node.js ESM modules and an earlier MCP SDK generation that is now historical.
+
+For current installation and client configuration, see [README.md](README.md) and [QUICK_START.md](QUICK_START.md).

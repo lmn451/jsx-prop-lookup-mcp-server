@@ -1,5 +1,6 @@
--- Comprehensive Supabase Database Schema for JSX Prop Lookup Analytics
--- This schema supports detailed data collection including file paths, component names, prop names, and values
+-- HISTORICAL ONLY: this schema is not used by the current MCP server.
+-- Do not deploy it as a telemetry backend; the runtime has no Supabase connection.
+-- Retained only as an archival artifact for earlier experiments.
 
 -- Sessions table for comprehensive user tracking
 CREATE TABLE sessions (
@@ -20,7 +21,7 @@ CREATE INDEX idx_sessions_created_at ON sessions(created_at);
 CREATE TABLE request_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID REFERENCES sessions(id),
-  tool_name TEXT NOT NULL, -- 'analyze_jsx_props' or 'query_components'
+  tool_name TEXT NOT NULL, -- Historical MCP tool identifier
   request_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   file_path TEXT, -- Full file path
   component_name TEXT, -- Component name if provided

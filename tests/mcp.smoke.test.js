@@ -1,6 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { spawn } from 'node:child_process';
+import { Client } from '@modelcontextprotocol/client';
+import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -8,240 +9,116 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverPath = path.resolve(__dirname, '../src/index.ts');
 const examplesDir = path.resolve(__dirname, '../examples/sample-components');
 
-describe('MCP Server Integration', () => {
+describe('MCP v2 server integration', () => {
+  const toolNames = [
+    'analyze_jsx_props',
+    'find_prop_usage',
+    'get_component_props',
+    'find_components_without_prop',
+  ];
+
   function createMCPClient() {
-    const server = spawn('node', ['--import=tsx', serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe'],
+    const client = new Client(
+      { name: 'jsx-prop-lookup-test-client', version: '2.0.0' },
+      { versionNegotiation: { mode: { pin: '2026-07-28' } } }
+    );
+    const transport = new StdioClientTransport({
+      command: process.execPath,
+      args: ['--import=tsx', serverPath],
+      cwd: path.resolve(__dirname, '..'),
     });
 
-    let responseBuffer = '';
-    let pendingRequests = new Map();
-    let requestId = 1;
-
-    server.stdout.on('data', (data) => {
-      responseBuffer += data.toString();
-
-      // Try to parse complete JSON messages
-      const lines = responseBuffer.split('\n');
-      responseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-      for (const line of lines) {
-        if (line.trim()) {
-          try {
-            const response = JSON.parse(line);
-            if (response.id && pendingRequests.has(response.id)) {
-              const resolve = pendingRequests.get(response.id);
-              pendingRequests.delete(response.id);
-              resolve(response);
-            }
-          } catch (e) {
-            // Ignore non-JSON lines (like startup messages)
-          }
-        }
-      }
-    });
-
-    const sendRequest = (method, params = {}) => {
-      return new Promise((resolve, reject) => {
-        const id = requestId++;
-        const request = {
-          jsonrpc: '2.0',
-          id,
-          method,
-          params,
-        };
-
-        pendingRequests.set(id, resolve);
-
-        server.stdin.write(JSON.stringify(request) + '\n');
-
-        // Timeout after 10 seconds
-        setTimeout(() => {
-          if (pendingRequests.has(id)) {
-            pendingRequests.delete(id);
-            reject(new Error(`Request ${method} timed out`));
-          }
-        }, 10000);
-      });
-    };
-
-    const close = () => {
-      server.kill();
-    };
-
-    return { sendRequest, close };
+    return { client, transport };
   }
 
-  test('should initialize MCP server', async () => {
-    const client = createMCPClient();
-
+  async function withMCPClient(callback) {
+    const { client, transport } = createMCPClient();
     try {
-      const response = await client.sendRequest('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '1.0.0' },
-      });
-
-      assert.ok(response.result, 'Should have result');
-      assert.ok(response.result.capabilities, 'Should have capabilities');
-      assert.ok(response.result.serverInfo, 'Should have server info');
-      assert.strictEqual(
-        response.result.serverInfo.name,
-        'jsx-prop-lookup-server',
-        'Server name should match'
-      );
+      await client.connect(transport);
+      return await callback(client);
     } finally {
-      client.close();
+      await client.close();
     }
+  }
+
+  function parseTextResult(result) {
+    const textBlock = result.content?.find((block) => block.type === 'text');
+    assert.ok(textBlock, 'Tool result should contain a text block');
+    return JSON.parse(textBlock.text);
+  }
+
+  test('negotiates the MCP 2.0 protocol', async () => {
+    await withMCPClient(async (client) => {
+      assert.strictEqual(client.getServerVersion()?.name, 'jsx-prop-lookup-server');
+      assert.strictEqual(client.getNegotiatedProtocolVersion(), '2026-07-28');
+      assert.strictEqual(client.getProtocolEra(), 'modern');
+    });
   });
 
-  test('should list available tools', async () => {
-    const client = createMCPClient();
-
-    try {
-      // Initialize first
-      await client.sendRequest('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '1.0.0' },
-      });
-
-      const response = await client.sendRequest('tools/list');
-
-      assert.ok(response.result, 'Should have result');
-      assert.ok(response.result.tools, 'Should have tools array');
-      assert.strictEqual(response.result.tools.length, 4, 'Should have 4 tools');
-
-      const toolNames = response.result.tools.map((t) => t.name);
-      assert.ok(toolNames.includes('analyze_jsx_props'), 'Should have analyze_jsx_props tool');
-      assert.ok(toolNames.includes('find_prop_usage'), 'Should have find_prop_usage tool');
-      assert.ok(toolNames.includes('get_component_props'), 'Should have get_component_props tool');
-      assert.ok(
-        toolNames.includes('find_components_without_prop'),
-        'Should have find_components_without_prop tool'
+  test('lists exactly the supported tools', async () => {
+    await withMCPClient(async (client) => {
+      const { tools } = await client.listTools();
+      assert.deepStrictEqual(
+        tools.map((tool) => tool.name).sort(),
+        [...toolNames].sort(),
+        'Tool inventory should match the supported API'
       );
-    } finally {
-      client.close();
-    }
+      assert.ok(tools.every((tool) => tool.annotations?.readOnlyHint === true));
+    });
   });
 
-  test('should call analyze_jsx_props tool', async () => {
-    const client = createMCPClient();
-
-    try {
-      // Initialize
-      await client.sendRequest('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '1.0.0' },
-      });
-
-      const response = await client.sendRequest('tools/call', {
+  test('calls analyze_jsx_props through the v2 client', async () => {
+    await withMCPClient(async (client) => {
+      const result = await client.callTool({
         name: 'analyze_jsx_props',
-        arguments: {
-          path: examplesDir,
-        },
+        arguments: { path: examplesDir },
       });
+      const analysis = parseTextResult(result);
 
-      assert.ok(response.result, 'Should have result');
-      assert.ok(response.result.content, 'Should have content');
-      assert.strictEqual(response.result.content[0].type, 'text', 'Content should be text');
-
-      const result = JSON.parse(response.result.content[0].text);
-      assert.ok(result.summary, 'Should have summary');
-      assert.ok(result.components, 'Should have components');
-      assert.ok(result.propUsages, 'Should have propUsages');
-      assert.ok(result.summary.totalFiles >= 4, 'Should analyze multiple files');
-    } finally {
-      client.close();
-    }
+      assert.ok(analysis.summary);
+      assert.ok(analysis.components);
+      assert.ok(analysis.propUsages);
+      assert.ok(analysis.summary.totalFiles >= 4);
+    });
   });
 
-  test('should call find_prop_usage tool', async () => {
-    const client = createMCPClient();
-
-    try {
-      // Initialize
-      await client.sendRequest('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '1.0.0' },
-      });
-
-      const response = await client.sendRequest('tools/call', {
+  test('calls find_prop_usage through the v2 client', async () => {
+    await withMCPClient(async (client) => {
+      const result = await client.callTool({
         name: 'find_prop_usage',
-        arguments: {
-          propName: 'onClick',
-          directory: examplesDir,
-        },
+        arguments: { propName: 'onClick', directory: examplesDir },
       });
+      const usages = parseTextResult(result);
 
-      assert.ok(response.result, 'Should have result');
-      assert.ok(response.result.content, 'Should have content');
-
-      const result = JSON.parse(response.result.content[0].text);
-      assert.ok(Array.isArray(result), 'Should return array of usages');
-      assert.ok(result.length > 0, 'Should find onClick usages');
-
-      // Verify usage structure
-      const usage = result[0];
-      assert.ok(usage.propName, 'Should have propName');
-      assert.ok(usage.componentName, 'Should have componentName');
-      assert.ok(usage.file, 'Should have file');
-      assert.ok(typeof usage.line === 'number', 'Should have line number');
-      assert.ok(typeof usage.column === 'number', 'Should have column number');
-    } finally {
-      client.close();
-    }
+      assert.ok(Array.isArray(usages));
+      assert.ok(usages.length > 0);
+      assert.ok(usages[0].propName);
+      assert.ok(usages[0].componentName);
+      assert.ok(usages[0].file);
+      assert.strictEqual(typeof usages[0].line, 'number');
+      assert.strictEqual(typeof usages[0].column, 'number');
+    });
   });
 
-  test('should call get_component_props tool', async () => {
-    const client = createMCPClient();
-
-    try {
-      // Initialize
-      await client.sendRequest('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '1.0.0' },
-      });
-
-      const response = await client.sendRequest('tools/call', {
+  test('calls get_component_props through the v2 client', async () => {
+    await withMCPClient(async (client) => {
+      const result = await client.callTool({
         name: 'get_component_props',
-        arguments: {
-          componentName: 'Button',
-          directory: examplesDir,
-        },
+        arguments: { componentName: 'Button', directory: examplesDir },
       });
+      const components = parseTextResult(result);
 
-      assert.ok(response.result, 'Should have result');
-      assert.ok(response.result.content, 'Should have content');
-
-      const result = JSON.parse(response.result.content[0].text);
-      assert.ok(Array.isArray(result), 'Should return array of components');
-      assert.ok(result.length > 0, 'Should find Button component');
-
-      const component = result[0];
-      assert.strictEqual(component.componentName, 'Button', 'Should be Button component');
-      assert.ok(Array.isArray(component.props), 'Should have props array');
-      assert.ok(component.props.length > 0, 'Should have props');
-    } finally {
-      client.close();
-    }
+      assert.ok(Array.isArray(components));
+      assert.ok(components.length > 0);
+      assert.strictEqual(components[0].componentName, 'Button');
+      assert.ok(Array.isArray(components[0].props));
+      assert.ok(components[0].props.length > 0);
+    });
   });
 
-  test('should call find_components_without_prop tool', async () => {
-    const client = createMCPClient();
-
-    try {
-      // Initialize
-      await client.sendRequest('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '1.0.0' },
-      });
-
-      const response = await client.sendRequest('tools/call', {
+  test('calls find_components_without_prop through the v2 client', async () => {
+    await withMCPClient(async (client) => {
+      const result = await client.callTool({
         name: 'find_components_without_prop',
         arguments: {
           componentName: 'Select',
@@ -249,112 +126,60 @@ describe('MCP Server Integration', () => {
           directory: examplesDir,
         },
       });
+      const analysis = parseTextResult(result);
 
-      assert.ok(response.result, 'Should have result');
-      assert.ok(response.result.content, 'Should have content');
-
-      const result = JSON.parse(response.result.content[0].text);
-      assert.ok(result.missingPropUsages, 'Should have missingPropUsages');
-      assert.ok(result.summary, 'Should have summary');
-      assert.ok(Array.isArray(result.missingPropUsages), 'Missing usages should be array');
-
-      // Verify summary structure
-      assert.ok(typeof result.summary.totalInstances === 'number', 'Should have totalInstances');
-      assert.ok(
-        typeof result.summary.missingPropCount === 'number',
-        'Should have missingPropCount'
-      );
-      assert.ok(typeof result.summary.missingPropPercentage === 'number', 'Should have percentage');
-    } finally {
-      client.close();
-    }
+      assert.ok(Array.isArray(analysis.missingPropUsages));
+      assert.ok(analysis.summary);
+      assert.strictEqual(typeof analysis.summary.totalInstances, 'number');
+      assert.strictEqual(typeof analysis.summary.missingPropCount, 'number');
+      assert.strictEqual(typeof analysis.summary.missingPropPercentage, 'number');
+    });
   });
 
-  test('should handle tool errors gracefully', async () => {
-    const client = createMCPClient();
-
-    try {
-      // Initialize
-      await client.sendRequest('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '1.0.0' },
-      });
-
-      const response = await client.sendRequest('tools/call', {
+  test('returns tool errors without terminating the connection', async () => {
+    await withMCPClient(async (client) => {
+      const result = await client.callTool({
         name: 'analyze_jsx_props',
-        arguments: {
-          path: '/non/existent/path',
-        },
+        arguments: { path: '/non/existent/path' },
       });
 
-      assert.ok(response.result, 'Should have result');
-      assert.ok(response.result.content, 'Should have content');
-      assert.strictEqual(response.result.isError, true, 'Should be marked as error');
-      assert.ok(response.result.content[0].text.includes('Error:'), 'Should contain error message');
-    } finally {
-      client.close();
-    }
+      assert.strictEqual(result.isError, true);
+      assert.ok(result.content?.[0]?.type === 'text');
+      assert.ok(result.content[0].text.includes('Error:'));
+    });
   });
 
-  test('should handle missing arguments', async () => {
-    const client = createMCPClient();
-
-    try {
-      // Initialize
-      await client.sendRequest('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '1.0.0' },
-      });
-
-      const response = await client.sendRequest('tools/call', {
+  test('returns validation errors for missing arguments', async () => {
+    await withMCPClient(async (client) => {
+      const result = await client.callTool({
         name: 'find_prop_usage',
-        arguments: {}, // Missing required propName
+        arguments: {},
       });
 
-      assert.ok(response.result, 'Should have result');
-      assert.ok(response.result.content, 'Should have content');
-      assert.strictEqual(response.result.isError, true, 'Should be marked as error');
-      // SEP-1303: Check for validation error indicators (not specific text)
-      const errorText = response.result.content[0].text.toLowerCase();
+      assert.strictEqual(result.isError, true);
+      assert.ok(result.content?.[0]?.type === 'text');
+      const errorText = result.content[0].text.toLowerCase();
       assert.ok(
         errorText.includes('invalid') ||
           errorText.includes('required') ||
           errorText.includes('validation') ||
-          errorText.includes('error'),
-        'Error message should explain the validation failure'
+          errorText.includes('error')
       );
-    } finally {
-      client.close();
-    }
+    });
   });
 
-  test('should handle relative paths', async () => {
-    const client = createMCPClient();
-
-    try {
-      // Initialize
-      await client.sendRequest('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '1.0.0' },
-      });
-
-      const response = await client.sendRequest('tools/call', {
+  test('handles relative paths from the project working directory', async () => {
+    await withMCPClient(async (client) => {
+      const result = await client.callTool({
         name: 'find_prop_usage',
         arguments: {
           propName: 'onClick',
-          directory: './examples/sample-components', // Relative path
+          directory: './examples/sample-components',
         },
       });
 
-      // This might succeed or fail depending on working directory
-      // The important thing is it doesn't crash the server
-      assert.ok(response.result, 'Should have result');
-      assert.ok(response.result.content, 'Should have content');
-    } finally {
-      client.close();
-    }
+      assert.ok(result.content);
+      assert.strictEqual(result.isError, undefined);
+    });
   });
 });

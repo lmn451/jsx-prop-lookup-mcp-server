@@ -1,77 +1,62 @@
 # JSX Prop Lookup MCP Server Usage Guide
 
-## Quick Start
+## Requirements
 
-### Option 1: Use with npx (Recommended)
+- Node.js 20 or newer
+- An MCP client that can launch a stdio server using the MCP `2026-07-28` protocol/specification line
+
+The server is implemented with the official `@modelcontextprotocol/server` v2 TypeScript package. It provides tools only; it does not provide HTTP transport, resources, or prompts.
+
+## Start the server
+
+Run the published package:
 
 ```bash
-npx jsx-prop-lookup-mcp-server
+npx --yes jsx-prop-lookup-mcp-server
 ```
 
-### Option 2: Development Setup
+Or build and run a checkout:
 
-1. **Install dependencies:**
+```bash
+npm install
+npm run build
+npm start
+```
 
-   ```bash
-   npm install
-   ```
+The process communicates with its MCP client over stdin and stdout.
 
-2. **Build the server:**
+## MCP integration
 
-   ```bash
-   npm run build
-   ```
-
-3. **Test the server:**
-   ```bash
-   npm start
-   ```
-
-## Example Usage
-
-The server successfully analyzes JSX prop usage as demonstrated with the sample components:
-
-### Sample Analysis Results
-
-**Button Component Props:**
-
-- `children`, `onClick`, `disabled`, `variant`, `className`, `...rest`
-- Includes TypeScript interface: `ButtonProps`
-
-**onClick Prop Usage Found:**
-
-- Button component definition (parameter destructuring)
-- Button JSX element usage in App component
-- Native button element in Button component
-
-**Key Features Demonstrated:**
-
-- ✅ AST-based parsing of JSX/TSX files
-- ✅ Component prop extraction from function parameters (destructured or identifier-based)
-- ✅ JSX element prop usage tracking
-- ✅ TypeScript interface detection
-- ✅ Spread operator handling
-- ✅ Line/column location tracking
-- ✅ Prop value extraction (strings, expressions)
-
-## MCP Integration
-
-### Using with npx (Recommended)
-
-Add to your MCP client configuration:
+Use an absolute allowed root in client configuration so tool requests cannot inspect unrelated files:
 
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
       "command": "npx",
-      "args": ["jsx-prop-lookup-mcp-server"]
+      "args": ["--yes", "jsx-prop-lookup-mcp-server"],
+      "env": {
+        "ALLOWED_ROOTS": "/workspace/project"
+      }
     }
   }
 }
 ```
 
-### Using with local development
+Alternatively, pass `--allowed-roots` after the package name:
+
+```json
+{
+  "mcpServers": {
+    "jsx-prop-lookup": {
+      "command": "npx",
+      "args": ["--yes", "jsx-prop-lookup-mcp-server", "--allowed-roots", "/workspace/project"]
+    }
+  }
+}
+```
+
+For a local build, use `node` with `dist/index.js` and set `cwd` to the checkout:
 
 ```json
 {
@@ -79,17 +64,93 @@ Add to your MCP client configuration:
     "jsx-prop-lookup": {
       "command": "node",
       "args": ["dist/index.js"],
-      "cwd": "/path/to/jsx-prop-lookup-mcp-server"
+      "cwd": "/workspace/jsx-prop-lookup-mcp-server",
+      "env": {
+        "ALLOWED_ROOTS": "/workspace/project"
+      }
     }
   }
 }
 ```
 
-## Available Tools
+## Available tools
 
-1. **analyze_jsx_props** - Comprehensive analysis of JSX props in files/directories (requires absolute `path`)
-2. **find_prop_usage** - Find specific prop usage across codebase (requires absolute `directory`)
-3. **get_component_props** - Get all props for a specific component (requires absolute `directory`)
-4. **find_components_without_prop** - Find components missing required props (e.g., Select without width) (requires absolute `directory`)
+The current server exposes exactly these four tools.
 
-The server is ready for production use!
+### `analyze_jsx_props`
+
+Analyze a JSX/TypeScript file or directory, optionally filtering by component or prop.
+
+```json
+{
+  "path": "src/components",
+  "componentName": "Button",
+  "propName": "onClick",
+  "includeTypes": true
+}
+```
+
+`path` defaults to `.`. `componentName` and `propName` are optional, and `includeTypes` defaults to `true`.
+
+### `find_prop_usage`
+
+Find every usage of a named prop, optionally restricted to a component.
+
+```json
+{
+  "propName": "onClick",
+  "directory": "src",
+  "componentName": "Button"
+}
+```
+
+`propName` is required. `directory` defaults to `.` and `componentName` is optional.
+
+### `get_component_props`
+
+Inspect the props used by a component.
+
+```json
+{
+  "componentName": "Button",
+  "directory": "src/components"
+}
+```
+
+`componentName` is required. `directory` defaults to `.`.
+
+### `find_components_without_prop`
+
+Find component instances that do not declare a required prop.
+
+```json
+{
+  "componentName": "Select",
+  "requiredProp": "width",
+  "directory": "src"
+}
+```
+
+`componentName` and `requiredProp` are required. `directory` defaults to `.`.
+
+## Paths and namespaced JSX
+
+Tool paths may be absolute or relative to the server process working directory. When allowed roots are configured, the resolved target must remain inside one of them.
+
+Namespaced JSX names are supported. A component input of either `UI.Select` or `Select` can match `<UI.Select />`; results preserve the full dotted name where applicable.
+
+## Filesystem restrictions
+
+`ALLOWED_ROOTS` and `--allowed-roots` accept comma-separated absolute or working-directory-relative roots. The CLI flag takes precedence over the environment variable. If neither is set, the server has no filesystem whitelist, so a restriction is recommended for normal use.
+
+For example:
+
+```bash
+ALLOWED_ROOTS="/workspace/project" npx --yes jsx-prop-lookup-mcp-server
+```
+
+See [SECURITY.md](SECURITY.md) for details.
+
+## MCP v2 migration
+
+MCP v2 is the active implementation line. Integrations that assume MCP v1 package paths, APIs, or protocol behavior are not the implementation target and must migrate before using this server.
