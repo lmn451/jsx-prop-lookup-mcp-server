@@ -1,111 +1,91 @@
-# MCP Connection Debugging Guide
+# MCP v2 Connection Debugging Guide
 
-## ✅ Server Status: Working Correctly
+## Runtime contract
 
-The test shows the server is responding properly:
+This server requires Node.js 20 or newer and uses:
 
-- ✅ Starts successfully
-- ✅ Responds to initialize message
-- ✅ Returns proper capabilities
-- ✅ Handles shutdown gracefully
+- `@modelcontextprotocol/server` v2;
+- the `2026-07-28` protocol/specification line; and
+- stdio transport only.
 
-## Common MCP Error -32000 "Connection Closed" Causes:
+The server rejects legacy `initialize`-first connections. Use an MCP v2 client that pins or negotiates `2026-07-28`.
 
-### 1. **Incorrect MCP Configuration**
+## Verify the executable
 
-Make sure your MCP client config is exactly:
+```bash
+node --version
+npm run typecheck
+npm run build
+node dist/index.js --help
+```
+
+The help command should print the package version, Node.js requirement, allowed-roots options, and the four tool names. Normal startup writes its banner to stderr; stdout is reserved for MCP protocol messages.
+
+## Recommended client configuration
+
+Restrict the server to the project it should inspect:
 
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
       "command": "npx",
-      "args": ["jsx-prop-lookup-mcp-server"]
+      "args": [
+        "--yes",
+        "jsx-prop-lookup-mcp-server",
+        "--allowed-roots",
+        "/absolute/path/to/project"
+      ]
     }
   }
 }
 ```
 
-### 2. **Node.js Path Issues**
-
-If npx fails, try absolute paths:
+For a local build:
 
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
-      "command": "/usr/local/bin/node",
-      "args": ["/path/to/jsx-prop-lookup-mcp-server/dist/index.js"]
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "/absolute/path/to/jsx-prop-lookup-mcp-server",
+      "env": {
+        "ALLOWED_ROOTS": "/absolute/path/to/project"
+      }
     }
   }
 }
 ```
 
-### 3. **Permission Issues**
+## Run the integration smoke test
 
-Ensure the binary is executable:
-
-```bash
-chmod +x dist/index.js
-```
-
-### 4. **Working Directory**
-
-Some MCP clients need explicit working directory:
-
-```json
-{
-  "mcpServers": {
-    "jsx-prop-lookup": {
-      "command": "npx",
-      "args": ["jsx-prop-lookup-mcp-server"],
-      "cwd": "/your/project/directory"
-    }
-  }
-}
-```
-
-## Testing Steps:
-
-### 1. **Test Server Directly**
+The test suite uses the official `@modelcontextprotocol/client` v2 package and exercises discovery, tool listing, all four tools, validation errors, filesystem errors, and relative paths:
 
 ```bash
-node dist/index.js
-# Should show: "JSX Prop Lookup MCP Server running on stdio"
-# Press Ctrl+C to exit
+node --test tests/mcp.smoke.test.js
 ```
 
-### 2. **Test with npx**
+## Common failures
 
-```bash
-npx jsx-prop-lookup-mcp-server
-# Should download and run the server
-```
+### `Unsupported protocol version`
 
-### 3. **Test MCP Protocol**
+The client is using an older MCP generation. Configure its v2 negotiation to pin `2026-07-28`, or upgrade the client. A raw `initialize` request from a pre-v2 client is intentionally rejected.
 
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}' | npx jsx-prop-lookup-mcp-server
-```
+### `Connection closed`
 
-## Client-Specific Configurations:
+Check:
 
-### Claude Desktop
+1. Node.js is version 20 or newer.
+2. `dist/index.js` exists after `npm run build`.
+3. The configured `cwd` and executable paths are correct.
+4. No application writes logs to stdout.
+5. The client is starting the process once and owning its stdio transport.
 
-File: `~/Library/Application Support/Claude/claude_desktop_config.json`
+### Path access errors
 
-### Cline (VS Code)
+`ALLOWED_ROOTS` and `--allowed-roots` accept comma-separated absolute or working-directory-relative roots. The CLI option takes precedence. Existing paths reached through symlinks are checked by their resolved target.
 
-Add to Cline MCP settings in VS Code
+## Logs and shutdown
 
-### Custom MCP Client
-
-Ensure your client implements the MCP protocol correctly
-
-## If Still Having Issues:
-
-1. **Check Node.js version**: `node --version` (requires Node 18+)
-2. **Check npm/npx**: `npx --version`
-3. **Try local installation**: `npm install -g jsx-prop-lookup-mcp-server`
-4. **Check MCP client logs** for more specific error details
-5. **Verify MCP client supports protocol version 2024-11-05**
+Operational errors and the startup banner go to stderr. SIGINT and SIGTERM close the stdio transport before exiting.

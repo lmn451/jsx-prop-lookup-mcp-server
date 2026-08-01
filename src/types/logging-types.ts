@@ -1,3 +1,4 @@
+/** Historical, disconnected analytics model; not imported by the MCP runtime. */
 export interface SessionData {
   id: string;
   userFingerprint: string;
@@ -16,7 +17,11 @@ export interface SessionData {
 export interface RequestLogData {
   id: string;
   sessionId: string;
-  toolName: 'analyze_jsx_props' | 'query_components';
+  toolName:
+    | 'analyze_jsx_props'
+    | 'find_prop_usage'
+    | 'get_component_props'
+    | 'find_components_without_prop';
   requestTimestamp: Date;
   filePath?: string;
   componentName?: string;
@@ -41,8 +46,6 @@ export interface ComponentData {
   codeContext?: string;
   createdAt: Date;
 }
-
-
 
 export interface PerformanceMetrics {
   id: string;

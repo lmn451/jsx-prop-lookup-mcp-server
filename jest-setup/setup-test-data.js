@@ -7,13 +7,13 @@ const setup = async () => {
   // Create directory structure
   const dirs = [
     'simple-components',
-    'complex-components', 
+    'complex-components',
     'edge-cases',
     'typescript-interfaces',
-    'problematic-files'
+    'problematic-files',
   ];
 
-  dirs.forEach(dir => {
+  dirs.forEach((dir) => {
     mkdirSync(join(testDataDir, dir), { recursive: true });
   });
 
@@ -50,7 +50,7 @@ const Button: React.FC<ButtonProps> = ({
 export default Button;
 `,
 
-  'simple-components/Input.jsx': `
+    'simple-components/Input.jsx': `
 import React from 'react';
 
 const Input = ({ value, onChange, placeholder, type = 'text' }) => {
@@ -68,7 +68,7 @@ const Input = ({ value, onChange, placeholder, type = 'text' }) => {
 export default Input;
 `,
 
-  'simple-components/Card.js': `
+    'simple-components/Card.js': `
 import React from 'react';
 
 function Card({ title, children, footer, className }) {
@@ -80,8 +80,8 @@ function Card({ title, children, footer, className }) {
 export default Card;
 `,
 
-  // Complex components
-  'complex-components/Select.tsx': `
+    // Complex components
+    'complex-components/Select.tsx': `
 import React from 'react';
 
 interface SelectProps {
@@ -177,7 +177,7 @@ const SelectExamples = () => (
 export default Select;
 `,
 
-  'complex-components/DataTable.tsx': `
+    'complex-components/DataTable.tsx': `
 import React from 'react';
 
 interface Column {
@@ -234,8 +234,8 @@ const DataTable: React.FC<DataTableProps> = ({
 export default DataTable;
 `,
 
-  // Edge cases
-  'edge-cases/EmptyComponent.tsx': `
+    // Edge cases
+    'edge-cases/EmptyComponent.tsx': `
 import React from 'react';
 
 const EmptyComponent: React.FC = () => {
@@ -245,7 +245,7 @@ const EmptyComponent: React.FC = () => {
 export default EmptyComponent;
 `,
 
-  'edge-cases/NoProps.jsx': `
+    'edge-cases/NoProps.jsx': `
 import React from 'react';
 
 const NoProps = () => <div>No props here</div>;
@@ -253,7 +253,7 @@ const NoProps = () => <div>No props here</div>;
 export default NoProps;
 `,
 
-  'edge-cases/OnlySpread.tsx': `
+    'edge-cases/OnlySpread.tsx': `
 import React from 'react';
 
 const OnlySpread = (props) => {
@@ -263,8 +263,8 @@ const OnlySpread = (props) => {
 export default OnlySpread;
 `,
 
-  // TypeScript interfaces
-  'typescript-interfaces/PropsWithInterface.tsx': `
+    // TypeScript interfaces
+    'typescript-interfaces/PropsWithInterface.tsx': `
 import React from 'react';
 
 interface BaseProps {
@@ -308,8 +308,8 @@ const Modal: React.FC<ModalProps> = ({
 export default Modal;
 `,
 
-  // Problematic files
-  'problematic-files/SyntaxError.jsx': `
+    // Problematic files
+    'problematic-files/SyntaxError.jsx': `
 import React from 'react';
 
 const SyntaxError = ({ prop1, prop2 }) => {
@@ -324,7 +324,7 @@ const SyntaxError = ({ prop1, prop2 }) => {
 export default SyntaxError;
 `,
 
-  'problematic-files/InvalidJSX.tsx': `
+    'problematic-files/InvalidJSX.tsx': `
 import React from 'react';
 
 const InvalidJSX = () => {
@@ -337,7 +337,7 @@ const InvalidJSX = () => {
     </div>
   );
 };
-`
+`,
   };
 
   // Write all test files
@@ -352,7 +352,10 @@ const InvalidJSX = () => {
   console.log('Created problematic directory: test-data/edge-cases/Contents.js/');
 
   // Create a binary file to test non-text file handling
-  writeFileSync(join(testDataDir, 'problematic-files', 'BinaryFile.png'), Buffer.from([0x89, 0x50, 0x4E, 0x47]));
+  writeFileSync(
+    join(testDataDir, 'problematic-files', 'BinaryFile.png'),
+    Buffer.from([0x89, 0x50, 0x4e, 0x47])
+  );
   console.log('Created binary file: test-data/problematic-files/BinaryFile.png');
 
   console.log('\n✅ Test data setup complete!');

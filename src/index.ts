@@ -1,42 +1,25 @@
 #!/usr/bin/env node
 
-// Ensure we're using the correct Node.js version
+// MCP v2 requires Node.js 20 or newer.
 const nodeMajorVersion = Number(process.versions.node.split('.')[0]);
-if (Number.isNaN(nodeMajorVersion) || nodeMajorVersion < 18) {
-  console.error('Error: Node.js 18 or higher is required');
+if (Number.isNaN(nodeMajorVersion) || nodeMajorVersion < 20) {
+  console.error('Error: Node.js 20 or higher is required');
   process.exit(1);
 }
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { z } from 'zod';
+import { McpServer } from '@modelcontextprotocol/server';
+import { serveStdio, type StdioServerHandle } from '@modelcontextprotocol/server/stdio';
+import * as z from 'zod/v4';
 import { JSXPropAnalyzer } from './jsx-analyzer.js';
 import * as path from 'path';
 import * as fs from 'fs';
-
+import { PACKAGE_VERSION } from './version.js';
 // Tool argument interfaces are intentionally omitted — tool input validation is handled by `zod` schemas
 
-const server = new McpServer(
-  {
-    name: 'jsx-prop-lookup-server',
-    version: '1.0.0',
-    description: `MCP server for analyzing JSX/React component props and usage patterns.
-
-This server helps you understand, audit, and refactor React/JSX codebases by providing
-tools to analyze component props, find prop usages, and ensure prop requirements.
-
-Capabilities:
-- Analyze component prop usage across files
-- Find specific prop usages (e.g., all onClick handlers)
-- Audit components for missing required props
-- Get component API documentation
-- Support TypeScript and JavaScript projects`},
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
-);
+const server = new McpServer({
+  name: 'jsx-prop-lookup-server',
+  version: PACKAGE_VERSION,
+});
 
 const analyzer = new JSXPropAnalyzer();
 
@@ -76,7 +59,8 @@ const resolveAndValidatePath = (input: string, label: string): string => {
     }
   } catch (error) {
     throw new Error(
-      `Invalid ${label}: ${input} -> ${abs} - ${error instanceof Error ? error.message : String(error)}`
+      `Invalid ${label}: ${input} -> ${abs} - ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     );
   }
 
@@ -85,8 +69,8 @@ const resolveAndValidatePath = (input: string, label: string): string => {
     let realAbs: string;
     try {
       realAbs = fs.realpathSync(abs);
-    } catch (err) {
-      // If realpath fails, fall back to the resolved absolute path
+    } catch {
+      // Fall back to the resolved absolute path when realpath is unavailable.
       realAbs = abs;
     }
 
@@ -95,7 +79,7 @@ const resolveAndValidatePath = (input: string, label: string): string => {
         const realRoot = fs.realpathSync(root);
         const rel = path.relative(realRoot, realAbs);
         return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
-      } catch (_e) {
+      } catch {
         return false;
       }
     });
@@ -124,7 +108,7 @@ const formatToolResponse = (result: unknown, error?: Error) => {
   const text = (() => {
     try {
       return JSON.stringify(result as unknown, null, 2);
-    } catch (e) {
+    } catch {
       return String(result);
     }
   })();
@@ -139,42 +123,29 @@ const formatToolResponse = (result: unknown, error?: Error) => {
   };
 };
 
-// Register tools using server.tool() with detailed descriptions for LLM understanding
-server.tool(
+// Register tools with the MCP v2 registerTool API.
+server.registerTool(
   'analyze_jsx_props',
-  `Analyze JSX/React component prop usage across files and directories.
-
-Use this tool when you need to:
-- Understand what props a component accepts
-- Find all components in a codebase and their props
-- Analyze prop usage patterns in a project
-- Get TypeScript interface information for components
-
-EXAMPLES:
-1. Analyze all components in current directory:
-   { "includeTypes": true }
-
-2. Analyze all components in src/components:
-   { "path": "src/components", "includeTypes": true }
-
-3. Find all props for Button component in current directory:
-   { "componentName": "Button", "includeTypes": true }
-
-4. Find all usages of onClick prop in current directory:
-   { "propName": "onClick", "includeTypes": false }
-
-5. Analyze specific file with type info:
-   { "path": "src/App.tsx", "includeTypes": true }
-
-Returns:
-- Component names and their props
-- Prop types (when includeTypes is true)
-- File locations where components are defined`,
   {
-    path: z.string().default('.').describe('Absolute or relative path to file or directory to analyze (e.g., "src/components" or "src/App.tsx", defaults to current directory)'),
-    componentName: z.string().optional().describe('Filter: analyze only this specific component name (e.g., "Button")'),
-    propName: z.string().optional().describe('Filter: search only for this specific prop name (e.g., "onClick")'),
-    includeTypes: z.boolean().default(true).describe('Include TypeScript type information in results'),
+    title: 'Analyze JSX props',
+    description:
+      'Analyze JSX/React component prop usage across JavaScript and TypeScript files. Returns component definitions, prop usages, source locations, readable values, and optional TypeScript prop interface names.',
+    inputSchema: z.object({
+      path: z
+        .string()
+        .default('.')
+        .describe('Absolute or relative file or directory path to analyze.'),
+      componentName: z
+        .string()
+        .optional()
+        .describe('Optional component name filter, including a namespaced local name.'),
+      propName: z.string().optional().describe('Optional prop name filter.'),
+      includeTypes: z
+        .boolean()
+        .default(true)
+        .describe('Include TypeScript interface and type-alias information.'),
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
   },
   async ({ path, componentName, propName, includeTypes }) => {
     try {
@@ -187,37 +158,18 @@ Returns:
   }
 );
 
-server.tool(
+server.registerTool(
   'find_prop_usage',
-  `Find all usages of a specific prop across JSX/React files.
-
-Use this tool when you need to:
-- Locate where a prop is used throughout the codebase
-- Find all components that use a specific prop like "onClick", "className", etc.
-- Audit prop usage for refactoring or deprecation
-- Understand prop propagation patterns
-
-EXAMPLES:
-1. Find all onClick handlers in current directory:
-   { "propName": "onClick" }
-
-2. Find className usage in components directory:
-   { "propName": "className", "directory": "src/components" }
-
-3. Find variant prop only on Button components in current directory:
-   { "propName": "variant", "componentName": "Button" }
-
-4. Find all disabled props in specific directory:
-   { "propName": "disabled", "directory": "src/forms" }
-
-Returns:
-- List of component instances using the prop
-- File paths and line numbers
-- Values passed to the prop`,
   {
-    propName: z.string().describe('Name of the prop to search for (e.g., "onClick", "className", "variant")'),
-    directory: z.string().default('.').describe('Directory to search in (defaults to current directory)'),
-    componentName: z.string().optional().describe('Filter: only search within this component name (e.g., "Button")'),
+    title: 'Find prop usage',
+    description:
+      'Find all usages of a named prop across JSX/React files. Returns component names, file locations, and values passed to the prop.',
+    inputSchema: z.object({
+      propName: z.string().describe('Name of the prop to search for.'),
+      directory: z.string().default('.').describe('Directory to search.'),
+      componentName: z.string().optional().describe('Optional component name filter.'),
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
   },
   async ({ propName, directory, componentName }) => {
     try {
@@ -230,36 +182,17 @@ Returns:
   }
 );
 
-server.tool(
+server.registerTool(
   'get_component_props',
-  `Get detailed information about all props used by a specific component.
-
-Use this tool when you need to:
-- Understand what props a component accepts and uses
-- Document component APIs
-- Check if a component has certain props before using it
-- Analyze component interfaces
-
-EXAMPLES:
-1. Get all props for Button component in current directory:
-   { "componentName": "Button" }
-
-2. Check Modal component props in specific directory:
-   { "componentName": "Modal", "directory": "src/components" }
-
-3. Document Card component API in UI directory:
-   { "componentName": "Card", "directory": "src/ui" }
-
-4. Analyze Input component interface in current directory:
-   { "componentName": "Input" }
-
-Returns:
-- All props used by the component
-- Prop types and default values
-- Usage statistics across the codebase`,
   {
-    componentName: z.string().describe('Name of the component to analyze (e.g., "Button", "Modal", "Card")'),
-    directory: z.string().default('.').describe('Directory to search in (defaults to current directory)'),
+    title: 'Get component props',
+    description:
+      'Get detailed information about the props used by a named component, including locations and associated TypeScript prop interface names.',
+    inputSchema: z.object({
+      componentName: z.string().describe('Name of the component to analyze.'),
+      directory: z.string().default('.').describe('Directory to search.'),
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
   },
   async ({ componentName, directory }) => {
     try {
@@ -272,39 +205,18 @@ Returns:
   }
 );
 
-server.tool(
+server.registerTool(
   'find_components_without_prop',
-  `Find component instances that are missing a required prop (e.g., Select components without width prop).
-
-Use this tool when you need to:
-- Audit components for missing required props
-- Ensure accessibility props are present (e.g., missing aria-label)
-- Check for missing styling props (e.g., missing width or height)
-- Enforce prop requirements across the codebase
-- Refactor components and ensure all usages are updated
-
-EXAMPLES:
-1. Find Select components missing width prop in current directory:
-   { "componentName": "Select", "requiredProp": "width" }
-
-2. Audit Image components for missing alt text in current directory:
-   { "componentName": "Image", "requiredProp": "alt" }
-
-3. Find Button components missing type prop in src directory:
-   { "componentName": "Button", "requiredProp": "type", "directory": "src" }
-
-4. Check Input components for missing label in forms directory:
-   { "componentName": "Input", "requiredProp": "aria-label", "directory": "src/forms" }
-
-Returns:
-- List of component instances missing the required prop
-- File paths and line numbers
-- Existing props on those instances
-- Summary statistics (total instances vs missing count)`,
   {
-    componentName: z.string().describe('Name of the component to check (e.g., "Select", "Button", "Image")'),
-    requiredProp: z.string().describe('Name of the required prop that should be present (e.g., "width", "alt", "aria-label")'),
-    directory: z.string().default('.').describe('Directory to search in (defaults to current directory)'),
+    title: 'Find missing required props',
+    description:
+      'Find instances of a named component that do not provide a required prop. JSX spread attributes are treated as potentially containing the required prop.',
+    inputSchema: z.object({
+      componentName: z.string().describe('Name of the component to check.'),
+      requiredProp: z.string().describe('Name of the required prop.'),
+      directory: z.string().default('.').describe('Directory to search.'),
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
   },
   async ({ componentName, requiredProp, directory }) => {
     try {
@@ -320,96 +232,38 @@ Returns:
 // CLI Help text
 const showHelp = () => {
   console.log(`
-JSX Prop Lookup MCP Server v3.1.0-beta.0
+JSX Prop Lookup MCP Server v${PACKAGE_VERSION}
 
 USAGE:
   npx jsx-prop-lookup-mcp-server [options]
 
+REQUIREMENTS:
+  Node.js 20 or newer
+  MCP v2 clients using protocol/specification 2026-07-28
+
 OPTIONS:
   --help, -h              Show this help message
-  --allowed-roots <paths> Comma-separated list of allowed filesystem roots
-                          (env: ALLOWED_ROOTS)
+  --allowed-roots <paths> Comma-separated filesystem roots to allow
+                          (env: ALLOWED_ROOTS; CLI takes precedence)
 
-MODE:
-  This server runs in MCP (Model Context Protocol) mode and communicates
-  via stdio. It provides tools for analyzing JSX/React component props.
+TRANSPORT:
+  stdio only. The server reads JSON-RPC messages from stdin and writes
+  protocol responses to stdout. Operational logs go to stderr.
 
 AVAILABLE TOOLS:
-  1. analyze_jsx_props
-     Analyze JSX/React component prop usage across files and directories
-     
-Parameters:
-        - path (optional): File or directory path to analyze (default: current directory)
-        - componentName (optional): Filter to specific component
-        - propName (optional): Filter to specific prop
-        - includeTypes (optional): Include TypeScript types (default: true)
-      
-      Examples:
-        { "path": "src/components" }
-        { "componentName": "Button" }
-        { "propName": "onClick" }
-        { "path": "src/App.tsx", "componentName": "Button" }
-
-  2. find_prop_usage
-     Find all usages of a specific prop across JSX files
-     
-Parameters:
-        - propName (required): Name of the prop to search for
-        - directory (optional): Directory to search (default: current directory)
-        - componentName (optional): Limit to specific component
-      
-      Examples:
-        { "propName": "onClick" }
-        { "propName": "className", "directory": "src/components" }
-        { "propName": "variant", "componentName": "Button" }
-
-  3. get_component_props
-     Get detailed information about all props used by a specific component
-     
-Parameters:
-        - componentName (required): Name of the component to analyze
-        - directory (optional): Directory to search (default: current directory)
-      
-      Examples:
-        { "componentName": "Button" }
-        { "componentName": "Modal", "directory": "src/components" }
-
-  4. find_components_without_prop
-     Find component instances missing a required prop
-     
-Parameters:
-        - componentName (required): Name of the component to check
-        - requiredProp (required): Name of the required prop
-        - directory (optional): Directory to search (default: current directory)
-      
-      Examples:
-        { "componentName": "Select", "requiredProp": "width" }
-        { "componentName": "Image", "requiredProp": "alt" }
-        { "componentName": "Button", "requiredProp": "type", "directory": "src" }
+  analyze_jsx_props              Analyze JSX prop usage and component definitions
+  find_prop_usage                Find usages of a named prop
+  get_component_props            Inspect props used by a component
+  find_components_without_prop   Find instances missing a required prop
 
 SECURITY:
-  Use --allowed-roots to restrict filesystem access to specific directories:
-    npx jsx-prop-lookup-mcp-server --allowed-roots=/home/project/src,/home/project/lib
-    
-  Or set environment variable:
-    ALLOWED_ROOTS=/home/project/src npx jsx-prop-lookup-mcp-server
+  Restrict filesystem access with:
+    ALLOWED_ROOTS=/path/to/project npx --yes jsx-prop-lookup-mcp-server
+  or:
+    npx --yes jsx-prop-lookup-mcp-server --allowed-roots /path/to/project
 
-MCP CONFIGURATION:
-  Add to your MCP client settings (e.g., Claude Desktop, Cursor):
-  
-  {
-    "mcpServers": {
-      "jsx-prop-lookup": {
-        "command": "npx",
-        "args": ["jsx-prop-lookup-mcp-server@latest"],
-        "env": {
-          "ALLOWED_ROOTS": "/path/to/your/project"
-        }
-      }
-    }
-  }
-
-For more information, visit: https://github.com/lmn451/jsx-prop-lookup-mcp-server
+For more information, visit:
+https://github.com/lmn451/jsx-prop-lookup-mcp-server
 `);
 };
 
@@ -419,29 +273,31 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.exit(0);
 }
 
-async function main() {
+let serverHandle: StdioServerHandle | undefined;
+
+function main(): void {
   try {
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    console.error('JSX Prop Lookup MCP Server running on stdio');
+    serverHandle = serveStdio(() => server, {
+      legacy: 'reject',
+      onerror: (error) => console.error('MCP server error:', error),
+    });
+    console.error('JSX Prop Lookup MCP Server v2 running on stdio');
   } catch (error) {
     console.error('Failed to start MCP server:', error);
     process.exit(1);
   }
 }
 
-// Handle process signals gracefully
-process.on('SIGINT', () => {
-  console.error('Received SIGINT, shutting down gracefully...');
-  process.exit(0);
-});
+// Handle process signals gracefully.
+const shutdown = (signal: string): void => {
+  console.error(`Received ${signal}, shutting down gracefully...`);
+  if (!serverHandle) {
+    process.exit(0);
+  }
+  void serverHandle.close().finally(() => process.exit(0));
+};
 
-process.on('SIGTERM', () => {
-  console.error('Received SIGTERM, shutting down gracefully...');
-  process.exit(0);
-});
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-main().catch((error) => {
-  console.error('Server error:', error);
-  process.exit(1);
-});
+main();
