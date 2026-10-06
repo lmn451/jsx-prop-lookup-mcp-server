@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "mutate": [".github/scripts/release-version.cjs"],
+  "ignorePatterns": ["/mcp.json"],
   "testRunner": "tap",
   "tap": { "testFiles": ["tests/release-version.test.js"] },
   "coverageAnalysis": "perTest",
