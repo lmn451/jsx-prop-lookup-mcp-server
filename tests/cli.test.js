@@ -49,14 +49,19 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
     });
     const closed = once(child, 'close');
     let stderr = '';
+    let ready = false;
+    let signalSent = false;
     for await (const chunk of child.stderr) {
       stderr += chunk.toString();
       if (stderr.includes('running on stdio')) {
-        child.kill(signal);
+        ready = true;
+        signalSent = child.kill(signal);
         break;
       }
     }
     const [code, exitSignal] = await closed;
+    assert.equal(ready, true, `Server exited before it was ready: ${stderr}`);
+    assert.equal(signalSent, true, `Could not send ${signal} to the running server`);
     assert.equal(code, 0, stderr);
     assert.equal(exitSignal, null);
   });

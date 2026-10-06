@@ -204,6 +204,8 @@ npm start
 
 `npm run dev` starts the source entry point directly. Both development and built modes use stdio.
 
+`src/index.ts` handles CLI arguments and the process lifecycle. `src/server.ts` exports `createServer(allowedRoots)` to register the tools without starting a transport or adding process listeners. Tool validation and error responses use the MCP SDK.
+
 ## MCP v2 migration note
 
 The v2 SDK and the `2026-07-28` protocol/specification line are the active implementation target. Clients or integrations built around MCP v1-only APIs or protocol assumptions must be updated; the server does not maintain a parallel v1 implementation.

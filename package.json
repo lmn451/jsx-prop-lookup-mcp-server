@@ -36,6 +36,7 @@
     "test": "node --test tests/*.test.js",
     "test:watch": "node --test --watch tests/*.test.js",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.js",
+    "test:mutation": "stryker run",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
     "typecheck": "tsc --noEmit",
@@ -47,6 +48,7 @@
   },
   "files": [
     "dist/index.*",
+    "dist/server.*",
     "dist/jsx-analyzer.*",
     "dist/version.*",
     "README.md",
@@ -67,6 +69,8 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/client": "^2.3.1",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/tap-runner": "^9.6.1",
     "@types/babel__traverse": "^7.28.0",
     "@types/node": "^26.6.4",
     "@typescript-eslint/eslint-plugin": "^8.71.1",

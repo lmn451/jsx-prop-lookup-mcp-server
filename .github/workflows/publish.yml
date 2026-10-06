@@ -50,6 +50,13 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Check test order independence
+        if: matrix.node-version == '26.x'
+        run: node --test --test-concurrency=4 --test-randomize --test-random-seed=20261006 tests/*.test.js
+
+      - name: Check release version mutations
+        run: npm run test:mutation
+
       - name: Run linting
         run: npm run lint
 

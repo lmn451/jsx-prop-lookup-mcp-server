@@ -1,80 +1,119 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import releaseVersion from '../.github/scripts/release-version.cjs';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
-const resolver = `${root}/.github/scripts/resolve-version.cjs`;
+const { resolveVersion } = releaseVersion;
 
-function resolveVersion({ packageVersion, releaseTags, bumpType = 'patch', overrideVersion = '' }) {
-  return spawnSync(process.execPath, [resolver], {
-    cwd: root,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      PACKAGE_VERSION: packageVersion,
-      RELEASE_TAGS: releaseTags.join('\n'),
-      BUMP_TYPE: bumpType,
-      OVERRIDE_VERSION: overrideVersion,
+function release(overrides = {}) {
+  return {
+    packageVersion: '4.0.0',
+    releaseTags: ['v4.0.0'],
+    bumpType: 'patch',
+    overrideVersion: '',
+    ...overrides,
+  };
+}
+
+const releases = [
+  {
+    name: 'uses the prepared package version when newer than the latest release',
+    input: { releaseTags: ['v3.5.0', 'not-a-version'] },
+    expected: '4.0.0',
+  },
+  {
+    name: 'bumps the patch when the package version is already released',
+    input: { bumpType: 'patch' },
+    expected: '4.0.1',
+  },
+  {
+    name: 'bumps the minor when the package version is already released',
+    input: { bumpType: 'minor' },
+    expected: '4.1.0',
+  },
+  {
+    name: 'bumps the major when the package version is already released',
+    input: { bumpType: 'major' },
+    expected: '5.0.0',
+  },
+  {
+    name: 'uses a prepared prerelease newer than the previous stable release',
+    input: { packageVersion: '4.1.0-beta.1' },
+    expected: '4.1.0-beta.1',
+  },
+  {
+    name: 'promotes a matching prerelease tag using semver patch rules',
+    input: { packageVersion: '4.1.0-beta.1', releaseTags: ['v4.1.0-beta.1'] },
+    expected: '4.1.0',
+  },
+  {
+    name: 'uses the committed version when there are no release tags',
+    input: { releaseTags: [] },
+    expected: '4.0.0',
+  },
+  {
+    name: 'ignores tags that are not valid release versions',
+    input: { releaseTags: ['release-3', ''] },
+    expected: '4.0.0',
+  },
+  {
+    name: 'ignores loosely formatted tags when finding the latest release',
+    input: { releaseTags: ['v09.0.0', 'v4.0.0'] },
+    expected: '4.0.1',
+  },
+  {
+    name: 'selects the highest release version regardless of tag order',
+    input: { releaseTags: ['v3.0.0', 'v4.0.0', 'v3.5.0'] },
+    expected: '4.0.1',
+  },
+  {
+    name: 'gives a normalized manual override precedence over the prepared version and bump',
+    input: {
+      packageVersion: '5.0.0',
+      releaseTags: ['v5.0.0'],
+      bumpType: 'major',
+      overrideVersion: '4.2.0+build.7',
     },
+    expected: '4.2.0',
+  },
+];
+
+for (const { name, input, expected } of releases) {
+  test(name, () => {
+    const result = resolveVersion(release(input));
+
+    assert.equal(result, expected);
   });
 }
 
-test('prepared package version is used when newer than the latest valid release', () => {
-  const result = resolveVersion({
-    packageVersion: '4.0.0',
-    releaseTags: ['v3.5.0', 'not-a-version'],
+test('rejects a package version older than the latest release', () => {
+  const input = release({ packageVersion: '3.9.0' });
+
+  assert.throws(
+    () => resolveVersion(input),
+    /Package version 3\.9\.0 is older than latest release 4\.0\.0/
+  );
+});
+
+const invalidReleases = [
+  {
+    name: 'rejects a package version with a leading zero',
+    input: { packageVersion: '04.0.0' },
+    expected: /Package version is not valid npm semver: 04\.0\.0/,
+  },
+  {
+    name: 'rejects an explicit override with a leading zero',
+    input: { overrideVersion: '04.2.0' },
+    expected: /Version override is not valid npm semver: 04\.2\.0/,
+  },
+  {
+    name: 'rejects an unsupported bump when the package is already released',
+    input: { bumpType: 'invalid' },
+    expected: /Unsupported version bump type: invalid/,
+  },
+];
+
+for (const { name, input, expected } of invalidReleases) {
+  test(name, () => {
+    assert.throws(() => resolveVersion(release(input)), expected);
   });
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout, '4.0.0');
-});
-
-test('equal released and package versions use the commit-derived bump', () => {
-  for (const [bumpType, expected] of [
-    ['patch', '4.0.1'],
-    ['minor', '4.1.0'],
-    ['major', '5.0.0'],
-  ]) {
-    const result = resolveVersion({ packageVersion: '4.0.0', releaseTags: ['v4.0.0'], bumpType });
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, expected);
-  }
-});
-
-test('prepared prereleases and matching prerelease tags use semver ordering', () => {
-  const prepared = resolveVersion({ packageVersion: '4.1.0-beta.1', releaseTags: ['v4.0.0'] });
-  assert.equal(prepared.status, 0, prepared.stderr);
-  assert.equal(prepared.stdout, '4.1.0-beta.1');
-
-  const bump = resolveVersion({ packageVersion: '4.1.0-beta.1', releaseTags: ['v4.1.0-beta.1'] });
-  assert.equal(bump.status, 0, bump.stderr);
-  assert.equal(bump.stdout, '4.1.0');
-});
-
-test('without valid release tags the committed package version is used', () => {
-  const result = resolveVersion({ packageVersion: '4.0.0', releaseTags: ['release-3', ''] });
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout, '4.0.0');
-});
-
-test('normalized manual overrides take precedence over prepared and tagged versions', () => {
-  const result = resolveVersion({
-    packageVersion: '5.0.0',
-    releaseTags: ['v5.0.0'],
-    bumpType: 'major',
-    overrideVersion: '4.2.0+build.7',
-  });
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout, '4.2.0');
-});
-
-test('a package version behind the latest release fails visibly', () => {
-  const result = resolveVersion({ packageVersion: '3.9.0', releaseTags: ['v4.0.0'] });
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /older than latest release/);
-});
+}

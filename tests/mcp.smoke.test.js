@@ -151,7 +151,14 @@ describe('MCP v2 server integration', () => {
 
       assert.strictEqual(result.isError, true);
       assert.ok(result.content?.[0]?.type === 'text');
-      assert.ok(result.content[0].text.includes('Error:'));
+      assert.match(result.content[0].text, /Cannot access path: \/non\/existent\/path/);
+      const recovered = await client.callTool({
+        name: 'find_prop_usage',
+        arguments: { directory: examplesDir, propName: 'onClick', componentName: 'Button' },
+      });
+      assert.strictEqual(recovered.isError, undefined);
+      const usages = parseTextResult(recovered);
+      assert.ok(usages.some((usage) => usage.value === 'handleIncrement'));
     });
   });
 

@@ -35,10 +35,18 @@ test('recognizes JSX children and excludes comment-only or empty elements', asyn
     <Button />
   </>;`
   );
-  assert.equal((await analyzer.findPropUsage('children', file, 'Button')).length, 4);
+  const children = await analyzer.findPropUsage('children', file, 'Button');
+  assert.deepEqual(
+    children.map((usage) => usage.line),
+    [2, 3, 4, 5]
+  );
   const missing = await analyzer.findComponentsWithoutProp('Button', 'children', file);
   assert.equal(missing.summary.totalInstances, 7);
   assert.equal(missing.summary.missingPropCount, 3);
+  assert.deepEqual(
+    missing.missingPropUsages.map((usage) => usage.line),
+    [6, 7, 9]
+  );
   const widths = await analyzer.findComponentsWithoutProp('Button', 'width', file);
   assert.equal(
     widths.missingPropUsages.filter((u) => u.existingProps.includes('children')).length,

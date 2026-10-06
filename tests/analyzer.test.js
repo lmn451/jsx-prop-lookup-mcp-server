@@ -1,4 +1,4 @@
-import { test, describe } from 'node:test';
+import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,9 +10,8 @@ const examplesDir = path.resolve(__dirname, '../examples/sample-components');
 describe('JSXPropAnalyzer', () => {
   let analyzer;
 
-  test('setup', () => {
+  beforeEach(() => {
     analyzer = new JSXPropAnalyzer();
-    assert.ok(analyzer, 'Analyzer should be created');
   });
 
   describe('analyzeProps', () => {
