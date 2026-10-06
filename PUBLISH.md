@@ -48,7 +48,3 @@ https://github.com/lmn451/jsx-prop-lookup-mcp-server
 ```
 
 Keep repository URLs, package version, changelog version, and tag version synchronized.
-
-## Runtime contract
-
-The published package is a Node.js 20+ stdio MCP server using the official TypeScript MCP v2 package and the `2026-07-28` protocol/specification line. It exposes four analysis tools and requires an allowed-root setting for deployments that should not read arbitrary client-provided paths.

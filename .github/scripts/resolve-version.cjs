@@ -1,6 +1,6 @@
-const { execFileSync } = require("node:child_process");
-const { readFileSync } = require("node:fs");
-const semver = require("semver");
+const { execFileSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
+const semver = require('semver');
 
 function normalizeVersion(value, label) {
   const normalized = semver.valid(value, { loose: false });
@@ -12,10 +12,10 @@ function normalizeVersion(value, label) {
 
 function resolveVersion({ packageVersion, releaseTags, bumpType, overrideVersion }) {
   if (overrideVersion) {
-    return normalizeVersion(overrideVersion, "Version override");
+    return normalizeVersion(overrideVersion, 'Version override');
   }
 
-  const preparedVersion = normalizeVersion(packageVersion, "Package version");
+  const preparedVersion = normalizeVersion(packageVersion, 'Package version');
   const latestReleaseVersion = releaseTags
     .map((tag) => semver.valid(tag, { loose: false }))
     .filter((version) => version !== null)
@@ -26,7 +26,9 @@ function resolveVersion({ packageVersion, releaseTags, bumpType, overrideVersion
   }
 
   if (semver.lt(preparedVersion, latestReleaseVersion)) {
-    throw new Error(`Package version ${preparedVersion} is older than latest release ${latestReleaseVersion}`);
+    throw new Error(
+      `Package version ${preparedVersion} is older than latest release ${latestReleaseVersion}`
+    );
   }
 
   const bumpedVersion = semver.inc(preparedVersion, bumpType);
@@ -37,18 +39,18 @@ function resolveVersion({ packageVersion, releaseTags, bumpType, overrideVersion
 }
 
 function getReleaseTags() {
-  if (Object.hasOwn(process.env, "RELEASE_TAGS")) {
-    return process.env.RELEASE_TAGS.split("\n").filter(Boolean);
+  if (Object.hasOwn(process.env, 'RELEASE_TAGS')) {
+    return process.env.RELEASE_TAGS.split('\n').filter(Boolean);
   }
-  return execFileSync("git", ["tag", "--merged", "HEAD"], { encoding: "utf8" })
-    .split("\n")
+  return execFileSync('git', ['tag', '--merged', 'HEAD'], { encoding: 'utf8' })
+    .split('\n')
     .filter(Boolean);
 }
 
 try {
-  const packageVersion = Object.hasOwn(process.env, "PACKAGE_VERSION")
+  const packageVersion = Object.hasOwn(process.env, 'PACKAGE_VERSION')
     ? process.env.PACKAGE_VERSION
-    : JSON.parse(readFileSync("package.json", "utf8")).version;
+    : JSON.parse(readFileSync('package.json', 'utf8')).version;
   const version = resolveVersion({
     packageVersion,
     releaseTags: getReleaseTags(),

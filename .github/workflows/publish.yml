@@ -2,9 +2,9 @@ name: Build, Test & Publish
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
     inputs:
       publish:
@@ -26,229 +26,229 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         node-version: [20.x, 26.x]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run TypeScript type checking
-      run: npm run build
-      
-    - name: Run tests
-      run: npm test
-      
-    - name: Run linting
-      run: npm run lint
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript type checking
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run linting
+        run: npm run lint
 
   publish:
     needs: test
     runs-on: ubuntu-latest
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Use Node.js 20.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20.x
-        cache: 'npm'
-        registry-url: 'https://registry.npmjs.org'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Configure Git
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-    - name: Check for changes since last release
-      id: changes
-      env:
-        EVENT_NAME: ${{ github.event_name }}
-        DISPATCH_PUBLISH: ${{ inputs.publish }}
-        DISPATCH_VERSION: ${{ inputs.version }}
-      run: |
-        # Handle manual workflow_dispatch trigger
-        if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-          if [ "$DISPATCH_PUBLISH" = "true" ]; then
-            echo "Manual publish requested via workflow_dispatch"
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            if [ -n "$DISPATCH_VERSION" ]; then
-              NORMALIZED_VERSION=$(VERSION_OVERRIDE="$DISPATCH_VERSION" node .github/scripts/validate-version.cjs) || { echo "Invalid version override: expected npm semver" >&2; exit 1; }
-              printf 'override_version=%s\n' "$NORMALIZED_VERSION" >> "$GITHUB_OUTPUT"
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Check for changes since last release
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_PUBLISH: ${{ inputs.publish }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+        run: |
+          # Handle manual workflow_dispatch trigger
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$DISPATCH_PUBLISH" = "true" ]; then
+              echo "Manual publish requested via workflow_dispatch"
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+              if [ -n "$DISPATCH_VERSION" ]; then
+                NORMALIZED_VERSION=$(VERSION_OVERRIDE="$DISPATCH_VERSION" node .github/scripts/validate-version.cjs) || { echo "Invalid version override: expected npm semver" >&2; exit 1; }
+                printf 'override_version=%s\n' "$NORMALIZED_VERSION" >> "$GITHUB_OUTPUT"
+              fi
+              exit 0
+            else
+              echo "Manual trigger without publish flag - running CI only"
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+              exit 0
             fi
-            exit 0
-          else
-            echo "Manual trigger without publish flag - running CI only"
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            exit 0
           fi
-        fi
-        # Get the latest tag
-        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-        if [ -z "$LATEST_TAG" ]; then
-          echo "No previous tags found, proceeding with publish"
-          echo "has_changes=true" >> $GITHUB_OUTPUT
-        else
-          # Check if there are changes since the last tag (excluding docs and CI files)
-          CHANGES=$(git diff --name-only $LATEST_TAG..HEAD -- . ':!.github' ':!README.md' ':!*.md' ':!CHANGELOG.md' ':!LICENSE' || echo "changes")
-          if [ -n "$CHANGES" ]; then
-            echo "Changes detected since $LATEST_TAG:"
-            echo "$CHANGES"
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous tags found, proceeding with publish"
             echo "has_changes=true" >> $GITHUB_OUTPUT
           else
-            echo "No significant changes since $LATEST_TAG"
-            echo "has_changes=false" >> $GITHUB_OUTPUT
+            # Check if there are changes since the last tag (excluding docs and CI files)
+            CHANGES=$(git diff --name-only $LATEST_TAG..HEAD -- . ':!.github' ':!README.md' ':!*.md' ':!CHANGELOG.md' ':!LICENSE' || echo "changes")
+            if [ -n "$CHANGES" ]; then
+              echo "Changes detected since $LATEST_TAG:"
+              echo "$CHANGES"
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+            else
+              echo "No significant changes since $LATEST_TAG"
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+            fi
           fi
-        fi
-        
-    - name: Determine version bump type
-      id: version_bump
-      if: steps.changes.outputs.has_changes == 'true'
-      run: |
-        # Check commit messages for version bump hints
-        COMMITS=$(git log --oneline $(git describe --tags --abbrev=0 2>/dev/null || echo "")..HEAD 2>/dev/null || git log --oneline -10)
-        echo "Recent commits:"
-        echo "$COMMITS"
-        
-        if echo "$COMMITS" | grep -qE "(BREAKING CHANGE|BREAKING:|major:)"; then
-          echo "bump_type=major" >> $GITHUB_OUTPUT
-          echo "Detected major version bump"
-        elif echo "$COMMITS" | grep -qE "(feat:|feature:|minor:)"; then
-          echo "bump_type=minor" >> $GITHUB_OUTPUT
-          echo "Detected minor version bump"
-        else
-          echo "bump_type=patch" >> $GITHUB_OUTPUT
-          echo "Detected patch version bump"
-        fi
-        
-    - name: Calculate new version
-      id: new_version
-      if: steps.changes.outputs.has_changes == 'true'
-      env:
-        OVERRIDE_VERSION: ${{ steps.changes.outputs.override_version }}
-        BUMP_TYPE: ${{ steps.version_bump.outputs.bump_type }}
-      run: |
-        NEW_VERSION=$(OVERRIDE_VERSION="$OVERRIDE_VERSION" BUMP_TYPE="$BUMP_TYPE" node .github/scripts/resolve-version.cjs) || exit 1
-        printf 'new_version=%s\n' "$NEW_VERSION" >> "$GITHUB_OUTPUT"
-        echo "Selected version: $NEW_VERSION"
-        
-    - name: Update package.json version
-      if: steps.changes.outputs.has_changes == 'true'
-      env:
-        NEW_VERSION: ${{ steps.new_version.outputs.new_version }}
-      run: |
-        echo "Updating package.json to version $NEW_VERSION"
-        
-        # Update version in package.json without creating git commit/tag
-        npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
-        
-        # Verify the version was updated correctly
-        UPDATED_VERSION=$(node -p "require('./package.json').version")
-        echo "Verified package.json version: $UPDATED_VERSION"
-        
-    - name: Build project with new version
-      if: steps.changes.outputs.has_changes == 'true'
-      run: |
-        echo "Building project with new version..."
-        npm run build
-        
-    - name: Run tests with new version
-      if: steps.changes.outputs.has_changes == 'true'
-      run: |
-        echo "Running tests with new version..."
-        npm test
-        
-    - name: Publish to npm
-      id: npm_publish
-      if: steps.changes.outputs.has_changes == 'true'
-      env:
-        NEW_VERSION: ${{ steps.new_version.outputs.new_version }}
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      run: |
-        echo "Publishing version $NEW_VERSION to npm..."
-        
-        # Publish to npm - this is the critical step that must succeed
-        npm publish
-        
-        echo "Successfully published version $NEW_VERSION to npm"
-        echo "publish_success=true" >> $GITHUB_OUTPUT
-        
-    - name: Commit version bump and create tag
-      if: steps.changes.outputs.has_changes == 'true' && steps.npm_publish.outputs.publish_success == 'true'
-      env:
-        NEW_VERSION: ${{ steps.new_version.outputs.new_version }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        echo "Committing version bump and creating tag for v$NEW_VERSION"
-        
-        # Only commit and tag after successful npm publish
-        git add package.json package-lock.json
-        git commit -m "chore: bump version to v$NEW_VERSION [skip ci]"
-        git tag "v$NEW_VERSION"
-        git push origin HEAD --tags
-        
-        echo "Successfully committed version bump and created tag v$NEW_VERSION"
-        
-    - name: Create GitHub Release
-      if: steps.changes.outputs.has_changes == 'true' && steps.npm_publish.outputs.publish_success == 'true'
-      uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
-      with:
-        tag_name: v${{ steps.new_version.outputs.new_version }}
-        name: Release v${{ steps.new_version.outputs.new_version }}
-        body: |
-          ## Changes in v${{ steps.new_version.outputs.new_version }}
-          
-          This release was automatically generated from the latest commits.
-          
-          ### Version Bump Type: ${{ steps.version_bump.outputs.bump_type }}
-          
-          ### Recent Commits:
-          ```
-          ${{ github.event.head_commit.message }}
-          ```
-          
-          ### Installation:
-          ```bash
-          npm install -g jsx-prop-lookup-mcp-server@${{ steps.new_version.outputs.new_version }}
-          ```
-          
-          For detailed changes, see the [commit history](https://github.com/${{ github.repository }}/commits/v${{ steps.new_version.outputs.new_version }}).
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Rollback on failure
-      if: failure() && steps.changes.outputs.has_changes == 'true'
-      run: |
-        echo "Workflow failed, performing rollback..."
-        
-        # Reset package.json to original version if it was modified
-        git checkout HEAD -- package.json package-lock.json || true
-        
-        # Clean up any local changes
-        git reset --hard HEAD || true
-        
-        echo "Rollback completed"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine version bump type
+        id: version_bump
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          # Check commit messages for version bump hints
+          COMMITS=$(git log --oneline $(git describe --tags --abbrev=0 2>/dev/null || echo "")..HEAD 2>/dev/null || git log --oneline -10)
+          echo "Recent commits:"
+          echo "$COMMITS"
+
+          if echo "$COMMITS" | grep -qE "(BREAKING CHANGE|BREAKING:|major:)"; then
+            echo "bump_type=major" >> $GITHUB_OUTPUT
+            echo "Detected major version bump"
+          elif echo "$COMMITS" | grep -qE "(feat:|feature:|minor:)"; then
+            echo "bump_type=minor" >> $GITHUB_OUTPUT
+            echo "Detected minor version bump"
+          else
+            echo "bump_type=patch" >> $GITHUB_OUTPUT
+            echo "Detected patch version bump"
+          fi
+
+      - name: Calculate new version
+        id: new_version
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          OVERRIDE_VERSION: ${{ steps.changes.outputs.override_version }}
+          BUMP_TYPE: ${{ steps.version_bump.outputs.bump_type }}
+        run: |
+          NEW_VERSION=$(OVERRIDE_VERSION="$OVERRIDE_VERSION" BUMP_TYPE="$BUMP_TYPE" node .github/scripts/resolve-version.cjs) || exit 1
+          printf 'new_version=%s\n' "$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Selected version: $NEW_VERSION"
+
+      - name: Update package.json version
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          NEW_VERSION: ${{ steps.new_version.outputs.new_version }}
+        run: |
+          echo "Updating package.json to version $NEW_VERSION"
+
+          # Update version in package.json without creating git commit/tag
+          npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
+
+          # Verify the version was updated correctly
+          UPDATED_VERSION=$(node -p "require('./package.json').version")
+          echo "Verified package.json version: $UPDATED_VERSION"
+
+      - name: Build project with new version
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          echo "Building project with new version..."
+          npm run build
+
+      - name: Run tests with new version
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          echo "Running tests with new version..."
+          npm test
+
+      - name: Publish to npm
+        id: npm_publish
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          NEW_VERSION: ${{ steps.new_version.outputs.new_version }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Publishing version $NEW_VERSION to npm..."
+
+          # Publish to npm - this is the critical step that must succeed
+          npm publish
+
+          echo "Successfully published version $NEW_VERSION to npm"
+          echo "publish_success=true" >> $GITHUB_OUTPUT
+
+      - name: Commit version bump and create tag
+        if: steps.changes.outputs.has_changes == 'true' && steps.npm_publish.outputs.publish_success == 'true'
+        env:
+          NEW_VERSION: ${{ steps.new_version.outputs.new_version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Committing version bump and creating tag for v$NEW_VERSION"
+
+          # Only commit and tag after successful npm publish
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to v$NEW_VERSION [skip ci]"
+          git tag "v$NEW_VERSION"
+          git push origin HEAD --tags
+
+          echo "Successfully committed version bump and created tag v$NEW_VERSION"
+
+      - name: Create GitHub Release
+        if: steps.changes.outputs.has_changes == 'true' && steps.npm_publish.outputs.publish_success == 'true'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          tag_name: v${{ steps.new_version.outputs.new_version }}
+          name: Release v${{ steps.new_version.outputs.new_version }}
+          body: |
+            ## Changes in v${{ steps.new_version.outputs.new_version }}
+
+            This release was automatically generated from the latest commits.
+
+            ### Version Bump Type: ${{ steps.version_bump.outputs.bump_type }}
+
+            ### Recent Commits:
+            ```
+            ${{ github.event.head_commit.message }}
+            ```
+
+            ### Installation:
+            ```bash
+            npm install -g jsx-prop-lookup-mcp-server@${{ steps.new_version.outputs.new_version }}
+            ```
+
+            For detailed changes, see the [commit history](https://github.com/${{ github.repository }}/commits/v${{ steps.new_version.outputs.new_version }}).
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rollback on failure
+        if: failure() && steps.changes.outputs.has_changes == 'true'
+        run: |
+          echo "Workflow failed, performing rollback..."
+
+          # Reset package.json to original version if it was modified
+          git checkout HEAD -- package.json package-lock.json || true
+
+          # Clean up any local changes
+          git reset --hard HEAD || true
+
+          echo "Rollback completed"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
