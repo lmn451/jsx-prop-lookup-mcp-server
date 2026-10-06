@@ -6,7 +6,7 @@ This project uses Node.js's built-in test runner. The suite covers the AST analy
 
 ### Analyzer tests
 
-`tests/analyzer.test.js` covers:
+`tests/analyzer.test.js` and `tests/analyzer.regression.test.js` cover:
 
 - JavaScript, JSX, TypeScript, and TSX parsing;
 - component and prop discovery;
@@ -20,7 +20,7 @@ This project uses Node.js's built-in test runner. The suite covers the AST analy
 
 ### MCP integration tests
 
-`tests/mcp.smoke.test.js` uses `@modelcontextprotocol/client` v2 and `StdioClientTransport` to exercise:
+`tests/mcp.smoke.test.js` and `tests/mcp.boundary.test.js` use `@modelcontextprotocol/client` v2 and `StdioClientTransport` to exercise:
 
 - pinning and negotiating protocol/specification `2026-07-28`;
 - server identity and discovery;
@@ -30,6 +30,10 @@ This project uses Node.js's built-in test runner. The suite covers the AST analy
 - relative paths from the configured working directory; and
 - clean client-owned process shutdown.
 
+Boundary cases exercise default working-directory paths, argument type errors, optional type metadata, concurrent requests with different filters, and successful retries after fixing an invalid file on the same connection.
+
+`tests/cli.test.js` executes the compiled CLI to check both help flags, invalid arguments, SIGINT/SIGTERM shutdown, and stdin EOF. `tests/request-logger.test.js` uses an injected transport to verify the disconnected logger's payload, opt-out, timeout, duration normalization, and one-time warning behavior without network requests.
+
 ### Filesystem security tests
 
 `tests/allowed_roots.test.js` covers:
@@ -38,6 +42,8 @@ This project uses Node.js's built-in test runner. The suite covers the AST analy
 - rejection outside configured roots;
 - CLI and environment configuration; and
 - symlink targets that resolve outside an allowed root.
+
+Regression cases include symlinked files discovered during scans, literal bracketed directory names, internal symlinks, CLI precedence over environment configuration, multiple roots, relative roots, sibling-prefix rejection, and parent traversal.
 
 ## Running tests
 
@@ -75,6 +81,8 @@ Tests use `examples/sample-components/`:
 
 ## CI expectations
 
-The supported runtime is Node.js 20 or newer. Tests are deterministic, use no network services, and communicate with the MCP server over local stdio only. The integration test starts `src/index.ts` through `tsx`; `npm run build` separately verifies the published `dist/` output.
+The supported runtime is Node.js 20 or newer. Tests are deterministic, use no network services, and communicate with the MCP server over local stdio only. Integration and containment tests start the compiled `dist/index.js`, so run `npm run build` before the suite. The integration suite verifies the package version advertised to clients and checks that parse failures return tool errors without closing the connection.
+
+CI runs the build, tests, and lint on Node.js 20 and 26.
 
 When adding a tool, update the MCP v2 integration inventory and call coverage, then update the current four-tool documentation and release notes.

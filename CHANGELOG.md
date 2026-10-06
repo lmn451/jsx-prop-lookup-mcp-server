@@ -1,25 +1,43 @@
 # Changelog
 
-## [4.0.0] - 2026-08-01
+## [4.0.0] - Unreleased
 
 ### Changed
 
-- Migrated the server to the official TypeScript MCP v2 package, `@modelcontextprotocol/server@2.0.0`.
+- Migrated the server to the official TypeScript MCP v2 package, `@modelcontextprotocol/server@2.3.1`.
 - Adopted the `2026-07-28` MCP protocol/specification line with modern-only stdio negotiation.
 - Raised the minimum Node.js version from 18 to 20.
 - Replaced the legacy `server.tool()` API with `server.registerTool()`.
 - Upgraded Babel, glob, Zod, TypeScript, ESLint, Prettier, and related development dependencies.
 - Migrated ESLint to the flat configuration used by ESLint 10.
+- Simplified the CLI/server entry point with built-in argument parsing, shared tool-response handling, and direct startup/shutdown. Invalid CLI arguments now fail before startup.
+- Read and parse failures now return tool errors with the failed filename instead of successful, incomplete results.
+- Package builds now include only the active runtime modules and release documentation; stale tests and disconnected analytics helpers are excluded.
+
+### Fixed
+
+- Count JSX attributes once inside fragments, including nested fragments.
+- Recognize JSX children in prop searches and required-prop checks.
+- Respect parameter bindings when finding prop access inside closures and callbacks.
+- Handle static computed access, optional chaining, and defaulted props parameters.
+- Associate prop type declarations regardless of their position in the file.
+- Restore the missing configuration API for the optional, disconnected request logger.
 
 ### Security
 
-- Retained `ALLOWED_ROOTS` and `--allowed-roots` filesystem containment checks.
+- Enforce `ALLOWED_ROOTS` and `--allowed-roots` on every discovered file and again before reading; reject symlinks that escape the allowed roots.
+- Treat requested directories as literal paths so glob characters cannot redirect scans to other directories.
 - Removed hardcoded API credentials from the local MCP configuration.
 
 ### Testing
 
 - Replaced the hand-written legacy MCP wire test with official v2 client/stdio integration coverage.
 - Preserved analyzer, allowed-root, namespaced JSX, and expression-value regression coverage.
+- Test the compiled entry point and add regressions for containment escapes, analysis correctness, and parse errors across all four tools.
+
+## [3.5.0] - 2026-02-10
+
+- Latest published npm release before the 4.0.0 upgrade, using `@modelcontextprotocol/sdk` v1 and the same four analysis tools.
 
 Historical entries below describe older package releases and may mention APIs that are not part of the current four-tool product.
 

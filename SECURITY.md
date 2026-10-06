@@ -41,6 +41,8 @@ MCP client example:
 
 When roots are configured, every tool path must resolve within one of them. Targets outside the configured roots are rejected. The containment check resolves symlinks, so a symlink inside an allowed root cannot be used to access an existing target outside it.
 
+This check applies to every file discovered during a directory scan and again at the read boundary. Disallowed targets fail the request. Requested directory names are kept separate from glob patterns so characters such as brackets are treated literally.
+
 ## Operational guidance
 
 - Grant access only to directories the analysis requires.

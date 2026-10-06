@@ -15,6 +15,7 @@ An MCP server for AST-based analysis of JSX prop usage in JavaScript and TypeScr
 - Finds JSX prop usage and component prop definitions.
 - Reads TypeScript prop interfaces when requested.
 - Supports destructured props and identifier-based access such as `props.disabled`.
+- Recognizes JSX children, optional prop access, and static computed access such as `props['disabled']`.
 - Supports namespaced JSX names such as `UI.Select`.
 - Restricts filesystem access when `ALLOWED_ROOTS` or `--allowed-roots` is configured.
 
@@ -186,6 +187,10 @@ npx --yes jsx-prop-lookup-mcp-server --allowed-roots "/workspace/project,/worksp
 ```
 
 Absolute roots are recommended. Relative roots are resolved from the server process working directory. When both forms are present, `--allowed-roots` takes precedence. Requests outside the configured roots, including paths that resolve through a symlink to an outside location, are rejected.
+
+Directory scans validate every discovered file and validate its target again before reading. Directory names containing glob characters, such as `[id]`, are treated literally. A discovered file outside the allowed roots fails the request.
+
+Read and parse failures also fail the tool request with the affected filename. Fix the file or narrow the requested path before retrying; the tools do not return successful results that silently omit failed files.
 
 See [SECURITY.md](SECURITY.md) for operating guidance.
 

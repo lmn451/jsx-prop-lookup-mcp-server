@@ -4,9 +4,11 @@ import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
+import os from 'node:os';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const serverPath = path.resolve(__dirname, '../src/index.ts');
+const serverPath = path.resolve(__dirname, '../dist/index.js');
 const examplesDir = path.resolve(__dirname, '../examples/sample-components');
 
 describe('MCP v2 server integration', () => {
@@ -24,7 +26,7 @@ describe('MCP v2 server integration', () => {
     );
     const transport = new StdioClientTransport({
       command: process.execPath,
-      args: ['--import=tsx', serverPath],
+      args: [serverPath],
       cwd: path.resolve(__dirname, '..'),
     });
 
@@ -50,6 +52,10 @@ describe('MCP v2 server integration', () => {
   test('negotiates the MCP 2.0 protocol', async () => {
     await withMCPClient(async (client) => {
       assert.strictEqual(client.getServerVersion()?.name, 'jsx-prop-lookup-server');
+      const metadata = JSON.parse(
+        fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8')
+      );
+      assert.strictEqual(client.getServerVersion()?.version, metadata.version);
       assert.strictEqual(client.getNegotiatedProtocolVersion(), '2026-07-28');
       assert.strictEqual(client.getProtocolEra(), 'modern');
     });
@@ -165,6 +171,33 @@ describe('MCP v2 server integration', () => {
           errorText.includes('validation') ||
           errorText.includes('error')
       );
+    });
+  });
+
+  test('reports parse failures as tool errors and keeps the connection usable', async (t) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'jsx-mcp-parse-error-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const file = path.join(directory, 'Broken.tsx');
+    fs.writeFileSync(file, 'const view = <Button width={');
+    await withMCPClient(async (client) => {
+      for (const request of [
+        { name: 'analyze_jsx_props', arguments: { path: file } },
+        { name: 'find_prop_usage', arguments: { directory, propName: 'width' } },
+        { name: 'get_component_props', arguments: { directory, componentName: 'Button' } },
+        {
+          name: 'find_components_without_prop',
+          arguments: {
+            directory,
+            componentName: 'Button',
+            requiredProp: 'width',
+          },
+        },
+      ]) {
+        const result = await client.callTool(request);
+        assert.equal(result.isError, true, request.name);
+        assert.match(result.content[0].text, /Failed to parse .*Broken\.tsx/);
+      }
+      assert.equal((await client.listTools()).tools.length, 4);
     });
   });
 
