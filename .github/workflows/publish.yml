@@ -148,33 +148,9 @@ jobs:
         OVERRIDE_VERSION: ${{ steps.changes.outputs.override_version }}
         BUMP_TYPE: ${{ steps.version_bump.outputs.bump_type }}
       run: |
-        # If explicit version provided via workflow_dispatch, use it directly
-        if [ -n "$OVERRIDE_VERSION" ]; then
-          printf 'new_version=%s\n' "$OVERRIDE_VERSION" >> "$GITHUB_OUTPUT"
-          echo "Using explicit version: $OVERRIDE_VERSION"
-          exit 0
-        fi
-        CURRENT_VERSION=$(node -p "require('./package.json').version")
-        echo "Current version: $CURRENT_VERSION"
-        echo "Bump type: $BUMP_TYPE"
-
-        # Calculate new version without modifying files yet
-        IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-
-        case $BUMP_TYPE in
-          major)
-            NEW_VERSION="$((major + 1)).0.0"
-            ;;
-          minor)
-            NEW_VERSION="$major.$((minor + 1)).0"
-            ;;
-          patch)
-            NEW_VERSION="$major.$minor.$((patch + 1))"
-            ;;
-        esac
-
+        NEW_VERSION=$(OVERRIDE_VERSION="$OVERRIDE_VERSION" BUMP_TYPE="$BUMP_TYPE" node .github/scripts/resolve-version.cjs) || exit 1
         printf 'new_version=%s\n' "$NEW_VERSION" >> "$GITHUB_OUTPUT"
-        echo "Calculated new version: $NEW_VERSION"
+        echo "Selected version: $NEW_VERSION"
         
     - name: Update package.json version
       if: steps.changes.outputs.has_changes == 'true'
@@ -184,7 +160,7 @@ jobs:
         echo "Updating package.json to version $NEW_VERSION"
         
         # Update version in package.json without creating git commit/tag
-        npm version "$NEW_VERSION" --no-git-tag-version
+        npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
         
         # Verify the version was updated correctly
         UPDATED_VERSION=$(node -p "require('./package.json').version")
