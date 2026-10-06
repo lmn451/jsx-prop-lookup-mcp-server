@@ -93,8 +93,8 @@ jobs:
             echo "Manual publish requested via workflow_dispatch"
             echo "has_changes=true" >> $GITHUB_OUTPUT
             if [ -n "$DISPATCH_VERSION" ]; then
-              node -e 'const semver = require("semver"); if (semver.valid(process.env.DISPATCH_VERSION, { loose: false }) !== process.env.DISPATCH_VERSION) process.exit(1)' || { echo "Invalid version override: expected strict npm semver" >&2; exit 1; }
-              printf 'override_version=%s\n' "$DISPATCH_VERSION" >> "$GITHUB_OUTPUT"
+              NORMALIZED_VERSION=$(VERSION_OVERRIDE="$DISPATCH_VERSION" node .github/scripts/validate-version.cjs) || { echo "Invalid version override: expected npm semver" >&2; exit 1; }
+              printf 'override_version=%s\n' "$NORMALIZED_VERSION" >> "$GITHUB_OUTPUT"
             fi
             exit 0
           else
