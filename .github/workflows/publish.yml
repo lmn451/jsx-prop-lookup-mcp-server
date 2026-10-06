@@ -207,6 +207,7 @@ jobs:
       if: steps.changes.outputs.has_changes == 'true'
       env:
         NEW_VERSION: ${{ steps.new_version.outputs.new_version }}
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: |
         echo "Publishing version $NEW_VERSION to npm..."
         
@@ -215,8 +216,6 @@ jobs:
         
         echo "Successfully published version $NEW_VERSION to npm"
         echo "publish_success=true" >> $GITHUB_OUTPUT
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         
     - name: Commit version bump and create tag
       if: steps.changes.outputs.has_changes == 'true' && steps.npm_publish.outputs.publish_success == 'true'
