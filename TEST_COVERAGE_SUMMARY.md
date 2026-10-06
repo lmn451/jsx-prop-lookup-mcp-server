@@ -1,83 +1,62 @@
-# MCP Server Integration Test Coverage Summary
+# Test Coverage Summary
 
-## Overview
-Added comprehensive integration tests to ensure the jsx-analyzer MCP server works correctly and prevent regression of the original Babel traverse import issue.
+## Purpose
 
-## Test Coverage Added
+The test suite covers the observable behavior of the JSX analyzer and its MCP stdio boundary. This summary intentionally avoids a fixed test count or pass-status claim because those values become stale as the suite changes.
 
-### 1. Babel Traverse Import Regression Tests (4 tests)
-- **Purpose**: Prevent regression of the original "traverseDefault is not a function" error
-- **Key Tests**:
-  - `should not throw "traverseDefault is not a function" error`
-  - `should successfully traverse AST and find components`
-  - `should handle traverse function correctly in queryComponents`
-  - `should handle traverse function correctly in findPropUsage`
+## MCP server coverage
 
-### 2. MCP Server Tool Interface Simulation (3 tests)
-- **Purpose**: Test the exact calls that would be made by the MCP server
-- **Key Tests**:
-  - `should handle analyze_jsx_props tool call correctly`
-  - `should handle query_components tool call correctly`
-  - `should handle find_prop_usage tool call correctly`
+The stdio integration coverage exercises:
 
-### 3. Real-world Scenario Tests (3 tests)
-- **Purpose**: Test scenarios that mirror actual usage patterns
-- **Key Tests**:
-  - `should handle the original user scenario: finding Select components with width props`
-  - `should handle error conditions gracefully without crashing`
-  - `should maintain consistent behavior across different working directories`
+- server initialization;
+- discovery of exactly the four current tools;
+- calls to `analyze_jsx_props`;
+- calls to `find_prop_usage`;
+- calls to `get_component_props`;
+- calls to `find_components_without_prop`;
+- relative path handling;
+- missing-argument validation; and
+- tool error responses without server termination.
 
-### 4. Performance and Memory Tests (2 tests)
-- **Purpose**: Ensure the system can handle concurrent and rapid operations
-- **Key Tests**:
-  - `should handle large directory scans without memory issues`
-  - `should handle rapid successive calls without issues`
+Additional boundary coverage verifies all four default search paths, invalid argument types, optional type metadata, concurrent requests, and successful analysis after repairing a parse failure on the same connection.
 
-### 5. Edge Case Coverage (2 tests)
-- **Purpose**: Test various file types and JSX patterns
-- **Key Tests**:
-  - `should handle files with various JSX patterns`
-  - `should handle TypeScript and JavaScript files equally`
+The protocol-facing coverage is maintained for the official `@modelcontextprotocol/server` v2 implementation and the `2026-07-28` protocol/specification line. MCP v1-only package APIs and protocol assumptions are outside the current target.
 
-### 6. Critical Babel Traverse Functionality Tests (3 tests)
-- **Purpose**: Specifically test the Babel traverse functionality that was causing issues
-- **Key Tests**:
-  - `should successfully import and use traverse function`
-  - `should handle AST traversal in all analyzer methods`
-  - `should handle complex AST structures without traverse errors`
+## Filesystem security coverage
 
-### 7. MCP Server Response Format Tests (2 tests)
-- **Purpose**: Ensure all response formats work correctly with JSON serialization
-- **Key Tests**:
-  - `should generate MCP-compatible JSON responses`
-  - `should handle MCP server error scenarios`
+Allowed-root coverage exercises:
 
-## Critical Tests That Would Have Caught the Original Issue
+- access to targets within `ALLOWED_ROOTS`;
+- rejection of targets outside configured roots; and
+- rejection of symlinks whose existing targets resolve outside a configured root.
 
-The following tests would have **failed** with the original Babel traverse import bug:
+The runtime also supports equivalent configuration through `--allowed-roots`.
 
-1. **`should not throw "traverseDefault is not a function" error`** - This test specifically checks for the exact error that was occurring
-2. **`should successfully traverse AST and find components`** - This would have returned empty results due to the traverse error
-3. **`should handle traverse function correctly in queryComponents`** - This would have thrown the traverse error
-4. **`should successfully import and use traverse function`** - This directly tests the traverse import functionality
-5. **`should handle the original user scenario`** - This would have returned `filesScanned: 0` due to the traverse error
+Tests exercise both CLI option forms, precedence over environment configuration, multiple and relative roots, sibling-prefix and parent-traversal rejection, directory-scan symlinks, and literal glob characters in directory names.
 
-## Test Results
-- **Total Tests**: 54 (35 existing + 19 new integration tests)
-- **All Tests Passing**: ✅
-- **Coverage**: Both unit tests and integration tests for MCP server functionality
-- **Regression Prevention**: Comprehensive coverage of the Babel traverse import issue
+## Analyzer coverage
 
-## Key Benefits
+Analyzer tests cover:
 
-1. **Regression Prevention**: The tests will catch any future issues with Babel traverse imports
-2. **Real-world Validation**: Tests simulate actual MCP server usage patterns
-3. **Comprehensive Coverage**: Tests cover all major functionality paths
-4. **Performance Assurance**: Tests ensure the system can handle concurrent operations
-5. **Error Handling**: Tests verify graceful handling of error conditions
+- JavaScript, JSX, TypeScript, and TSX parsing;
+- component and prop discovery;
+- TypeScript interface detection;
+- destructured and identifier-based prop access;
+- prop usage filtering by component;
+- component instances missing a required prop;
+- spread attributes;
+- common and complex JSX attribute values;
+- error handling for invalid inputs; and
+- namespaced JSX identifiers such as `UI.Select` and deeper member expressions.
 
-## Files Modified
-- `src/__tests__/mcp-server-integration.test.ts` - New comprehensive integration test suite
-- All tests pass and provide confidence that the MCP server works correctly in production
+Namespaced component matching accepts either a full dotted name or the local name and retains the full name in results where applicable.
 
-The integration tests provide a safety net that would have caught the original issue and will prevent similar problems in the future.
+Regression tests assert exact fragment counts, JSX children, scoped and computed prop access, defaulted parameters, trailing type declarations, empty directories, ignored build/dependency paths, and renamed destructuring with source locations.
+
+## CLI and optional logger coverage
+
+The CLI tests execute help and invalid-argument paths, signal-driven shutdown, and stdin EOF. The disconnected request logger is tested with injected fetch behavior, including timeout cancellation, rejected responses, one-time warnings, duration normalization, and configuration opt-out. No telemetry endpoint is contacted by the suite.
+
+## Regression focus
+
+The suite retains coverage for Babel traversal and value extraction, including expression shapes that previously caused traversal or serialization failures. Coverage is organized around the four supported tools; removed or experimental query and similarity tools are not part of the product contract.

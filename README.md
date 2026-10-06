@@ -1,166 +1,81 @@
 # JSX Prop Lookup MCP Server
 
-An MCP (Model Context Protocol) server that analyzes JSX prop usage in React/TypeScript codebases using AST parsing.
+An MCP server for AST-based analysis of JSX prop usage in JavaScript and TypeScript projects.
+
+## Runtime and protocol
+
+- Node.js 20 or newer is required.
+- The server uses the official `@modelcontextprotocol/server` v2 TypeScript package.
+- The active protocol/specification line is `2026-07-28`.
+- Communication is over stdio. This project does not expose an HTTP transport, resources, or prompts.
 
 ## Features
 
-- **AST-based Analysis**: Uses Babel parser for accurate JSX/TSX parsing
-- **Prop Usage Tracking**: Find where props are used across components
-- **Component Analysis**: Analyze prop definitions and usage patterns (supports destructuring and identifier-based props access in function/arrow components)
-- **TypeScript Support**: Includes TypeScript interface analysis
-- **Identifier Param Support**: Detects props accessed via identifier parameters (not just destructured), e.g., `p.onClick` and `buttonProps.disabled` inside function/arrow component bodies
-- **Multiple Search Options**: Search by component, prop name, or analyze entire directories
+- Parses `.js`, `.jsx`, `.ts`, and `.tsx` with Babel.
+- Finds JSX prop usage and component prop definitions.
+- Reads TypeScript prop interfaces when requested.
+- Supports destructured props and identifier-based access such as `props.disabled`.
+- Recognizes JSX children, optional prop access, and static computed access such as `props['disabled']`.
+- Supports namespaced JSX names such as `UI.Select`.
+- Restricts filesystem access when `ALLOWED_ROOTS` or `--allowed-roots` is configured.
 
 ## Installation
 
-### Option 1: Use with npx (Recommended)
-
-No installation required! Use directly with npx:
+### Run with npx
 
 ```bash
-npx jsx-prop-lookup-mcp-server
+npx --yes jsx-prop-lookup-mcp-server
 ```
 
-### Option 2: Install Globally
+### Install globally
 
 ```bash
-npm install -g jsx-prop-lookup-mcp-server
+npm install --global jsx-prop-lookup-mcp-server
 jsx-prop-lookup-mcp-server
 ```
 
-### Option 3: Development Setup
+### Build from source
 
 ```bash
-git clone https://github.com/your-username/jsx-prop-lookup-mcp-server.git
+git clone https://github.com/lmn451/jsx-prop-lookup-mcp-server.git
 cd jsx-prop-lookup-mcp-server
 npm install
 npm run build
 npm start
 ```
 
-## Usage
+## MCP client configuration
 
-The server provides four main tools:
-
-### 1. `analyze_jsx_props`
-
-Analyze JSX prop usage in files or directories.
-
-**Parameters:**
-
-- `path` (required): File or directory path to analyze
-- `componentName` (optional): Specific component name to analyze
-- `propName` (optional): Specific prop name to search for
-- `includeTypes` (optional): Include TypeScript type information (default: true)
-
-### 2. `find_prop_usage`
-
-Find all usages of a specific prop across JSX files. The `directory` must be an absolute path.
-
-**Parameters:**
-
-- `propName` (required): Name of the prop to search for
-- `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
-- `componentName` (optional): Limit search to specific component
-
-### 3. `get_component_props`
-
-Get all props used by a specific component. The `directory` must be an absolute path.
-
-**Parameters:**
-
-- `componentName` (required): Name of the component to analyze
-- `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
-
-### 4. `find_components_without_prop`
-
-Find component instances that are missing a required prop (e.g., Select components without width prop). The `directory` must be an absolute path.
-
-**Parameters:**
-
-- `componentName` (required): Name of the component to check (e.g., "Select")
-- `requiredProp` (required): Name of the required prop (e.g., "width")
-- `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
-
-## Example Output
-
-```json
-{
-  "summary": {
-    "totalFiles": 5,
-    "totalComponents": 3,
-    "totalProps": 12
-  },
-  "components": [
-    {
-      "componentName": "Button",
-      "file": "./src/Button.tsx",
-      "props": [
-        {
-          "propName": "onClick",
-          "componentName": "Button",
-          "file": "./src/Button.tsx",
-          "line": 5,
-          "column": 10
-        }
-      ],
-      "propsInterface": "ButtonProps"
-    }
-  ],
-  "propUsages": [
-    {
-      "propName": "className",
-      "componentName": "Button",
-      "file": "./src/App.tsx",
-      "line": 15,
-      "column": 20,
-      "value": "btn-primary"
-    }
-  ]
-}
-```
-
-### Component name matching
-
-- Namespaced JSX components (e.g., `UI.Select`) are supported. You can target either the full dotted name (e.g., `UI.Select`) or the local component name (e.g., `Select`) in tool inputs. Results record the full dotted name where applicable.
-
-## Supported File Types
-
-- `.js` - JavaScript
-- `.jsx` - JavaScript with JSX
-- `.ts` - TypeScript
-- `.tsx` - TypeScript with JSX
-
-## MCP Client Configuration
-
-### Using with npx (Recommended)
-
-Add to your MCP client configuration:
+The recommended configuration both starts the stdio server and limits it to the project it should inspect:
 
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
       "command": "npx",
-      "args": ["jsx-prop-lookup-mcp-server"]
+      "args": ["--yes", "jsx-prop-lookup-mcp-server"],
+      "env": {
+        "ALLOWED_ROOTS": "/workspace/project"
+      }
     }
   }
 }
 ```
 
-### Using with global installation
+Replace `/workspace/project` with the absolute path to the project being analyzed. An equivalent CLI configuration can pass the restriction after the package name:
 
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
-      "command": "jsx-prop-lookup-mcp-server"
+      "command": "npx",
+      "args": ["--yes", "jsx-prop-lookup-mcp-server", "--allowed-roots", "/workspace/project"]
     }
   }
 }
 ```
 
-### Using with local development
+For a local build:
 
 ```json
 {
@@ -168,34 +83,129 @@ Add to your MCP client configuration:
     "jsx-prop-lookup": {
       "command": "node",
       "args": ["dist/index.js"],
-      "cwd": "/path/to/jsx-prop-lookup-mcp-server"
+      "cwd": "/workspace/jsx-prop-lookup-mcp-server",
+      "env": {
+        "ALLOWED_ROOTS": "/workspace/project"
+      }
     }
   }
 }
 ```
 
+## Tools
+
+The server exposes exactly four tools.
+
+### `analyze_jsx_props`
+
+Analyzes JSX props in one file or a directory.
+
+- `path` (optional): Absolute or server-working-directory-relative file or directory. Defaults to `.`.
+- `componentName` (optional): Filter by component name.
+- `propName` (optional): Filter by prop name.
+- `includeTypes` (optional): Include TypeScript type information. Defaults to `true`.
+
+Example:
+
+```json
+{
+  "path": "src/components",
+  "componentName": "Button",
+  "includeTypes": true
+}
+```
+
+### `find_prop_usage`
+
+Finds usages of a prop across JSX files.
+
+- `propName` (required): Prop to find.
+- `directory` (optional): Absolute or server-working-directory-relative directory. Defaults to `.`.
+- `componentName` (optional): Limit results to a component.
+
+Example:
+
+```json
+{
+  "propName": "onClick",
+  "directory": "src"
+}
+```
+
+### `get_component_props`
+
+Reports props used by a component.
+
+- `componentName` (required): Component to analyze.
+- `directory` (optional): Absolute or server-working-directory-relative directory. Defaults to `.`.
+
+Example:
+
+```json
+{
+  "componentName": "Button",
+  "directory": "src/components"
+}
+```
+
+### `find_components_without_prop`
+
+Finds component instances that do not declare a required prop.
+
+- `componentName` (required): Component to inspect.
+- `requiredProp` (required): Prop that should be present.
+- `directory` (optional): Absolute or server-working-directory-relative directory. Defaults to `.`.
+
+Example:
+
+```json
+{
+  "componentName": "Select",
+  "requiredProp": "width",
+  "directory": "src"
+}
+```
+
+### Namespaced component names
+
+Namespaced JSX is supported. For `<UI.Select />`, component filters may use either the full name (`UI.Select`) or the local name (`Select`). Results retain the full dotted name where applicable.
+
+## Filesystem access
+
+All four tools read paths supplied by the MCP client. Without an allowed-roots setting, no filesystem whitelist is applied.
+
+Set a comma-separated list of allowed roots with either:
+
+```bash
+ALLOWED_ROOTS="/workspace/project,/workspace/shared" npx --yes jsx-prop-lookup-mcp-server
+```
+
+or:
+
+```bash
+npx --yes jsx-prop-lookup-mcp-server --allowed-roots "/workspace/project,/workspace/shared"
+```
+
+Absolute roots are recommended. Relative roots are resolved from the server process working directory. When both forms are present, `--allowed-roots` takes precedence. Requests outside the configured roots, including paths that resolve through a symlink to an outside location, are rejected.
+
+Directory scans validate every discovered file and validate its target again before reading. Directory names containing glob characters, such as `[id]`, are treated literally. A discovered file outside the allowed roots fails the request.
+
+Read and parse failures also fail the tool request with the affected filename. Fix the file or narrow the requested path before retrying; the tools do not return successful results that silently omit failed files.
+
+See [SECURITY.md](SECURITY.md) for operating guidance.
+
 ## Development
 
 ```bash
-npm run dev  # Run in development mode
-npm run build  # Build for production
-npm start  # Run built version
+npm install
+npm run build
+npm start
 ```
 
-## Security and safe operation
+`npm run dev` starts the source entry point directly. Both development and built modes use stdio.
 
-Important: this MCP server reads files and directories on disk based on client-provided paths. Do NOT expose the stdio-based server to untrusted or network-exposed clients. By default there is no filesystem whitelist; to restrict filesystem access, set the `ALLOWED_ROOTS` environment variable to a comma-separated list of allowed root directories (absolute or workspace-relative). When configured, any tool request that refers to a path outside the allowed roots will be rejected.
+`src/index.ts` handles CLI arguments and the process lifecycle. `src/server.ts` exports `createServer(allowedRoots)` to register the tools without starting a transport or adding process listeners. Tool validation and error responses use the MCP SDK.
 
-Example (restrict to the repository root):
+## MCP v2 migration note
 
-```bash
-export ALLOWED_ROOTS="."
-npm run dev
-```
-
-Recommended practices:
-
-- Run this server only in trusted environments, or behind an authenticated proxy.
-- Use `ALLOWED_ROOTS` to limit the scope of accessible files.
-- Do not run the server as a privileged user; run under a least-privileged account.
-- Consider further sandboxing (containerization) when servicing untrusted inputs.
+The v2 SDK and the `2026-07-28` protocol/specification line are the active implementation target. Clients or integrations built around MCP v1-only APIs or protocol assumptions must be updated; the server does not maintain a parallel v1 implementation.

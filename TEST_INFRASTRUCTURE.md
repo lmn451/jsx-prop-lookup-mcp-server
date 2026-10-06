@@ -1,123 +1,110 @@
 # Test Infrastructure
 
-This project uses Node.js built-in test runner for testing. The test suite verifies both the JSX analyzer functionality and the MCP server integration.
+This project uses Node.js's built-in test runner. The suite covers the AST analyzer, filesystem containment, and the MCP v2 stdio boundary.
 
-## Test Structure
+## Test structure
 
-### Unit & Integration Tests
+### Analyzer tests
 
-- `tests/analyzer.test.js` - Tests the core JSXPropAnalyzer functionality
-  - Positive tests: Expected findings in example components
-  - Negative tests: Non-existent components/props should return empty results
-  - Error handling: Invalid paths, empty directories
-  - TypeScript interface detection
-  - Spread operator handling
+`tests/analyzer.test.js` and `tests/analyzer.regression.test.js` cover:
 
-### MCP Integration Tests
+- JavaScript, JSX, TypeScript, and TSX parsing;
+- component and prop discovery;
+- TypeScript interface detection;
+- destructured and identifier-based prop access;
+- namespaced JSX names;
+- spread attributes;
+- common JSX expression values;
+- invalid-path and parse-error handling; and
+- missing-required-prop analysis.
 
-- `tests/mcp.smoke.test.js` - Tests the full MCP server protocol
-  - Server initialization and tool listing
-  - All 4 MCP tools with valid inputs
-  - Error handling with invalid inputs
-  - Relative vs absolute path handling
+### MCP integration tests
 
-## Running Tests
+`tests/mcp.smoke.test.js` and `tests/mcp.boundary.test.js` use `@modelcontextprotocol/client` v2 and `StdioClientTransport` to exercise:
 
-### Prerequisites
+- pinning and negotiating protocol/specification `2026-07-28`;
+- server identity and discovery;
+- the exact four-tool inventory;
+- valid calls to all four tools;
+- invalid arguments and tool-level errors;
+- relative paths from the configured working directory; and
+- clean client-owned process shutdown.
+
+Boundary cases exercise default working-directory paths, argument type errors, optional type metadata, concurrent requests with different filters, and successful retries after fixing an invalid file on the same connection.
+
+`tests/server.test.js` checks that constructing a server has no CLI side effects and that two instances keep their filesystem restrictions independent, using real MCP clients and in-memory transports.
+
+`tests/cli.test.js` executes the compiled CLI to check both help flags, invalid arguments, SIGINT/SIGTERM shutdown, and stdin EOF. `tests/request-logger.test.js` uses an injected transport to verify the disconnected logger's payload, opt-out, timeout, duration normalization, and one-time warning behavior without network requests.
+
+### Filesystem security tests
+
+`tests/allowed_roots.test.js` covers:
+
+- access within configured roots;
+- rejection outside configured roots;
+- CLI and environment configuration; and
+- symlink targets that resolve outside an allowed root.
+
+Regression cases include symlinked files discovered during scans, literal bracketed directory names, internal symlinks, CLI precedence over environment configuration, multiple roots, relative roots, sibling-prefix rejection, and parent traversal.
+
+### Release tests
+
+`tests/release-version.test.js` checks the pure release-version policy: prepared versions, patch/minor/major bumps, prereleases, strict npm semver validation, explicit overrides, and highest-tag selection. `tests/release-workflow.integration.test.js` runs the release command in temporary Git repositories to verify package reads, merged-tag discovery, overrides, and failure exit status/output. These tests never publish or modify the project repository.
+
+## Running tests
 
 ```bash
-npm install
-npm run build  # Required for MCP tests that use dist/index.js
+npm ci
+npm run typecheck
+npm run lint
+npm run build
+npm test
 ```
 
-### Test Commands
+Individual suites:
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode (re-runs on file changes)
-npm run test:watch
-
-# Run with coverage (experimental Node.js feature)
-npm run test:coverage
-
-# Run specific test file
 node --test tests/analyzer.test.js
 node --test tests/mcp.smoke.test.js
+node --test tests/allowed_roots.test.js
 ```
 
-## Test Data
+Coverage uses Node's experimental built-in instrumentation:
 
-Tests use the components in `examples/sample-components/`:
+```bash
+npm run test:coverage
+```
 
-- `App.tsx` - Main app with Button and Card usage
-- `Button.tsx` - Component with ButtonProps interface and destructured props
-- `Card.tsx` - Component with CardProps interface
-- `SelectExample.tsx` - Select component with missing width examples
+On Node.js 26, check order independence with a reproducible seed:
 
-## Expected Test Behavior
+```bash
+node --test --test-concurrency=4 --test-randomize --test-random-seed=20261006 tests/*.test.js
+```
 
-### Positive Test Cases
+Analyzer setup runs before each test; no test relies on another test to initialize it. CI runs the seeded check on Node.js 26 as well as the normal suite on both supported test runtimes.
 
-- ✅ Find Button component with props: children, onClick, disabled, variant, className, ...rest
-- ✅ Find Card component with props: title, children, className, footer
-- ✅ Find Select component with props: options, value, onChange, width
-- ✅ Detect TypeScript interfaces: ButtonProps, CardProps, SelectProps
-- ✅ Find onClick usage in Button definitions and JSX elements
-- ✅ Find Select components missing width prop
-- ✅ Detect spread operators (...rest, ...spread)
+Mutation testing targets only the pure `.github/scripts/release-version.cjs` module:
 
-### Negative Test Cases
+```bash
+npm run test:mutation
+```
 
-- ❌ Non-existent components return empty results
-- ❌ Non-existent props return empty results
-- ❌ Invalid paths throw appropriate errors
-- ❌ Components with spread props are not flagged as missing required props
+Stryker uses the existing Node test suite through its TAP runner and enforces a 90% mutation score. JSON and HTML reports are written to `reports/mutation/` (ignored by Git). The [TAP runner](https://stryker-mutator.io/docs/stryker-js/tap-runner/) reports coverage and mutant kills per test file, so these reports do not establish which individual test killed each mutant. Analyzer and MCP behavior is checked through real filesystem and transport integration tests rather than repeated server startup for every mutant.
 
-### MCP Protocol Tests
+## Test data
 
-- ✅ Server initializes and responds to protocol handshake
-- ✅ Lists 4 available tools with correct schemas
-- ✅ All tools accept valid inputs and return structured responses
-- ✅ Tools handle invalid inputs gracefully with error responses
-- ✅ Server doesn't crash on malformed requests
+Tests use `examples/sample-components/`:
 
-## Test Coverage
+- `App.tsx` — Button and Card usage;
+- `Button.tsx` — destructured props and `ButtonProps`;
+- `Card.tsx` — `CardProps`;
+- `SelectExample.tsx` — required-prop and spread scenarios; and
+- additional namespaced and identifier-access fixtures.
 
-The test suite covers:
+## CI expectations
 
-- All 4 analyzer methods: analyzeProps, findPropUsage, getComponentProps, findComponentsWithoutProp
-- All 4 MCP tools with the same names
-- TypeScript interface detection
-- Spread operator handling in both component definitions and JSX usage
-- Error conditions and edge cases
-- Path resolution (relative/absolute)
+The supported runtime is Node.js 20 or newer. Tests are deterministic, use no network services, and communicate with the MCP server over local stdio or in-memory transports. Stdio integration and containment tests start the compiled `dist/index.js`, so run `npm run build` before the suite. The integration suite verifies the package version advertised to clients and checks that parse failures return tool errors without closing the connection.
 
-## CI/CD Integration
+CI runs the build, tests, scoped mutation checks, and lint on Node.js 20 and 26.
 
-Tests are designed to run in any Node.js 18+ environment:
-
-- No external dependencies beyond npm packages
-- Uses built-in Node.js test runner (no additional test framework)
-- Self-contained test data in examples/ directory
-- Deterministic assertions that don't depend on file system specifics
-
-## Debugging Tests
-
-To debug failing tests:
-
-1. Run individual test files: `node --test tests/analyzer.test.js`
-2. Add console.log statements in test files to inspect actual vs expected data
-3. Check that examples/ directory contains expected components
-4. Verify build output exists in dist/ for MCP tests
-
-## Adding New Tests
-
-When adding new features:
-
-1. Add corresponding example components to `examples/sample-components/`
-2. Add positive tests to verify the feature works
-3. Add negative tests to verify edge cases
-4. Add MCP integration tests if new tools are added
-5. Update this documentation with new test expectations
+When adding a tool, update the MCP v2 integration inventory and call coverage, then update the current four-tool documentation and release notes.

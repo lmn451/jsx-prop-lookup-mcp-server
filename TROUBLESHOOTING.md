@@ -1,78 +1,87 @@
-# Troubleshooting MCP Error -32000
+# Troubleshooting
 
-## ✅ Server Status: WORKING
+## Runtime contract
 
-Your MCP server is functioning correctly. The error -32000 "connection closed" is typically a **configuration issue**, not a server problem.
+The server requires Node.js 20 or newer and an MCP v2 client that supports protocol/specification `2026-07-28`. It runs over stdio only. A legacy `initialize`-first client is intentionally rejected.
 
-## Quick Fixes:
+## Recommended configuration
 
-### 1. **Verify MCP Configuration**
-
-Ensure your MCP client config uses exactly this format:
+Use an absolute allowed root:
 
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
       "command": "npx",
-      "args": ["jsx-prop-lookup-mcp-server"]
+      "args": [
+        "--yes",
+        "jsx-prop-lookup-mcp-server",
+        "--allowed-roots",
+        "/absolute/path/to/project"
+      ]
     }
   }
 }
 ```
 
-### 2. **Test Server Manually**
-
-```bash
-# This should work without errors:
-npx jsx-prop-lookup-mcp-server
-# You should see: "JSX Prop Lookup MCP Server running on stdio"
-```
-
-### 3. **Common MCP Client Locations**
-
-**Claude Desktop:**
-
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%/Claude/claude_desktop_config.json`
-
-**Cline (VS Code):**
-
-- Settings → Extensions → Cline → MCP Settings
-
-### 4. **Alternative Configurations**
-
-If npx doesn't work, try global installation:
-
-```bash
-npm install -g jsx-prop-lookup-mcp-server
-```
-
-Then use:
+For a local checkout:
 
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
-      "command": "jsx-prop-lookup-mcp-server"
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "/absolute/path/to/jsx-prop-lookup-mcp-server",
+      "env": {
+        "ALLOWED_ROOTS": "/absolute/path/to/project"
+      }
     }
   }
 }
 ```
 
-### 5. **Check Requirements**
+## Verify locally
 
-- ✅ Node.js 18+ (check: `node --version`)
-- ✅ npm/npx available (check: `npx --version`)
-- ✅ Internet connection (for npx download)
+```bash
+node --version
+npm ci
+npm run typecheck
+npm run lint
+npm run build
+node --test tests/mcp.smoke.test.js
+```
 
-## Still Having Issues?
+The startup banner and operational errors go to stderr. stdout is reserved for MCP JSON-RPC traffic.
 
-The server is working correctly, so the issue is likely:
+## Common failures
 
-1. **MCP client configuration syntax**
-2. **File path/permissions**
-3. **MCP client compatibility**
-4. **Network/firewall blocking npx**
+### `Unsupported protocol version`
 
-Try the manual test above first - if that works, it's definitely a configuration issue!
+Upgrade the MCP client or configure it to pin/negotiate `2026-07-28`. Do not send a raw legacy `initialize` request.
+
+### `Connection closed`
+
+Check Node.js version, the executable path, `cwd`, and that no wrapper writes logs to stdout. For local development, build `dist/index.js` first.
+
+### Path access denied
+
+The requested target is outside the configured allowed roots, or a symlink resolves outside them. Use an absolute root and ensure the client process has read permissions. The `--allowed-roots` flag overrides `ALLOWED_ROOTS`.
+
+### npx cannot start
+
+Check `npx --version` and network access, or use the local-build configuration above. Global installation is optional:
+
+```bash
+npm install --global jsx-prop-lookup-mcp-server
+```
+
+## Client compatibility
+
+The official v2 TypeScript client can exercise this server directly:
+
+```bash
+node --test tests/mcp.smoke.test.js
+```
+
+Older MCP clients that only know v1 package paths or pre-2026 protocol behavior are outside the supported compatibility target.

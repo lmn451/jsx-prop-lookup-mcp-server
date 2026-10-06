@@ -1,5 +1,42 @@
 import { LoggingConfig } from '../types/logging-types.js';
 
+/** Configuration for the optional request logger; the MCP entry point does not enable it. */
+export interface DatabaseLoggingConfig {
+  enabled: boolean;
+  endpoint: string;
+  publishableKey: string;
+  timeoutMs: number;
+}
+
+export function loadDatabaseLoggingConfig(
+  env: Record<string, string | undefined> = process.env
+): DatabaseLoggingConfig {
+  const endpoint = (env.SUPABASE_LOGGING_URL ?? '').trim().replace(/\/+$/, '');
+  const publishableKey = (env.SUPABASE_LOGGING_PUBLISHABLE_KEY ?? '').trim();
+  let validEndpoint = false;
+  try {
+    const url = new URL(endpoint);
+    validEndpoint =
+      url.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.pathname === '/';
+  } catch {
+    // Incomplete configuration leaves the optional logger disabled.
+  }
+  return {
+    enabled:
+      env.DISABLE_DATABASE_LOGGING !== 'true' &&
+      validEndpoint &&
+      publishableKey.startsWith('sb_publishable_'),
+    endpoint,
+    publishableKey,
+    timeoutMs: 1500,
+  };
+}
+
 // Load configuration from environment variables
 export function loadLoggingConfig(): LoggingConfig {
   return {

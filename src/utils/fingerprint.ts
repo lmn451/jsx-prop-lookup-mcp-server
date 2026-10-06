@@ -1,6 +1,6 @@
 import * as os from 'os';
 import * as crypto from 'crypto';
-
+import { PACKAGE_VERSION } from '../version.js';
 export interface SystemInfo {
   platform: string;
   nodeVersion: string;
@@ -14,7 +14,7 @@ export interface SystemInfo {
  */
 export function generateMachineFingerprint(): string {
   const systemInfo = getSystemInfo();
-  
+
   // Create a hash from system characteristics
   const fingerprintData = [
     systemInfo.platform,
@@ -25,11 +25,7 @@ export function generateMachineFingerprint(): string {
     os.userInfo().username,
   ].join('|');
 
-  return crypto
-    .createHash('sha256')
-    .update(fingerprintData)
-    .digest('hex')
-    .substring(0, 32); // Use first 32 characters for shorter identifier
+  return crypto.createHash('sha256').update(fingerprintData).digest('hex').substring(0, 32); // Use first 32 characters for shorter identifier
 }
 
 /**
@@ -49,7 +45,7 @@ export function getSystemInfo(): SystemInfo {
  */
 export function getUserAgent(): string {
   const systemInfo = getSystemInfo();
-  return `jsx-prop-lookup-mcp-server/1.0.0 (${systemInfo.platform}; ${systemInfo.arch}) Node.js/${systemInfo.nodeVersion}`;
+  return `jsx-prop-lookup-mcp-server/${PACKAGE_VERSION} (${systemInfo.platform}; ${systemInfo.arch}) Node.js/${systemInfo.nodeVersion}`;
 }
 
 /**

@@ -1,56 +1,50 @@
 # Publishing Guide
 
-## Git Repository Setup
+## Prerequisites
 
-1. **Create GitHub repository:**
+- Node.js 20 or newer
+- npm access for the `jsx-prop-lookup-mcp-server` package
+- A clean, reviewed release with passing typecheck, lint, build, and test commands
 
-   ```bash
-   # Go to GitHub and create a new repository named: jsx-prop-lookup-mcp-server
-   ```
+## Release checklist
 
-2. **Add remote and push:**
-   ```bash
-   git remote add origin https://github.com/YOUR_USERNAME/jsx-prop-lookup-mcp-server.git
-   git branch -M main
-   git push -u origin main
-   ```
-
-## NPM Publishing
-
-1. **Login to NPM:**
+1. Update the version in `package.json`; run `npm install --package-lock-only` so the lockfile matches.
+2. Update the release entry in `CHANGELOG.md`.
+3. Verify the package:
 
    ```bash
-   npm login
+   npm ci
+   npm run typecheck
+   npm run lint
+   npm run build
+   npm test
    ```
 
-2. **Update package.json with your GitHub username:**
-   - Replace `your-username` in the repository URLs with your actual GitHub username
+4. Inspect the package contents without publishing:
 
-3. **Publish to NPM:**
+   ```bash
+   npm pack --dry-run
+   ```
+
+5. Publish from the release commit:
+
    ```bash
    npm publish
    ```
 
-## MCP Registry (Optional)
-
-Consider submitting to the MCP server registry once it's available.
-
-## Post-Publishing
-
-1. **Update README with installation instructions:**
+6. Create and push the matching Git tag:
 
    ```bash
-   npm install -g jsx-prop-lookup-mcp-server
+   git tag v4.0.0
+   git push origin v4.0.0
    ```
 
-2. **Create GitHub release:**
-   - Tag version v1.0.0
-   - Include release notes
+## Repository metadata
 
-## Current Status
+The package metadata points to:
 
-✅ Code committed to git
-✅ Built successfully
-✅ Ready for publishing
+```text
+https://github.com/lmn451/jsx-prop-lookup-mcp-server
+```
 
-**Next steps:** Update GitHub username in package.json and push to your repository!
+Keep repository URLs, package version, changelog version, and tag version synchronized.

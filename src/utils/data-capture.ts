@@ -25,9 +25,9 @@ export function extractComponentData(
     return componentData;
   }
 
-  const result = analysisResult as { 
-    components?: unknown[]; 
-    propUsages?: unknown[]; 
+  const result = analysisResult as {
+    components?: unknown[];
+    propUsages?: unknown[];
     summary?: unknown;
     files?: Record<string, unknown>;
     [key: string]: unknown;
@@ -45,7 +45,7 @@ export function extractComponentData(
     // Handle different response formats
     if (Array.isArray(result)) {
       // Array format - iterate through results
-      result.forEach(item => {
+      result.forEach((item) => {
         componentData.push(...extractFromItem(requestId, item, filePath));
       });
     } else if (result.files) {
@@ -74,11 +74,11 @@ function extractFromItem(requestId: string, item: unknown, filePath?: string): C
     return componentData;
   }
 
-  const analysisItem = item as { 
-    components?: unknown[]; 
-    props?: unknown[]; 
-    file?: string; 
-    componentName?: string; 
+  const analysisItem = item as {
+    components?: unknown[];
+    props?: unknown[];
+    file?: string;
+    componentName?: string;
     name?: string;
     propName?: string;
     value?: unknown;
@@ -93,12 +93,12 @@ function extractFromItem(requestId: string, item: unknown, filePath?: string): C
     // Handle components array
     if (analysisItem.components && Array.isArray(analysisItem.components)) {
       analysisItem.components.forEach((component: unknown) => {
-        const comp = component as { 
-          props?: unknown[]; 
-          name?: string; 
-          componentName?: string; 
-          file?: string; 
-          line?: number; 
+        const comp = component as {
+          props?: unknown[];
+          name?: string;
+          componentName?: string;
+          file?: string;
+          line?: number;
           context?: string;
           propName?: string;
           value?: unknown;
@@ -156,7 +156,7 @@ function extractFromItem(requestId: string, item: unknown, filePath?: string): C
         propValue: analysisItem.value ? JSON.stringify(analysisItem.value) : undefined,
         propType: (analysisItem.type || analysisItem.propType) as string | undefined,
         lineNumber: (analysisItem.line || analysisItem.lineNumber) as number | undefined,
-        codeContext: (analysisItem.context) as string | undefined,
+        codeContext: analysisItem.context as string | undefined,
         createdAt: new Date(),
       });
     }
@@ -175,9 +175,9 @@ export function sanitizeRequestParams(params: Record<string, unknown>): Record<s
 
   // Remove potentially sensitive data
   const sensitiveKeys = ['password', 'token', 'key', 'secret', 'auth'];
-  
-  Object.keys(sanitized).forEach(key => {
-    if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
+
+  Object.keys(sanitized).forEach((key) => {
+    if (sensitiveKeys.some((sensitive) => key.toLowerCase().includes(sensitive))) {
       sanitized[key] = '[REDACTED]';
     }
   });
@@ -188,7 +188,10 @@ export function sanitizeRequestParams(params: Record<string, unknown>): Record<s
 /**
  * Truncate large strings to prevent database issues
  */
-export function truncateString(str: string | undefined, maxLength: number = 1000): string | undefined {
+export function truncateString(
+  str: string | undefined,
+  maxLength: number = 1000
+): string | undefined {
   if (!str) return str;
   if (str.length <= maxLength) return str;
   return str.substring(0, maxLength) + '...';
