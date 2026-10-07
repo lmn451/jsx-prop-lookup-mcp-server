@@ -5,7 +5,7 @@ tools a common response shape. This layer does not read files or change existing
 MCP tools; subsequent tool PRs consume it.
 
 ```ts
-import { paginateResults, sourceSnippet } from './results.js';
+import { paginateResults, sourceSnippet } from 'jsx-prop-lookup-mcp-server/dist/results.js';
 
 const page = paginateResults(
   [{ filePath: 'src/Widget.tsx', line: 2, column: 1, snippet: sourceSnippet(source, 2) }],

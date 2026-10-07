@@ -17,7 +17,9 @@ test('packed package exposes result pagination and Unicode snippets', async (t) 
       { cwd: process.cwd(), encoding: 'utf8' }
     )
   );
-  const archivePath = path.join(tempDirectory, packedFiles[0].filename);
+  const packedFile = Array.isArray(packedFiles) ? packedFiles[0] : Object.values(packedFiles)[0];
+  assert.ok(packedFile?.filename, 'npm pack should report the created archive');
+  const archivePath = path.join(tempDirectory, packedFile.filename);
   execFileSync('tar', ['-xzf', archivePath, '-C', tempDirectory]);
 
   const packageDirectory = path.join(tempDirectory, 'package');
