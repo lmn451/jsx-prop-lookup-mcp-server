@@ -51,6 +51,7 @@
     "dist/server.*",
     "dist/jsx-analyzer.*",
     "dist/version.*",
+    "dist/results.*",
     "README.md",
     "SECURITY.md",
     "CHANGELOG.md",
