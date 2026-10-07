@@ -196,6 +196,10 @@ See [SECURITY.md](SECURITY.md) for operating guidance.
 
 ## Development
 
+Release maintainers: see [automatic npm publishing](docs/publishing.md) for the
+one-time OIDC trusted-publisher setup and the release behavior after merging to
+`master`.
+
 ```bash
 npm install
 npm run build
