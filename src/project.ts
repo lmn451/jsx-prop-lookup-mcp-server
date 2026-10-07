@@ -12,6 +12,10 @@ export interface ProjectOptions {
 const extensions = new Set(['.js', '.jsx', '.ts', '.tsx']);
 const excludedDirectories = new Set(['.git', 'node_modules', 'dist', 'build']);
 
+function pathKey(file: string): string {
+  return ts.sys.useCaseSensitiveFileNames ? file : file.toLowerCase();
+}
+
 function contains(root: string, candidate: string): boolean {
   const rel = relative(root, candidate);
   return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
@@ -148,10 +152,11 @@ export class ProjectWorkspace {
     this.resolve(configPath);
     const directories = new Map<string, { files: string[]; directories: string[] }>();
     const entry = (directory: string) => {
-      let value = directories.get(directory);
+      const key = pathKey(directory);
+      let value = directories.get(key);
       if (!value) {
         value = { files: [], directories: [] };
-        directories.set(directory, value);
+        directories.set(key, value);
       }
       return value;
     };
@@ -183,7 +188,12 @@ export class ProjectWorkspace {
           this.root,
           depth,
           (candidate) => {
-            return directories.get(this.lexicalPath(candidate)) ?? { files: [], directories: [] };
+            return (
+              directories.get(pathKey(this.lexicalPath(candidate))) ?? {
+                files: [],
+                directories: [],
+              }
+            );
           },
           (candidate) => this.lexicalPath(candidate)
         );
@@ -221,11 +231,15 @@ export class ProjectWorkspace {
       throw new Error(`Path is neither a file nor directory: ${input}`);
     const files = this.scan();
     const config = this.configuration(files);
-    const selected = config ? new Set(config.fileNames.map((file) => resolve(file))) : undefined;
+    const selected = config
+      ? new Set(config.fileNames.map((file) => pathKey(resolve(file))))
+      : undefined;
     return files.filter(
       (file) =>
-        (!selected || selected.has(file)) &&
-        (info.isFile() ? file === target : contains(target, file))
+        (!selected || selected.has(pathKey(file))) &&
+        (info.isFile()
+          ? pathKey(file) === pathKey(target)
+          : contains(pathKey(target), pathKey(file)))
     );
   }
 }

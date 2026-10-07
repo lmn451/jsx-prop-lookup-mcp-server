@@ -205,7 +205,7 @@ for (const [config, expected] of [
   });
 }
 
-test('outside symlinked configs and ignore files are rejected without reading their contents', async (t) => {
+test('outside symlinked configs and ignore files are rejected', async (t) => {
   const { root, parent, project } = fixture(t, { 'A.tsx': jsx });
   const outside = path.join(parent, 'outside.json');
   fs.writeFileSync(outside, '{}');
@@ -388,4 +388,31 @@ test('absolute custom configuration accepts a configured root alias', async (t) 
   fs.symlinkSync(root, alias, 'dir');
   const project = new ProjectWorkspace({ root: alias, tsconfig: path.join(alias, 'custom.json') });
   assert.deepEqual(names(root, await project.discover()), ['A.tsx']);
+});
+
+test('explicit config files and query paths follow filesystem case sensitivity', async (t) => {
+  const { root, project } = fixture(t, {
+    'A.tsx': jsx,
+    'tsconfig.json': '{"files":["a.tsx"]}',
+  });
+  if (ts.sys.useCaseSensitiveFileNames) {
+    await assert.rejects(project.discover(), /ENOENT/);
+  } else {
+    assert.deepEqual(names(root, await project.discover()), ['A.tsx']);
+    assert.deepEqual(names(root, await project.discover('a.tsx')), ['A.tsx']);
+  }
+});
+
+test('include patterns and directory queries follow filesystem case sensitivity', async (t) => {
+  const { root, project } = fixture(t, {
+    'src/A.tsx': jsx,
+    'tsconfig.json': '{"include":["SRC/**/*.tsx"]}',
+  });
+  if (ts.sys.useCaseSensitiveFileNames) {
+    assert.deepEqual(await project.discover(), []);
+    await assert.rejects(project.discover('SRC'), /ENOENT/);
+  } else {
+    assert.deepEqual(names(root, await project.discover()), ['src/A.tsx']);
+    assert.deepEqual(names(root, await project.discover('SRC')), ['src/A.tsx']);
+  }
 });
