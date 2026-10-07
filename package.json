@@ -63,7 +63,8 @@
     "RELEASE_NOTES.md",
     "LICENSE",
     "package.json",
-    "docs/find-jsx.md"
+    "docs/find-jsx.md",
+    "dist/check-jsx.*"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",
