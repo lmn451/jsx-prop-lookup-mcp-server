@@ -2,6 +2,11 @@ name: Publish validated beta
 
 on:
   workflow_dispatch:
+    inputs:
+      diagnostics_only:
+        description: Check npm authentication without publishing
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,8 +19,22 @@ env:
   BETA_VERSION: 4.0.0-beta.0
 
 jobs:
+  check-npm-auth:
+    if: inputs.diagnostics_only
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure npm registry authentication
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          registry-url: https://registry.npmjs.org
+      - name: Check the stored publishing identity
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm whoami --registry=https://registry.npmjs.org
+
   publish-beta:
-    if: github.ref == 'refs/heads/codex/publish-4.0.0-beta.0'
+    if: github.ref == 'refs/heads/codex/publish-4.0.0-beta.0' && !inputs.diagnostics_only
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the validated PR commit
