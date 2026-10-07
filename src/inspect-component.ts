@@ -268,17 +268,24 @@ function describeCandidate(
       for (const prop of checker.getPropertiesOfType(propsType)) {
         const declaration = prop.valueDeclaration ?? prop.declarations?.[0] ?? node;
         const propType = checker.getTypeOfSymbolAtLocation(prop, declaration);
-        const declaredType =
+        const declaredTypeNode =
           ts.isPropertySignature(declaration) ||
           ts.isPropertyDeclaration(declaration) ||
           ts.isParameter(declaration)
-            ? declaration.type?.getText()
+            ? declaration.type
             : undefined;
+        const declaredType = declaredTypeNode?.getText();
+        const resolvedType = checker.typeToString(
+          propType,
+          declaration,
+          ts.TypeFormatFlags.NoTruncation
+        );
         const item: ComponentProp = {
           name: prop.name,
           type:
-            declaredType ??
-            checker.typeToString(propType, declaration, ts.TypeFormatFlags.NoTruncation),
+            declaredType && (propType.flags & ts.TypeFlags.Any || resolvedType === '{}')
+              ? declaredType
+              : resolvedType,
           required: !(prop.flags & ts.SymbolFlags.Optional),
         };
         const description = ts.displayPartsToString(prop.getDocumentationComment(checker));
@@ -296,6 +303,9 @@ function describeCandidate(
           );
         if (
           propType.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.TypeParameter) ||
+          (resolvedType === '{}' &&
+            declaredTypeNode &&
+            checker.getTypeFromTypeNode(declaredTypeNode).flags & ts.TypeFlags.TypeParameter) ||
           hasTypeError
         )
           unknown(`Unresolved type for prop ${prop.name}: ${item.type}.`, declaration);

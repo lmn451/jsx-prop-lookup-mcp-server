@@ -587,3 +587,23 @@ test('inspects a declared component without an implementation body', async (t) =
   assert.equal(result.total, 1);
   assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
 });
+
+test('resolves generic substitutions and intersected prop types', async (t) => {
+  const workspace = project(t, {
+    'widget.tsx': `type Props<T> = {value:T};
+export function Widget(props:Props<string>) {return null;}
+export function List(props:Props<string[]>) {return null;}
+type Both = {value:string} & {value:number};
+export function Panel(props:Both) {return null;}`,
+  });
+  const widget = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(widget.complete, true);
+  assert.deepEqual(widget.matches[0].props, [{ name: 'value', type: 'string', required: true }]);
+  const panel = await inspectComponent(workspace, { component: 'Panel' });
+  assert.equal(panel.complete, true);
+  assert.deepEqual(panel.matches[0].props, [{ name: 'value', type: 'never', required: true }]);
+  const list = await inspectComponent(workspace, { component: 'List' });
+  assert.equal(list.complete, false);
+  assert.deepEqual(list.matches[0].props, [{ name: 'value', type: 'T', required: true }]);
+  assert.equal(list.unresolved[0].reason, 'Unresolved type for prop value: T.');
+});

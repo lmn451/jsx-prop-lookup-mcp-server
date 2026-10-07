@@ -23,6 +23,9 @@ restrictions. Results use the shared sorted pagination and source snippets.
 Props come from a function's first parameter annotation, an explicit `React.FC`
 or `FunctionComponent` type argument, or a `Component`/`PureComponent` class type
 argument. Types declared later in the file and imported types are supported.
+Generic substitutions and intersections use the compiler's resolved prop type.
+Source annotations are retained when an unresolved type or the no-library
+compiler environment would otherwise erase them.
 `required` describes the declaration's optional marker; defaults are reported
 separately. For example, `title: string` stays required even if a destructured
 parameter supplies a default.
