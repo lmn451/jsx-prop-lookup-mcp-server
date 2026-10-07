@@ -74,7 +74,8 @@
     "docs/check-jsx.md",
     "dist/saved-checks.*",
     "docs/saved-checks.md",
-    "docs/inspect-component.md"
+    "docs/inspect-component.md",
+    "examples/audit"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",
