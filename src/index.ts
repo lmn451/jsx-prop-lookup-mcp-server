@@ -7,6 +7,8 @@ const HELP = `JSX Prop Lookup MCP Server v${PACKAGE_VERSION}
 Usage: jsx-prop-lookup-mcp-server [options]
 
   -h, --help               Show this help
+  --project-root <path>    Project root; overrides PROJECT_ROOT
+  --tsconfig <path>        Project-local TypeScript configuration
   --allowed-roots <paths>  Comma-separated filesystem roots
                           Overrides ALLOWED_ROOTS; relative to the working directory
 
@@ -30,6 +32,8 @@ async function main(): Promise<void> {
     options: {
       help: { type: 'boolean', short: 'h' },
       'allowed-roots': { type: 'string' },
+      'project-root': { type: 'string' },
+      tsconfig: { type: 'string' },
     },
   });
   if (values.help) {
@@ -44,7 +48,12 @@ async function main(): Promise<void> {
   const { serveStdio } = await import('@modelcontextprotocol/server/stdio');
   const { createServer } = await import('./server.js');
 
-  const handle = serveStdio(() => createServer(allowedRoots), {
+  const root = values['project-root'] ?? process.env.PROJECT_ROOT;
+  const options =
+    root !== undefined || values.tsconfig !== undefined
+      ? { root, allowedRoots, tsconfig: values.tsconfig }
+      : allowedRoots;
+  const handle = serveStdio(() => createServer(options), {
     legacy: 'reject',
     onerror: (error) => console.error('MCP server error:', error),
   });

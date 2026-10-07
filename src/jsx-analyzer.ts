@@ -5,6 +5,7 @@ import * as t from '@babel/types';
 import { readFileSync, realpathSync, statSync } from 'fs';
 import { glob } from 'glob';
 import { extname, resolve, isAbsolute, relative, sep } from 'path';
+import { ProjectWorkspace, type ProjectOptions } from './project.js';
 
 export interface PropUsage {
   propName: string;
@@ -40,7 +41,18 @@ export class JSXPropAnalyzer {
   private readonly traverseDefault =
     (traverse as unknown as { default?: typeof traverse }).default || traverse;
 
-  constructor(private readonly allowedRoots: readonly string[] = []) {}
+  private readonly allowedRoots: readonly string[];
+  private readonly project?: ProjectWorkspace;
+
+  constructor(options: readonly string[] | ProjectOptions = []) {
+    if (Array.isArray(options)) {
+      this.allowedRoots = options;
+    } else {
+      const projectOptions = options as ProjectOptions;
+      this.allowedRoots = projectOptions.allowedRoots ?? [];
+      this.project = new ProjectWorkspace(projectOptions);
+    }
+  }
 
   /**
    * Extract component name from JSX identifier or member expression
@@ -319,6 +331,7 @@ export class JSXPropAnalyzer {
   }
 
   private async getFiles(input: string): Promise<string[]> {
+    if (this.project) return this.project.discover(input);
     try {
       const absolutePath = resolve(input);
       const stat = statSync(this.resolveAllowedPath(input));
@@ -345,7 +358,9 @@ export class JSXPropAnalyzer {
     let content: string;
     try {
       // Validate again at the read boundary and read the resolved target.
-      content = readFileSync(this.resolveAllowedPath(filePath), 'utf-8');
+      content = this.project
+        ? this.project.readFile(filePath)
+        : readFileSync(this.resolveAllowedPath(filePath), 'utf-8');
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       throw new Error(`Failed to read file ${filePath}: ${err.message}`, { cause: error });

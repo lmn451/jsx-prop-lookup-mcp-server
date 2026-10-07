@@ -43,6 +43,19 @@ When roots are configured, every tool path must resolve within one of them. Targ
 
 This check applies to every file discovered during a directory scan and again at the read boundary. Disallowed targets fail the request. Requested directory names are kept separate from glob patterns so characters such as brackets are treated literally.
 
+## Project containment
+
+`--project-root` or `PROJECT_ROOT` enables a fixed project boundary in addition to
+`ALLOWED_ROOTS`. Every relative query starts there. Absolute paths, discovered source
+symlinks, TypeScript config inheritance, and ignore-file reads must remain inside
+that root. Configuration parsing uses guarded filesystem callbacks; it never uses
+the compiler's unrestricted directory scanner. In-root symlinks are supported and
+cycles stop at an already visited ancestor.
+
+As with the legacy boundary, paths are resolved again before a read. This is a
+filesystem restriction for trusted local workspaces, not process isolation against
+another process that can race filesystem changes between validation and reading.
+
 ## Operational guidance
 
 - Grant access only to directories the analysis requires.
