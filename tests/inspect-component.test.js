@@ -159,6 +159,7 @@ test('missing components are explicitly unresolved while zero-prop components ar
   const found = await inspectComponent(workspace, { component: 'Widget' });
   assert.equal(found.complete, true);
   assert.deepEqual(found.matches[0].props, []);
+  assert.equal(found.matches[0].docs, undefined);
   await assert.rejects(inspectComponent(workspace, { component: '' }), /non-empty/i);
 });
 
@@ -413,7 +414,7 @@ test('inspects a local nonexported declaration from a script', async (t) => {
   const workspace = project(t, {
     'widget.tsx': 'function Widget(props: {title: string}) {return null;}',
   });
-  const result = await inspectComponent(workspace, { component: 'Widget' });
+  const result = await inspectComponent(workspace, { component: 'Widget', source: './widget' });
   assert.equal(result.complete, true);
   assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
 });
@@ -563,4 +564,26 @@ if (enabled) Widget.defaultProps={title:'one'}; else Widget.defaultProps={title:
       'Conditional or nested defaultProps assignment cannot be resolved statically.',
     ]
   );
+});
+
+test('public instance defaults are excluded and comparisons do not assign defaults', async (t) => {
+  const workspace = project(t, {
+    'widget.tsx': `export class Widget extends Component<{title:string}> {
+public defaultProps={title:'instance'};
+}
+Widget.defaultProps === {title:'comparison'};`,
+  });
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
+});
+
+test('inspects a declared component without an implementation body', async (t) => {
+  const workspace = project(t, {
+    'widget.d.ts': 'export declare function Widget(props:{title:string}): unknown;',
+  });
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.complete, true);
+  assert.equal(result.total, 1);
+  assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
 });
