@@ -107,7 +107,7 @@ export class ProjectWorkspace {
   }
 
   private scan(): string[] {
-    const files: string[] = [];
+    const files = new Map<string, string>();
     const walk = (directory: string, inherited: IgnoreFile[], ancestors: Set<string>) => {
       const canonical = this.resolve(directory);
       if (ancestors.has(canonical)) return;
@@ -124,7 +124,7 @@ export class ProjectWorkspace {
             },
           ]
         : inherited;
-      for (const name of readdirSync(canonical)) {
+      for (const name of readdirSync(canonical).sort()) {
         const candidate = join(directory, name);
         if (excludedDirectories.has(name)) continue;
         const info = statSync(this.resolve(candidate));
@@ -139,11 +139,14 @@ export class ProjectWorkspace {
         }
         if (ignored) continue;
         if (directoryEntry) walk(candidate, rules, nextAncestors);
-        else if (extensions.has(extname(name)) && info.isFile()) files.push(candidate);
+        else if (extensions.has(extname(name)) && info.isFile()) {
+          const source = this.resolve(candidate);
+          files.set(pathKey(source), source);
+        }
       }
     };
     walk(this.root, [], new Set());
-    return files.sort();
+    return [...files.values()].sort();
   }
 
   private configuration(files: string[]): ts.ParsedCommandLine | undefined {
@@ -224,7 +227,6 @@ export class ProjectWorkspace {
   }
 
   async discover(input = '.'): Promise<string[]> {
-    const target = this.lexicalPath(input);
     const canonical = this.resolve(input);
     const info = statSync(canonical);
     if (!info.isDirectory() && !info.isFile())
@@ -238,8 +240,8 @@ export class ProjectWorkspace {
       (file) =>
         (!selected || selected.has(pathKey(file))) &&
         (info.isFile()
-          ? pathKey(file) === pathKey(target)
-          : contains(pathKey(target), pathKey(file)))
+          ? pathKey(file) === pathKey(canonical)
+          : contains(pathKey(canonical), pathKey(file)))
     );
   }
 }

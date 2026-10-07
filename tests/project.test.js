@@ -232,6 +232,14 @@ test('internal symlink directories are followed once without infinite cycles', a
   assert.deepEqual(names(root, await project.discover()), ['src/A.tsx']);
 });
 
+test('an in-root directory alias discovers a physical source only once', async (t) => {
+  const { root, project } = fixture(t, { 'src/Widget.tsx': jsx });
+  fs.symlinkSync(path.join(root, 'src'), path.join(root, 'alias'), 'dir');
+  const files = await project.discover();
+  assert.deepEqual(names(root, files), ['src/Widget.tsx']);
+  assert.equal(files[0], fs.realpathSync(path.join(root, 'src/Widget.tsx')));
+});
+
 test('a root configured through a symlink accepts both root spellings', async (t) => {
   const { root, parent } = fixture(t, { 'A.tsx': jsx });
   const alias = path.join(parent, 'alias');
