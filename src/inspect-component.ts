@@ -1,0 +1,364 @@
+import { join } from 'node:path';
+import { McpServer } from '@modelcontextprotocol/server';
+import ts from 'typescript';
+import * as z from 'zod/v4';
+import { ProjectWorkspace } from './project.js';
+import { createJsxSnapshot, staticValue, type JsxSnapshot, type PropValue } from './jsx-query.js';
+import {
+  paginateResults,
+  sourceSnippet,
+  type LocatedResult,
+  type PageOptions,
+  type UnresolvedCase,
+} from './results.js';
+
+export interface InspectComponentQuery extends PageOptions {
+  component: string;
+  path?: string;
+  source?: string;
+}
+
+export interface ComponentProp {
+  name: string;
+  type: string;
+  required: boolean;
+  default?: PropValue;
+  description?: string;
+  deprecated?: string | boolean;
+}
+
+export interface ComponentInspection extends LocatedResult {
+  name: string;
+  props: ComponentProp[];
+  docs?: string;
+}
+
+type ComponentDeclaration = ts.FunctionDeclaration | ts.VariableDeclaration | ts.ClassDeclaration;
+interface Candidate {
+  node: ComponentDeclaration;
+  symbol: ts.Symbol;
+  names: Set<string>;
+}
+
+function canonical(checker: ts.TypeChecker, symbol: ts.Symbol): ts.Symbol {
+  return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+}
+
+function collectCandidates(snapshot: JsxSnapshot): Candidate[] {
+  const { checker } = snapshot;
+  const candidates = new Map<ts.Symbol, Candidate>();
+  for (const source of snapshot.program.getSourceFiles()) {
+    const visit = (node: ts.Node): void => {
+      if (
+        (ts.isFunctionDeclaration(node) ||
+          ts.isVariableDeclaration(node) ||
+          ts.isClassDeclaration(node)) &&
+        node.name &&
+        ts.isIdentifier(node.name)
+      ) {
+        const symbol = checker.getSymbolAtLocation(node.name);
+        if (symbol && (!ts.isFunctionDeclaration(node) || node.body || !candidates.has(symbol))) {
+          candidates.set(symbol, {
+            node,
+            symbol,
+            names: new Set([node.name.text]),
+          });
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  const bind = (symbol: ts.Symbol | undefined, name: string) => {
+    if (!symbol) return;
+    const candidate = candidates.get(canonical(checker, symbol));
+    if (!candidate) return;
+    candidate.names.add(name);
+  };
+  for (const source of snapshot.program.getSourceFiles()) {
+    const moduleSymbol = checker.getSymbolAtLocation(source);
+    if (moduleSymbol) {
+      for (const symbol of checker.getExportsOfModule(moduleSymbol)) bind(symbol, symbol.name);
+    }
+    for (const statement of source.statements) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier))
+        continue;
+      const clause = statement.importClause;
+      if (clause?.name) {
+        const symbol = checker.getSymbolAtLocation(clause.name);
+        bind(symbol, clause.name.text);
+      }
+      const bindings = clause?.namedBindings;
+      if (bindings && ts.isNamedImports(bindings)) {
+        for (const item of bindings.elements) {
+          const symbol = checker.getSymbolAtLocation(item.name);
+          bind(symbol, item.name.text);
+        }
+      } else if (bindings && ts.isNamespaceImport(bindings)) {
+        const symbol = checker.getSymbolAtLocation(bindings.name);
+        if (symbol) {
+          for (const item of checker.getExportsOfModule(canonical(checker, symbol))) {
+            bind(item, `${bindings.name.text}.${item.name}`);
+          }
+        }
+      }
+    }
+  }
+  return [...candidates.values()];
+}
+
+function matchesSource(snapshot: JsxSnapshot, candidate: Candidate, source?: string): boolean {
+  if (source === undefined) return true;
+  const contexts = [
+    join(snapshot.project.root, '__inspect__.tsx'),
+    ...snapshot.files.map((file) => file.fileName),
+  ];
+  for (const context of contexts) {
+    const filePath = snapshot.resolveModule(source, context);
+    if (!filePath) continue;
+    if (filePath === candidate.node.getSourceFile().fileName) return true;
+    const module = snapshot.program.getSourceFile(filePath);
+    const symbol = module && snapshot.checker.getSymbolAtLocation(module);
+    if (
+      symbol &&
+      snapshot.checker
+        .getExportsOfModule(symbol)
+        .some((item) => canonical(snapshot.checker, item) === candidate.symbol)
+    )
+      return true;
+  }
+  return false;
+}
+
+function location(node: ts.Node): LocatedResult {
+  const source = node.getSourceFile();
+  const position = source.getLineAndCharacterOfPosition(node.getStart(source));
+  return {
+    filePath: source.fileName,
+    line: position.line + 1,
+    column: position.character + 1,
+    snippet: sourceSnippet(source.text, position.line + 1),
+  };
+}
+
+function propertyName(name: ts.PropertyName | ts.BindingName): string | undefined {
+  return ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)
+    ? name.text
+    : undefined;
+}
+
+function describeCandidate(
+  snapshot: JsxSnapshot,
+  candidate: Candidate,
+  unresolved: UnresolvedCase[]
+): ComponentInspection {
+  const { checker } = snapshot;
+  const { node, symbol } = candidate;
+  const result: ComponentInspection = { ...location(node), name: node.name!.getText(), props: [] };
+  const docs = ts.displayPartsToString(symbol.getDocumentationComment(checker));
+  if (docs) result.docs = docs;
+  const unknown = (reason: string, at: ts.Node = node) =>
+    unresolved.push({ ...location(at), reason });
+  const defaults = new Map<string, PropValue>();
+  const addDefault = (name: string, expression: ts.Expression) => {
+    const value = staticValue(expression);
+    defaults.set(name, value);
+    if (value.status === 'unknown')
+      unknown(`Unresolved default for prop ${name}: ${value.expression}`, expression);
+  };
+  const objectDefaults = (expression: ts.Expression) => {
+    if (!ts.isObjectLiteralExpression(expression)) {
+      unknown(`Unresolved defaultProps: ${expression.getText()}`, expression);
+      return;
+    }
+    for (const property of expression.properties) {
+      if (ts.isPropertyAssignment(property)) {
+        const name = propertyName(property.name);
+        if (name !== undefined) addDefault(name, property.initializer);
+        else unknown(`Unresolved defaultProps key: ${property.name.getText()}`, property);
+      } else unknown(`Unresolved defaultProps member: ${property.getText()}`, property);
+    }
+  };
+  // Assignments are matched by lexical symbol, so a same-named component elsewhere
+  // cannot contribute its defaults to this definition.
+  for (const source of snapshot.program.getSourceFiles()) {
+    const visit = (current: ts.Node): void => {
+      if (
+        ts.isBinaryExpression(current) &&
+        current.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+        ts.isPropertyAccessExpression(current.left) &&
+        current.left.name.text === 'defaultProps'
+      ) {
+        const target = checker.getSymbolAtLocation(current.left.expression);
+        if (target && canonical(checker, target) === symbol) {
+          if (ts.isExpressionStatement(current.parent) && ts.isSourceFile(current.parent.parent))
+            objectDefaults(current.right);
+          else
+            unknown(
+              'Conditional or nested defaultProps assignment cannot be resolved statically.',
+              current
+            );
+        }
+      }
+      ts.forEachChild(current, visit);
+    };
+    visit(source);
+  }
+  let propsType: ts.Type | undefined;
+  let parameter: ts.ParameterDeclaration | undefined;
+  let typeNode: ts.TypeNode | undefined;
+  if (ts.isFunctionDeclaration(node)) parameter = node.parameters[0];
+  else if (ts.isVariableDeclaration(node)) {
+    if (
+      node.initializer &&
+      (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
+    )
+      parameter = node.initializer.parameters[0];
+    else
+      unknown(
+        `Unresolved component wrapper or value: ${node.initializer?.getText() ?? node.getText()}`
+      );
+    if (
+      node.type &&
+      ts.isTypeReferenceNode(node.type) &&
+      /(?:^|\.)(?:FC|FunctionComponent)$/.test(node.type.typeName.getText())
+    )
+      typeNode = node.type.typeArguments?.[0];
+  } else {
+    const base = node.heritageClauses?.find(
+      (clause) => clause.token === ts.SyntaxKind.ExtendsKeyword
+    )?.types[0];
+    if (base && /(?:^|\.)(?:Component|PureComponent)$/.test(base.expression.getText()))
+      typeNode = base.typeArguments?.[0];
+    if (!typeNode) unknown('Unresolved class component props type.');
+    for (const member of node.members) {
+      if (
+        ts.isPropertyDeclaration(member) &&
+        propertyName(member.name) === 'defaultProps' &&
+        member.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword) &&
+        member.initializer
+      )
+        objectDefaults(member.initializer);
+    }
+  }
+  typeNode = parameter?.type ?? typeNode;
+  if (typeNode) propsType = checker.getTypeFromTypeNode(typeNode);
+  else if (parameter) propsType = checker.getTypeAtLocation(parameter);
+  if (parameter && ts.isObjectBindingPattern(parameter.name)) {
+    for (const element of parameter.name.elements) {
+      const name = propertyName(element.propertyName ?? element.name);
+      if (name !== undefined && element.initializer) addDefault(name, element.initializer);
+      else if (element.initializer)
+        unknown(
+          `Unresolved destructured default key: ${(element.propertyName ?? element.name).getText()}`,
+          element
+        );
+    }
+  }
+  if (propsType) {
+    if (
+      propsType.flags &
+      (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.TypeParameter | ts.TypeFlags.Union)
+    ) {
+      unknown(
+        `Unresolved props type: ${typeNode?.getText() ?? checker.typeToString(propsType)}.`,
+        typeNode ?? parameter
+      );
+    } else {
+      for (const prop of checker.getPropertiesOfType(propsType)) {
+        const declaration = prop.valueDeclaration ?? prop.declarations?.[0] ?? node;
+        const propType = checker.getTypeOfSymbolAtLocation(prop, declaration);
+        const declaredType =
+          ts.isPropertySignature(declaration) ||
+          ts.isPropertyDeclaration(declaration) ||
+          ts.isParameter(declaration)
+            ? declaration.type?.getText()
+            : undefined;
+        const item: ComponentProp = {
+          name: prop.name,
+          type:
+            declaredType ??
+            checker.typeToString(propType, declaration, ts.TypeFormatFlags.NoTruncation),
+          required: !(prop.flags & ts.SymbolFlags.Optional),
+        };
+        const description = ts.displayPartsToString(prop.getDocumentationComment(checker));
+        if (description) item.description = description;
+        const deprecated = prop.getJsDocTags(checker).find((tag) => tag.name === 'deprecated');
+        if (deprecated) item.deprecated = ts.displayPartsToString(deprecated.text) || true;
+        if (defaults.has(prop.name)) item.default = defaults.get(prop.name);
+        const hasTypeError = snapshot.program
+          .getSemanticDiagnostics(declaration.getSourceFile())
+          .some(
+            (diagnostic) =>
+              diagnostic.start !== undefined &&
+              diagnostic.start >= declaration.getStart() &&
+              diagnostic.start < declaration.end
+          );
+        if (
+          propType.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.TypeParameter) ||
+          hasTypeError
+        )
+          unknown(`Unresolved type for prop ${prop.name}: ${item.type}.`, declaration);
+        result.props.push(item);
+      }
+    }
+  }
+  for (const [name, value] of defaults) {
+    if (!result.props.some((prop) => prop.name === name)) {
+      result.props.push({ name, type: 'unknown', required: false, default: value });
+      unknown(`Default for prop ${name} has no resolved declaration.`);
+    }
+  }
+  return result;
+}
+
+/** Inspect component definitions and declared props without evaluating project code. */
+export async function inspectComponent(project: ProjectWorkspace, query: InspectComponentQuery) {
+  if (!query.component.trim()) throw new Error('component must be a non-empty string');
+  const snapshot = await createJsxSnapshot(project, query.path);
+  const unresolved = [...snapshot.unresolved];
+  const matches = collectCandidates(snapshot)
+    .filter(
+      (candidate) =>
+        candidate.names.has(query.component) && matchesSource(snapshot, candidate, query.source)
+    )
+    .map((candidate) => describeCandidate(snapshot, candidate, unresolved));
+  if (matches.length === 0)
+    unresolved.push({
+      filePath: project.resolve(query.path ?? '.'),
+      reason: `Component ${query.component} not found${query.source ? ` from ${query.source}` : ''}.`,
+    });
+  return paginateResults(matches, query, unresolved);
+}
+
+export function registerInspectComponentTool(server: McpServer, project: ProjectWorkspace): void {
+  server.registerTool(
+    'inspect_component',
+    {
+      title: 'Inspect component',
+      description:
+        'Inspect component definitions, declared prop types, docs, and statically known defaults. Resolves imported aliases and reports unknown information explicitly.',
+      inputSchema: z.object({
+        component: z
+          .string()
+          .min(1)
+          .describe('Component name, local import alias, or original export name.'),
+        path: z.string().default('.').describe('Project file or directory to inspect.'),
+        source: z
+          .string()
+          .optional()
+          .describe('Import specifier or securely resolvable local module.'),
+        offset: z.number().int().min(0).default(0),
+        limit: z.number().int().min(1).max(500).default(100),
+      }),
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async (query) => {
+      const result = await inspectComponent(project, query);
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(result) }],
+        structuredContent: result,
+      };
+    }
+  );
+}

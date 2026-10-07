@@ -1,0 +1,43 @@
+# Inspect component definitions
+
+`inspect_component` returns component definitions, their declared props and types,
+JSDoc descriptions and deprecations, and defaults that can be read statically.
+It works for exported components even when the project has no JSX callers.
+
+```json
+{
+  "component": "Widget",
+  "source": "./components",
+  "path": ".",
+  "limit": 100,
+  "offset": 0
+}
+```
+
+Names can be the declaration name, a local import alias, or the original export.
+Imports and barrel exports resolve to the same definition. A `source` filter
+selects that module's components; without one, multiple same-named definitions
+are all returned. Relative paths use the configured project root and its access
+restrictions. Results use the shared sorted pagination and source snippets.
+
+Props come from a function's first parameter annotation, an explicit `React.FC`
+or `FunctionComponent` type argument, or a `Component`/`PureComponent` class type
+argument. Types declared later in the file and imported types are supported.
+`required` describes the declaration's optional marker; defaults are reported
+separately. For example, `title: string` stays required even if a destructured
+parameter supplies a default.
+
+Literal destructuring defaults and `defaultProps` properties have
+`{ "status": "known", "value": ... }`. A default such as `computeTitle()` has
+`{ "status": "unknown", "expression": "computeTitle()" }` and an unresolved
+diagnostic. Application code is never executed. Destructuring defaults take
+precedence over a corresponding `defaultProps` value. Conditional or nested
+`defaultProps` assignments remain unresolved.
+
+Every result page has `unresolved` and `complete`. Unknown prop types, dynamic
+defaults, and unsupported wrappers such as `memo(forwardRef(...))` make the page
+incomplete. Union props require selecting a variant and are reported as unresolved
+instead of presenting their shared fields as a complete props list.
+A missing component also produces an explicit unresolved case. A
+resolved component with no declared parameters can have an empty props list and
+still be complete.

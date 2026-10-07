@@ -55,6 +55,7 @@
     "dist/jsx-analyzer.*",
     "dist/jsx-query.*",
     "dist/find-jsx.*",
+    "dist/inspect-component.*",
     "dist/version.*",
     "dist/results.*",
     "dist/project.*",
