@@ -66,7 +66,9 @@
     "package.json",
     "docs/find-jsx.md",
     "dist/check-jsx.*",
-    "docs/check-jsx.md"
+    "docs/check-jsx.md",
+    "dist/saved-checks.*",
+    "docs/saved-checks.md"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",
