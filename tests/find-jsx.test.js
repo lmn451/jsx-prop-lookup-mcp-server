@@ -417,6 +417,25 @@ test('renamed re-exports resolve their canonical definition name and file', asyn
   assert.equal((await findJsx(project, { component: 'Button', source: './barrel.ts' })).total, 1);
 });
 
+test('canonical source filters follow filesystem casing through re-exports', async (t) => {
+  const project = fixture(t, {
+    'ui.tsx': ui,
+    'barrel.ts': "export { Button } from './UI';",
+    'app.tsx': "import { Button as B } from './barrel'; const x = <B />;",
+  });
+  const acceptsDifferentCase = fs.existsSync(path.join(project.root, 'UI.tsx'));
+  const result = await findJsx(project, {
+    path: 'app.tsx',
+    component: 'Button',
+    source: './ui',
+  });
+  assert.equal(result.total, acceptsDifferentCase ? 1 : 0);
+  if (acceptsDifferentCase) {
+    assert.equal(result.complete, true);
+    assert.equal(result.matches[0].identity.definition.filePath, path.join(project.root, 'ui.tsx'));
+  }
+});
+
 test('unresolvable source filters cannot equate two absent module paths', async (t) => {
   const project = fixture(t, {
     'ui.tsx': ui,

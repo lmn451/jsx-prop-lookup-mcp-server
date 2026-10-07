@@ -39,9 +39,7 @@ export async function createJsxSnapshot(
   const options: ts.CompilerOptions = {
     ...project.getCompilerOptions(),
     allowJs: true,
-    // Stryker disable next-line BooleanLiteral: no default library is readable through this host, so enabling its probe cannot change query results.
     noLib: true,
-    // Stryker disable next-line BooleanLiteral: this read-only snapshot never calls program.emit.
     noEmit: true,
     jsx: ts.JsxEmit.Preserve,
   };
@@ -58,25 +56,19 @@ export async function createJsxSnapshot(
       const source = read(file);
       return source === undefined
         ? undefined
-        : // Stryker disable next-line BooleanLiteral: the program binder also sets parent links before query traversal.
-          ts.createSourceFile(file, source, languageVersion, true);
+        : ts.createSourceFile(file, source, languageVersion, true);
     },
-    // Stryker disable next-line StringLiteral: noLib prevents this required compiler-host callback from selecting a library.
     getDefaultLibFileName: () => '',
     writeFile: () => {},
-    // Stryker disable next-line ArrowFunction: file names and workspace compiler paths are already absolute.
     getCurrentDirectory: () => project.root,
-    getCanonicalFileName: (file) => file,
-    // Stryker disable next-line ArrowFunction,BooleanLiteral: canonical path identity is supplied explicitly by getCanonicalFileName.
-    useCaseSensitiveFileNames: () => true,
-    // Stryker disable next-line ArrowFunction,StringLiteral: this required printer callback is unused by read-only AST queries.
+    getCanonicalFileName: (file) => (ts.sys.useCaseSensitiveFileNames ? file : file.toLowerCase()),
+    useCaseSensitiveFileNames: () => ts.sys.useCaseSensitiveFileNames,
     getNewLine: () => '\n',
     fileExists: (file) => read(file) !== undefined,
     readFile: read,
   };
   const resolveModule = (specifier: string, fromFile: string) => {
     const resolved = ts.resolveModuleName(specifier, fromFile, options, host).resolvedModule;
-    // Stryker disable next-line ConditionalExpression: the catch below also returns undefined if an absent resolution is dereferenced.
     if (!resolved) return undefined;
     try {
       return project.resolve(resolved.resolvedFileName);
@@ -112,7 +104,6 @@ export async function createJsxSnapshot(
         filePath: source.fileName,
         line: position.line + 1,
         column: position.character + 1,
-        // Stryker disable next-line StringLiteral: syntactic diagnostics are flat strings, so the chain separator is unused.
         reason: `Parse error: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}`,
       });
     }
@@ -149,14 +140,20 @@ export function getComponentIdentity(
   } else {
     return null;
   }
-  // Stryker disable next-line ConditionalExpression: non-string import specifiers have no value-space alias binding and were diagnosed in the snapshot.
   if (!ts.isStringLiteral(module.moduleSpecifier)) return null;
   const identity: JsxIdentity = { exportName, source: module.moduleSpecifier.text };
   const symbol = checker.getSymbolAtLocation(tag);
   const definition = symbol && resolvedSymbol(checker, symbol);
   const node = definition?.valueDeclaration;
   if (node) {
-    identity.definition = { filePath: node.getSourceFile().fileName, name: definition!.name };
+    try {
+      identity.definition = {
+        filePath: snapshot.project.resolve(node.getSourceFile().fileName),
+        name: definition!.name,
+      };
+    } catch {
+      // A file can disappear after the compiler read; retain the unresolved import.
+    }
   }
   return identity;
 }
@@ -221,7 +218,6 @@ function propertyKey(name: ts.PropertyName): string | undefined {
   if (ts.isComputedPropertyName(name)) {
     const value = staticValue(name.expression);
     if (
-      // Stryker disable next-line ConditionalExpression: unknown values have no value field, so both typeof alternatives reject them.
       value.status === 'known' &&
       (typeof value.value === 'string' || typeof value.value === 'number')
     )
@@ -254,7 +250,6 @@ function childrenValue(children: ts.NodeArray<ts.JsxChild>): PropValue | undefin
         .join(' ');
       return { status: 'known', value: text };
     }
-    // Stryker disable next-line LogicalOperator: comment-only expressions were removed; other JSX child kinds have no expression field.
     if (ts.isJsxExpression(child) && child.expression) return staticValue(child.expression);
   }
   return { status: 'unknown', expression: meaningful.map((child) => child.getText()).join('') };
@@ -287,7 +282,6 @@ export function collectJsx(snapshot: JsxSnapshot): {
           } else {
             const value = staticValue(attribute.expression);
             if (
-              // Stryker disable next-line ConditionalExpression: unknown values have no value field and fail the object check below.
               value.status === 'known' &&
               value.value !== null &&
               typeof value.value === 'object' &&
