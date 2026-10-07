@@ -145,6 +145,13 @@ test('pagination keeps original order for identical normalized locations', () =>
   assert.deepEqual(paginateResults(input).matches, input);
 });
 
+test('pagination compares file paths case-sensitively', () => {
+  const lowerCase = { filePath: 'a.tsx', line: 1, column: 1 };
+  const upperCase = { filePath: 'Z.tsx', line: 1, column: 1 };
+
+  assert.deepEqual(paginateResults([lowerCase, upperCase]).matches, [upperCase, lowerCase]);
+});
+
 test('pagination treats a backslash as a path separator when comparing a sibling filename', () => {
   const sibling = { filePath: 'src0.tsx', line: 1, column: 1 };
   const nested = { filePath: 'src\\A.tsx', line: 1, column: 1 };
