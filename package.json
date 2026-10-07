@@ -75,7 +75,9 @@
     "dist/saved-checks.*",
     "docs/saved-checks.md",
     "docs/inspect-component.md",
-    "examples/audit"
+    "examples/audit",
+    "dist/change-impact.*",
+    "docs/change-impact.md"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",
