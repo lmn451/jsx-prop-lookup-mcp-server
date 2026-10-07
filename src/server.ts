@@ -1,14 +1,15 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { JSXPropAnalyzer } from './jsx-analyzer.js';
+import type { ProjectOptions } from './project.js';
 import { PACKAGE_VERSION } from './version.js';
 
 async function toolResult(result: Promise<unknown>) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(await result, null, 2) }] };
 }
 
-export function createServer(allowedRoots: readonly string[] = []): McpServer {
-  const analyzer = new JSXPropAnalyzer(allowedRoots);
+export function createServer(options: readonly string[] | ProjectOptions = []): McpServer {
+  const analyzer = new JSXPropAnalyzer(options);
   const server = new McpServer({ name: 'jsx-prop-lookup-server', version: PACKAGE_VERSION });
   const annotations = { readOnlyHint: true, destructiveHint: false };
   const directory = z.string().default('.').describe('Directory to search.');

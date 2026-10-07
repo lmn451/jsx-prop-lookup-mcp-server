@@ -170,9 +170,51 @@ Example:
 
 Namespaced JSX is supported. For `<UI.Select />`, component filters may use either the full name (`UI.Select`) or the local name (`Select`). Results retain the full dotted name where applicable.
 
+## Project setup
+
+Choose a project once so every relative tool query is rooted there:
+
+```bash
+jsx-prop-lookup-mcp-server --project-root /workspace/app
+# Equivalent: PROJECT_ROOT=/workspace/app jsx-prop-lookup-mcp-server
+```
+
+`--project-root` overrides `PROJECT_ROOT`. Add `--tsconfig configs/query.json` to select
+another configuration inside the project; otherwise `tsconfig.json` at the root is
+used when present. Discovery reads `.js`, `.jsx`, `.ts`, and `.tsx` files, applies
+root and nested `.gitignore` rules, and then applies the configuration's effective
+`files`, `include`, and `exclude` settings, including in-project `extends` files.
+JavaScript inclusion follows TypeScript's `allowJs` option when a config exists.
+Without a config, all four source extensions are eligible. Empty projects return
+empty results. Changes to source selection and ignore rules are visible on the
+next query.
+
+An explicitly requested file follows the same discovery filters as a directory:
+ignored or config-excluded files return no matches. `.git`, `node_modules`, `dist`,
+and `build` directories are always excluded. Git's parent-directory rule applies:
+a negation cannot restore a file while its parent directory remains ignored.
+
+Configured projects reject paths and symlinks outside their root, including
+extended configs and symlinked ignore files. `ALLOWED_ROOTS` additionally constrains
+the project root. Configurations cannot inherit from outside the root; move shared
+config files into the project or select a common parent workspace root.
+
+Programmatic callers can use `new ProjectWorkspace({ root, allowedRoots, tsconfig })`
+and `createServer({ root, allowedRoots, tsconfig })`. The workspace exposes a canonical
+`root`, synchronous `resolve`, `readFile`, and `getCompilerOptions` methods, and async
+`discover(path = '.')`. Reads recheck containment and can read in-root imported type
+files even when those files are excluded from discovery. TypeScript is pinned because
+the secure config host uses its file matcher against a validated directory snapshot.
+
+For compatibility, omitting project options retains the existing CLI behavior:
+paths are relative to the process working directory and only `ALLOWED_ROOTS` limits
+absolute requests. The array forms `createServer(allowedRoots)` and
+`new JSXPropAnalyzer(allowedRoots)` retain that behavior too. The options-object
+forms default their project root to the current working directory.
+
 ## Filesystem access
 
-All four tools read paths supplied by the MCP client. Without an allowed-roots setting, no filesystem whitelist is applied.
+All four tools read paths supplied by the MCP client. Without a project root or allowed-roots setting, no filesystem whitelist is applied.
 
 Set a comma-separated list of allowed roots with either:
 
@@ -208,7 +250,7 @@ npm start
 
 `npm run dev` starts the source entry point directly. Both development and built modes use stdio.
 
-`src/index.ts` handles CLI arguments and the process lifecycle. `src/server.ts` exports `createServer(allowedRoots)` to register the tools without starting a transport or adding process listeners. Tool validation and error responses use the MCP SDK.
+`src/index.ts` handles CLI arguments and the process lifecycle. `src/server.ts` exports `createServer(options)` to register the tools without starting a transport or adding process listeners. Tool validation and error responses use the MCP SDK.
 
 ## MCP v2 migration note
 

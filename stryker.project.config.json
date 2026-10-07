@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "mutate": [
+    "src/project.ts"
+  ],
+  "ignorePatterns": [
+    "/mcp.json"
+  ],
+  "testRunner": "tap",
+  "tap": {
+    "testFiles": [
+      "tests/project.test.js"
+    ]
+  },
+  "coverageAnalysis": "perTest",
+  "reporters": [
+    "clear-text",
+    "progress",
+    "json",
+    "html"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/mutation/project.json"
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/project.html"
+  },
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": 90
+  },
+  "concurrency": 2,
+  "buildCommand": "npm run build",
+  "incrementalFile": "reports/mutation/project-incremental.json"
+}
