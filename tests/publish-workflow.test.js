@@ -232,3 +232,62 @@ test('tagging and GitHub releases require successful npm publication', () => {
     }
   }
 });
+
+test('tagging pushes prepared versions with or without a version file change', (t) => {
+  const step = releaseWorkflow().jobs.publish.steps.find(
+    (item) => item.name === 'Commit version bump and create tag'
+  );
+
+  for (const [scenario, changeVersion] of [
+    ['unchanged prepared version', false],
+    ['changed bumped version', true],
+  ]) {
+    const directory = mkdtempSync(path.join(os.tmpdir(), 'jsx-tagging-step-'));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const repository = path.join(directory, 'repository');
+    const remote = path.join(directory, 'remote.git');
+    const runGit = (cwd, args) => {
+      const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim();
+    };
+    runGit(directory, ['init', '--bare', remote]);
+    runGit(directory, ['init', repository]);
+    runGit(repository, ['config', 'user.name', 'Release Test']);
+    runGit(repository, ['config', 'user.email', 'release-test@example.invalid']);
+    writeFileSync(path.join(repository, 'package.json'), '{"version":"4.0.0"}\n');
+    writeFileSync(path.join(repository, 'package-lock.json'), '{"version":"4.0.0"}\n');
+    runGit(repository, ['add', 'package.json', 'package-lock.json']);
+    runGit(repository, ['commit', '-m', 'initial']);
+    runGit(repository, ['remote', 'add', 'origin', remote]);
+    runGit(repository, ['push', 'origin', 'HEAD']);
+
+    if (changeVersion) {
+      writeFileSync(path.join(repository, 'package.json'), '{"version":"4.0.1"}\n');
+      writeFileSync(path.join(repository, 'package-lock.json'), '{"version":"4.0.1"}\n');
+    }
+
+    const result = spawnSync(
+      'bash',
+      ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', step.run],
+      {
+        cwd: repository,
+        encoding: 'utf8',
+        timeout: 10000,
+        env: { ...process.env, NEW_VERSION: changeVersion ? '4.0.1' : '4.0.0' },
+      }
+    );
+    assert.equal(result.status, 0, `${scenario}: ${result.stderr}`);
+    const tag = changeVersion ? 'v4.0.1' : 'v4.0.0';
+    assert.equal(runGit(repository, ['tag', '--list']), tag);
+    assert.equal(runGit(remote, ['tag', '--list']), tag);
+    assert.equal(
+      runGit(remote, ['rev-parse', `refs/tags/${tag}`]),
+      runGit(repository, ['rev-parse', 'HEAD'])
+    );
+    assert.equal(
+      runGit(repository, ['show', '-s', '--format=%s', 'HEAD']),
+      changeVersion ? 'chore: bump version to v4.0.1 [skip ci]' : 'initial'
+    );
+  }
+});
