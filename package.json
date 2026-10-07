@@ -42,7 +42,8 @@
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run build && npm test",
-    "test:mutation:project": "stryker run stryker.project.config.json"
+    "test:mutation:project": "stryker run stryker.project.config.json",
+    "test:mutation:find": "stryker run stryker.find-jsx.config.json"
   },
   "bin": {
     "jsx-prop-lookup-mcp-server": "dist/index.js"

@@ -94,7 +94,7 @@ export function createServer(options: readonly string[] | ProjectOptions = []): 
 
   const projectOptions: ProjectOptions = Array.isArray(options)
     ? { allowedRoots: options, root: options[0] }
-    : options as ProjectOptions;
+    : (options as ProjectOptions);
   registerFindJsxTool(server, new ProjectWorkspace(projectOptions));
   return server;
 }
