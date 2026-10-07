@@ -51,6 +51,8 @@
     "dist/index.*",
     "dist/server.*",
     "dist/jsx-analyzer.*",
+    "dist/jsx-query.*",
+    "dist/find-jsx.*",
     "dist/version.*",
     "dist/results.*",
     "dist/project.*",
@@ -59,7 +61,8 @@
     "CHANGELOG.md",
     "RELEASE_NOTES.md",
     "LICENSE",
-    "package.json"
+    "package.json",
+    "docs/find-jsx.md"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",
