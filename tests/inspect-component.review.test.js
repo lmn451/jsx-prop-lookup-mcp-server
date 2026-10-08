@@ -596,3 +596,44 @@ test('inspection snippets include declarations late on long source lines', async
   assert.match(result.matches[0].snippet, /function Widget/);
   assert.ok([...result.matches[0].snippet].length <= 240);
 });
+
+test('body-local type assertions do not taint declared class callback signatures', async (t) => {
+  const workspace = fixture(
+    t,
+    `class Props {callback():void {const local=0 as Missing;void local;}}
+export function Widget(props:{nested:Props}) {return null;}`
+  );
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.matches[0].props, [{ name: 'nested', type: 'Props', required: true }]);
+});
+
+test('nested mapped props retain uncertainty from their declared generic array type', async (t) => {
+  const workspace = fixture(
+    t,
+    `type Clone<T>={[K in keyof T]:T[K]};
+export function Widget<T>(props:{data:Clone<{values:T[]}>}) {return null;}`
+  );
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.complete, false);
+  assert.deepEqual(
+    result.matches[0].props.map((prop) => prop.name),
+    ['data']
+  );
+  assert.deepEqual(
+    result.unresolved.map((item) => item.reason.split(':')[0]),
+    ['Unresolved type for prop data']
+  );
+});
+
+test('synthesized mapped string indexes remain known without source index declarations', async (t) => {
+  const workspace = fixture(
+    t,
+    'export function Widget(props:{data:{[K in string]:string}}) {return null;}'
+  );
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.matches[0].props, [
+    { name: 'data', type: '{ [x: string]: string; }', required: true },
+  ]);
+});
