@@ -226,6 +226,46 @@ function propertyKey(name: ts.PropertyName): string | undefined {
   return undefined;
 }
 
+/** Preserve literal own keys even when their values cannot be evaluated. */
+function applyPropSpread(
+  expression: ts.Expression,
+  props: Record<string, PropValue>,
+  unknownSpreads: string[]
+): void {
+  const unknown = (expression: string) => {
+    unknownSpreads.push(expression);
+    for (const key of Object.keys(props)) props[key] = { status: 'unknown', expression };
+  };
+  const node = unwrap(expression);
+  if (!ts.isObjectLiteralExpression(node)) {
+    unknown(expression.getText());
+    return;
+  }
+  for (const property of node.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      applyPropSpread(property.expression, props, unknownSpreads);
+      continue;
+    }
+    const key = propertyKey(property.name);
+    if (key === undefined) {
+      unknown(property.getText());
+      continue;
+    }
+    if (
+      ts.isPropertyAssignment(property) &&
+      key === '__proto__' &&
+      !ts.isComputedPropertyName(property.name)
+    ) {
+      // A prototype setter contributes no own key and cannot overwrite own values.
+      unknownSpreads.push(property.getText());
+      continue;
+    }
+    props[key] = ts.isPropertyAssignment(property)
+      ? staticValue(property.initializer)
+      : { status: 'unknown', expression: property.getText() };
+  }
+}
+
 function childrenValue(children: ts.NodeArray<ts.JsxChild>): PropValue | undefined {
   const meaningful = children.filter((child) =>
     ts.isJsxText(child)
@@ -280,20 +320,7 @@ export function collectJsx(snapshot: JsxSnapshot): {
                   ? staticValue(initializer.expression)
                   : { status: 'unknown', expression: initializer.getText(source) };
           } else {
-            const value = staticValue(attribute.expression);
-            if (
-              value.status === 'known' &&
-              value.value !== null &&
-              typeof value.value === 'object' &&
-              !Array.isArray(value.value)
-            ) {
-              for (const [key, propValue] of Object.entries(value.value))
-                props[key] = { status: 'known', value: propValue };
-            } else {
-              const expression = attribute.expression.getText(source);
-              unknownSpreads.push(expression);
-              for (const key of Object.keys(props)) props[key] = { status: 'unknown', expression };
-            }
+            applyPropSpread(attribute.expression, props, unknownSpreads);
           }
         }
         if (ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent)) {

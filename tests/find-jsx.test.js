@@ -119,6 +119,126 @@ test('known props include booleans, computed object spread keys, and children', 
   assert.deepEqual(result.matches[0].unknownSpreads, []);
 });
 
+// Prop presence depends on literal keys, independently of whether values are known.
+for (const [name, spread, props, unknownSpreads] of [
+  [
+    'dynamic queried value',
+    '{label: compute()}',
+    { label: { status: 'unknown', expression: 'compute()' } },
+    [],
+  ],
+  [
+    'dynamic sibling value',
+    '{label: "Save", other: compute()}',
+    {
+      label: { status: 'known', value: 'Save' },
+      other: { status: 'unknown', expression: 'compute()' },
+    },
+    [],
+  ],
+  ['shorthand property', '{label}', { label: { status: 'unknown', expression: 'label' } }, []],
+  [
+    'nested spread followed by a literal property',
+    '{...rest, label: "Save"}',
+    { label: { status: 'known', value: 'Save' } },
+    ['rest'],
+  ],
+]) {
+  test(`literal spread preserves proven presence with a ${name}`, async (t) => {
+    const project = fixture(t, { 'app.tsx': `const x = <Button {...${spread}} />;` });
+    const result = await findJsx(project, { component: 'Button', prop: 'label' });
+    assert.equal(result.total, 1);
+    assert.deepEqual(result.matches[0].props, props);
+    assert.deepEqual(result.matches[0].unknownSpreads, unknownSpreads);
+    assert.equal(result.complete, unknownSpreads.length === 0);
+  });
+}
+
+test('nested literal spreads apply property overwrites in source order', async (t) => {
+  const project = fixture(t, {
+    'app.tsx': `const x = <Button label="outer" {...({label: "first", ...{label: "nested", count: 3}, label: "last"} as const)} />;`,
+  });
+  const result = await findJsx(project, { component: 'Button', prop: 'label', value: 'last' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.matches[0].props, {
+    label: { status: 'known', value: 'last' },
+    count: { status: 'known', value: 3 },
+  });
+});
+
+test('nested unknown spreads preserve keys and invalidate values until overwritten', async (t) => {
+  const project = fixture(t, {
+    'app.tsx': 'const x = <Button label="outer" {...{before: 1, ...{...rest}, after: 2}} />;',
+  });
+  const result = await findJsx(project, { component: 'Button', prop: 'label' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.matches[0].props, {
+    label: { status: 'unknown', expression: 'rest' },
+    before: { status: 'unknown', expression: 'rest' },
+    after: { status: 'known', value: 2 },
+  });
+  assert.deepEqual(result.matches[0].unknownSpreads, ['rest']);
+});
+
+test('unknown computed spread keys preserve presence while later properties restore values', async (t) => {
+  const project = fixture(t, {
+    'app.tsx': 'const x = <Button label="outer" {...{before: 1, [key]: 3, label: "last"}} />;',
+  });
+  const result = await findJsx(project, { component: 'Button', prop: 'before' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.matches[0].props, {
+    label: { status: 'known', value: 'last' },
+    before: { status: 'unknown', expression: '[key]: 3' },
+  });
+  assert.deepEqual(result.matches[0].unknownSpreads, ['[key]: 3']);
+});
+
+test('literal spread getters and methods prove own keys without executing application code', async (t) => {
+  const project = fixture(t, {
+    'app.tsx': `const x = <Button {...{get label() { throw new Error("executed getter"); }, constructor() { throw new Error("executed method"); }}} />;`,
+  });
+  const result = await findJsx(project, { component: 'Button', prop: 'label' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.matches[0].props, {
+    label: { status: 'unknown', expression: 'get label() { throw new Error("executed getter"); }' },
+    constructor: {
+      status: 'unknown',
+      expression: 'constructor() { throw new Error("executed method"); }',
+    },
+  });
+});
+
+test('prototype setter syntax does not hide sibling keys or create an own prop', async (t) => {
+  const project = fixture(t, {
+    'app.tsx': 'const x = <Button {...{label: "Save", __proto__: unknownPrototype}} />;',
+  });
+  const result = await findJsx(project, { component: 'Button', prop: 'label' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.matches[0].props, { label: { status: 'known', value: 'Save' } });
+});
+
+test('shorthand and computed prototype keys remain own props with unknown values', async (t) => {
+  const project = fixture(t, {
+    'app.tsx':
+      'const x = <><Button {...{__proto__}} /><Button {...{["__proto__"]: compute()}} /></>;',
+  });
+  const result = await findJsx(project, { component: 'Button', prop: '__proto__' });
+  assert.equal(result.total, 2);
+  assert.equal(result.complete, true);
+  assert.deepEqual(
+    result.matches.map(({ props }) => props),
+    [
+      { ['__proto__']: { status: 'unknown', expression: '__proto__' } },
+      { ['__proto__']: { status: 'unknown', expression: 'compute()' } },
+    ]
+  );
+});
+
 test('dynamic spreads preserve uncertainty and later explicit props restore known values', async (t) => {
   const project = fixture(t, {
     'app.tsx': `const x = <Widget title="before" {...rest} count={3} />;`,
