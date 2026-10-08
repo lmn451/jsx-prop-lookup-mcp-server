@@ -11,6 +11,7 @@
 - Upgraded Babel, glob, Zod, TypeScript, ESLint, Prettier, and related development dependencies.
 - Migrated ESLint to the flat configuration used by ESLint 10.
 - Simplified the CLI/server entry point with built-in argument parsing, shared tool-response handling, and direct startup/shutdown. Invalid CLI arguments now fail before startup.
+- Added `find_jsx` for import-aware JSX call-site search and `check_jsx` for required, deprecated, and forbidden prop audits.
 - Read and parse failures now return tool errors with the failed filename instead of successful, incomplete results.
 - Package builds now include only the active runtime modules and release documentation; stale tests and disconnected analytics helpers are excluded.
 
@@ -33,7 +34,7 @@
 
 - Replaced the hand-written legacy MCP wire test with official v2 client/stdio integration coverage.
 - Preserved analyzer, allowed-root, namespaced JSX, and expression-value regression coverage.
-- Test the compiled entry point and add regressions for containment escapes, analysis correctness, and parse errors across all five tools.
+- Test the compiled entry point and add regressions for containment escapes, analysis correctness, and parse errors across all six tools.
 
 ## [3.5.0] - 2026-02-10
 

@@ -9,12 +9,13 @@ The test suite covers the observable behavior of the JSX analyzer and its MCP st
 The stdio integration coverage exercises:
 
 - server initialization;
-- discovery of exactly the five current tools;
+- discovery of exactly the six current tools;
 - calls to `analyze_jsx_props`;
 - calls to `find_prop_usage`;
 - calls to `get_component_props`;
 - calls to `find_components_without_prop`;
 - calls to `find_jsx`;
+- calls to `check_jsx`;
 - relative path handling;
 - missing-argument validation; and
 - tool error responses without server termination.
@@ -60,4 +61,4 @@ The CLI tests execute help and invalid-argument paths, signal-driven shutdown, a
 
 ## Regression focus
 
-The suite retains coverage for Babel traversal and value extraction, including expression shapes that previously caused traversal or serialization failures. Coverage is organized around the four supported tools; removed or experimental query and similarity tools are not part of the product contract.
+The suite retains coverage for Babel traversal and value extraction, including expression shapes that previously caused traversal or serialization failures. Coverage includes the six supported tools; removed or experimental query and similarity tools are not part of the product contract.
