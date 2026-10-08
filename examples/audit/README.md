@@ -53,3 +53,15 @@ CI result.
 The rule file's source filter excludes unrelated components with the same name.
 Remove a finding by updating the caller and rerun the same saved check. The
 analysis commands themselves do not rewrite the project.
+
+## Preview removing a deprecated prop
+
+```sh
+node dist/index.js inspect --project-root examples/audit --component Button --source ./Button --remove-prop variant --json
+```
+
+Expect one affected caller in `Legacy.tsx`, where `variant` has the known value
+`"legacy"`, and one unresolved case in `Dynamic.tsx`. The result has
+`summary.action: "remove-prop"`, `summary.affected: 1`, and exit status `2`.
+Add `--path src/Legacy.tsx` to inspect only the known caller and get exit status `0`.
+The preview never removes the prop or edits a caller.

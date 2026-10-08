@@ -45,7 +45,8 @@
     "test:mutation:project": "stryker run stryker.project.config.json",
     "test:mutation:find": "stryker run stryker.find-jsx.config.json",
     "test:mutation:check": "stryker run stryker.check-jsx.config.json",
-    "test:mutation:inspect": "stryker run stryker.inspect.config.json"
+    "test:mutation:inspect": "stryker run stryker.inspect.config.json",
+    "test:mutation:impact": "stryker run stryker.impact.config.json"
   },
   "bin": {
     "jsx-prop-lookup-mcp-server": "dist/index.js"
@@ -75,7 +76,9 @@
     "dist/saved-checks.*",
     "docs/saved-checks.md",
     "docs/inspect-component.md",
-    "examples/audit"
+    "examples/audit",
+    "dist/change-impact.*",
+    "docs/change-impact.md"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",

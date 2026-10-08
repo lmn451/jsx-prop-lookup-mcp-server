@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "mutate": ["src/change-impact.ts"],
+  "ignorePatterns": ["/mcp.json"],
+  "testRunner": "tap",
+  "tap": {
+    "testFiles": ["tests/change-impact.test.js"]
+  },
+  "coverageAnalysis": "perTest",
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/change-impact-core.json"
+  },
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": 90
+  },
+  "concurrency": 2,
+  "buildCommand": "npm run build"
+}
