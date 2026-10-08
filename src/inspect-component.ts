@@ -53,7 +53,8 @@ function collectCandidates(snapshot: JsxSnapshot): Candidate[] {
         (ts.isFunctionDeclaration(node) ||
           ts.isVariableDeclaration(node) ||
           ts.isClassDeclaration(node)) &&
-        node.name && ts.isIdentifier(node.name)
+        node.name &&
+        ts.isIdentifier(node.name)
       ) {
         const symbol = checker.getSymbolAtLocation(node.name);
         if (symbol && (!ts.isFunctionDeclaration(node) || node.body || !candidates.has(symbol))) {
@@ -69,7 +70,8 @@ function collectCandidates(snapshot: JsxSnapshot): Candidate[] {
         node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
       ) {
         const moduleSymbol = checker.getSymbolAtLocation(source);
-        const defaultExport = moduleSymbol &&
+        const defaultExport =
+          moduleSymbol &&
           checker.getExportsOfModule(moduleSymbol).find((symbol) => symbol.name === 'default');
         if (defaultExport) {
           const symbol = canonical(checker, defaultExport);

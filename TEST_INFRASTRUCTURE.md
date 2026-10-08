@@ -24,8 +24,7 @@ This project uses Node.js's built-in test runner. The suite covers the AST analy
 
 - pinning and negotiating protocol/specification `2026-07-28`;
 - server identity and discovery;
-- the exact six-tool inventory;
-- valid calls to all six tools;
+- tool discovery and valid calls for every registered tool (see [Test Coverage Summary](TEST_COVERAGE_SUMMARY.md) for the current inventory);
 - invalid arguments and tool-level errors;
 - relative paths from the configured working directory; and
 - clean client-owned process shutdown.
