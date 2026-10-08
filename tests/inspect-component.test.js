@@ -417,6 +417,42 @@ test('an unresolved callable annotation cannot imply a known zero-props signatur
   assert.match(result.unresolved[0].reason, /callable.*signature/i);
 });
 
+test('an untyped declared callable parameter remains unresolved when the implementation omits it', async (t) => {
+  const workspace = project(t, {
+    'Widget.tsx': 'export const Widget: (props) => unknown = () => null;',
+  });
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.matches[0].props, []);
+  assert.match(result.unresolved[0].reason, /Unresolved props type: any/);
+});
+
+for (const declaration of [
+  'interface Render extends Missing { (props: {title: string}): unknown; }',
+  "import type { Base } from './missing'; interface Render extends Base { (props: {title: string}): unknown; }",
+]) {
+  test(`missing declared callable bases preserve known props and uncertainty: ${declaration}`, async (t) => {
+    const workspace = project(t, {
+      'Widget.tsx': `${declaration} export const Widget: Render = () => null;`,
+    });
+    const result = await inspectComponent(workspace, { component: 'Widget' });
+    assert.equal(result.total, 1);
+    assert.equal(result.complete, false);
+    assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
+    assert.match(result.unresolved[0].reason, /callable dependency.*Render/);
+  });
+}
+
+test('an unannotated zero-props arrow remains complete', async (t) => {
+  const workspace = project(t, { 'Widget.tsx': 'export const Widget = () => null;' });
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.matches[0].props, []);
+  assert.deepEqual(result.unresolved, []);
+});
+
 test('infers destructured props and represents an untyped default separately', async (t) => {
   const workspace = project(t, {
     'widget.tsx': `export const Widget = ({ title = 'Hello', count }) => null;

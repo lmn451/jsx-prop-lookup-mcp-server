@@ -425,11 +425,11 @@ function describeCandidate(
       /(?:^|\.)(?:FC|FunctionComponent)$/.test(node.type.typeName.getText())
     )
       typeNode = node.type.typeArguments?.[0];
-    else if (node.type && ts.isFunctionTypeNode(node.type))
-      typeNode = node.type.parameters[0]?.type;
     else if (node.type && !parameter) {
       const signatures = checker.getTypeFromTypeNode(node.type).getCallSignatures();
       if (signatures.length === 1) {
+        if (hasUnresolvedDependencies(snapshot, node.type))
+          unknown(`Unresolved declared callable dependency: ${node.type.getText()}.`, node.type);
         const props = signatures[0].parameters[0];
         if (props) {
           propsType = checker.getTypeOfSymbolAtLocation(props, node);
