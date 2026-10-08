@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "button-migration",
+      "component": "Button",
+      "source": "./Button",
+      "required": ["label"],
+      "deprecated": ["variant"]
+    }
+  ]
+}
