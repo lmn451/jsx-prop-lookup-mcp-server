@@ -14,13 +14,13 @@ The repository has completed the MCP v2 migration and the remediation work recor
 - Added filesystem root enforcement through `ALLOWED_ROOTS` and `--allowed-roots`, including symlink containment tests.
 - Added readable JSX expression extraction for common literals, members, calls, arrow functions, templates, objects, and arrays.
 - Improved parse and filesystem error context while preserving caught errors as causes.
-- Reconciled user-facing documentation with the four-tool product contract.
+- Reconciled user-facing documentation with the available analysis tools.
 - Removed hardcoded credentials from the local MCP configuration and corrected its `disabled` flag.
 
 ## Deliberate non-goals
 
 - The server remains stdio-only. HTTP transport, resources, and prompts are not part of this product.
-- The server exposes four tools only; historical `query_components` and similarity-tool notes are not current APIs.
+- Historical `query_components` and similarity-tool notes are not current APIs.
 - No debug logging mode was added because operational failures already go to stderr and the current tool contract does not expose a debug flag.
 
 ## Verification commands

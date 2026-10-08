@@ -94,7 +94,7 @@ For a local build:
 
 ## Tools
 
-The server exposes exactly four tools.
+The server exposes five tools: the four existing analysis tools below and `find_jsx` for import-aware JSX call-site search. See [Find JSX call sites](docs/find-jsx.md) for its filters, result shape, and uncertainty reporting.
 
 ### `analyze_jsx_props`
 
@@ -214,7 +214,7 @@ forms default their project root to the current working directory.
 
 ## Filesystem access
 
-All four tools read paths supplied by the MCP client. Configure a project root or
+All five tools read paths supplied by the MCP client. Configure a project root or
 allowed roots to limit filesystem access. See [SECURITY.md](SECURITY.md) for the
 root configuration and containment rules.
 
@@ -237,5 +237,3 @@ npm start
 ## MCP v2 migration note
 
 The v2 SDK and the `2026-07-28` protocol/specification line are the active implementation target. Clients or integrations built around MCP v1-only APIs or protocol assumptions must be updated; the server does not maintain a parallel v1 implementation.
-
-See [Find JSX call sites](docs/find-jsx.md) for import-aware search, pagination, and explicit uncertainty.
