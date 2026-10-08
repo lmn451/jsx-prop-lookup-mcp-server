@@ -24,8 +24,8 @@ This project uses Node.js's built-in test runner. The suite covers the AST analy
 
 - pinning and negotiating protocol/specification `2026-07-28`;
 - server identity and discovery;
-- the exact four-tool inventory;
-- valid calls to all four tools;
+- the exact five-tool inventory;
+- valid calls to all five tools;
 - invalid arguments and tool-level errors;
 - relative paths from the configured working directory; and
 - clean client-owned process shutdown.
@@ -107,4 +107,4 @@ The supported runtime is Node.js 20 or newer. Tests are deterministic, use no ne
 
 CI runs the build, tests, scoped mutation checks, and lint on Node.js 20 and 26.
 
-When adding a tool, update the MCP v2 integration inventory and call coverage, then update the current four-tool documentation and release notes.
+When adding a tool, update the MCP v2 integration inventory and call coverage, then update the current tool documentation and release notes.

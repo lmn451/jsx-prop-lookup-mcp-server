@@ -33,13 +33,13 @@
 
 - Replaced the hand-written legacy MCP wire test with official v2 client/stdio integration coverage.
 - Preserved analyzer, allowed-root, namespaced JSX, and expression-value regression coverage.
-- Test the compiled entry point and add regressions for containment escapes, analysis correctness, and parse errors across all four tools.
+- Test the compiled entry point and add regressions for containment escapes, analysis correctness, and parse errors across all five tools.
 
 ## [3.5.0] - 2026-02-10
 
 - Latest published npm release before the 4.0.0 upgrade, using `@modelcontextprotocol/sdk` v1 and the same four analysis tools.
 
-Historical entries below describe older package releases and may mention APIs that are not part of the current four-tool product.
+Historical entries below describe older package releases and may mention APIs outside the current tool contract.
 
 ## [1.3.0] - 2024-07-23
 

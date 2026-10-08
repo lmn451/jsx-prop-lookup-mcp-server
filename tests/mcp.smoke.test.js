@@ -15,6 +15,7 @@ describe('MCP v2 server integration', () => {
   const toolNames = [
     'analyze_jsx_props',
     'find_prop_usage',
+    'find_jsx',
     'get_component_props',
     'find_components_without_prop',
   ];
@@ -204,7 +205,7 @@ describe('MCP v2 server integration', () => {
         assert.equal(result.isError, true, request.name);
         assert.match(result.content[0].text, /Failed to parse .*Broken\.tsx/);
       }
-      assert.equal((await client.listTools()).tools.length, 4);
+      assert.equal((await client.listTools()).tools.length, toolNames.length);
     });
   });
 

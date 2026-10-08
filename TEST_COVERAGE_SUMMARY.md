@@ -9,11 +9,12 @@ The test suite covers the observable behavior of the JSX analyzer and its MCP st
 The stdio integration coverage exercises:
 
 - server initialization;
-- discovery of exactly the four current tools;
+- discovery of exactly the five current tools;
 - calls to `analyze_jsx_props`;
 - calls to `find_prop_usage`;
 - calls to `get_component_props`;
 - calls to `find_components_without_prop`;
+- calls to `find_jsx`;
 - relative path handling;
 - missing-argument validation; and
 - tool error responses without server termination.

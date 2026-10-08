@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { JSXPropAnalyzer } from './jsx-analyzer.js';
-import type { ProjectOptions } from './project.js';
+import { registerFindJsxTool } from './find-jsx.js';
+import { ProjectWorkspace, type ProjectOptions } from './project.js';
 import { PACKAGE_VERSION } from './version.js';
 
 async function toolResult(result: Promise<unknown>) {
@@ -91,5 +92,9 @@ export function createServer(options: readonly string[] | ProjectOptions = []): 
       toolResult(analyzer.findComponentsWithoutProp(componentName, requiredProp, directory))
   );
 
+  const projectOptions: ProjectOptions = Array.isArray(options)
+    ? { allowedRoots: options, root: options[0] }
+    : (options as ProjectOptions);
+  registerFindJsxTool(server, new ProjectWorkspace(projectOptions));
   return server;
 }
