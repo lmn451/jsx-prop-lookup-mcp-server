@@ -94,7 +94,7 @@ For a local build:
 
 ## Tools
 
-The server exposes five tools: the four existing analysis tools below and `find_jsx` for import-aware JSX call-site search. See [Find JSX call sites](docs/find-jsx.md) for its filters, result shape, and uncertainty reporting.
+The server exposes six tools: the four existing analysis tools below, `find_jsx` for import-aware JSX call-site search, and `check_jsx` for rule-based prop auditing. See [Find JSX call sites](docs/find-jsx.md) and [Audit JSX props](docs/check-jsx.md) for their filters, results, and uncertainty reporting.
 
 ### `analyze_jsx_props`
 
@@ -166,6 +166,10 @@ Example:
 }
 ```
 
+### `find_jsx` and `check_jsx`
+
+`find_jsx` searches JSX call sites by component, import source, prop, and static value. `check_jsx` applies explicit required, deprecated, and forbidden prop rules across all selected call sites. Both report locations and snippets; uncertainty is retained in the result instead of silently treated as a definitive absence. See [Find JSX call sites](docs/find-jsx.md) and [Audit JSX props](docs/check-jsx.md) for parameters, response shapes, and rule details.
+
 ### Namespaced component names
 
 Namespaced JSX is supported. For `<UI.Select />`, component filters may use either the full name (`UI.Select`) or the local name (`Select`). Results retain the full dotted name where applicable.
@@ -214,7 +218,7 @@ forms default their project root to the current working directory.
 
 ## Filesystem access
 
-All five tools read paths supplied by the MCP client. Configure a project root or
+All six tools read paths supplied by the MCP client. Configure a project root or
 allowed roots to limit filesystem access. See [SECURITY.md](SECURITY.md) for the
 root configuration and containment rules.
 

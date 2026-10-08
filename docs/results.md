@@ -1,8 +1,9 @@
 # Predictable analysis results
 
 The shared result helpers in `src/results.ts` give search, inspection, and audit
-tools a common response shape. This layer does not read files or change existing
-MCP tools; subsequent tool PRs consume it.
+tools a common response shape. They handle sorting, pagination, uncertainty
+reporting, and source snippets; each tool gathers its own results before calling
+the helpers.
 
 ```ts
 import { paginateResults, sourceSnippet } from 'jsx-prop-lookup-mcp-server/dist/results.js';
