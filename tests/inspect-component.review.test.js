@@ -583,3 +583,16 @@ export function Widget(props:Props<string>) {return null;}`
     { name: 'data', type: '{ value: string; empty: {}; }', required: true },
   ]);
 });
+
+// The location must remain useful when the declaration starts beyond the line cap.
+test('inspection snippets include declarations late on long source lines', async (t) => {
+  const workspace = fixture(
+    t,
+    `${' '.repeat(1000)}export function Widget(props: {title: string}) {return null;}`
+  );
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.complete, true);
+  assert.equal(result.matches[0].column, 1001);
+  assert.match(result.matches[0].snippet, /function Widget/);
+  assert.ok([...result.matches[0].snippet].length <= 240);
+});

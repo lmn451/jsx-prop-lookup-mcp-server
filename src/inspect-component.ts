@@ -137,7 +137,7 @@ function location(node: ts.Node): LocatedResult {
     filePath: source.fileName,
     line: position.line + 1,
     column: position.character + 1,
-    snippet: sourceSnippet(source.text, position.line + 1),
+    snippet: sourceSnippet(source.text, position.line + 1, position.character + 1),
   };
 }
 
