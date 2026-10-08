@@ -330,7 +330,8 @@ test('supports unqualified function-component types and function expressions', a
 
 test('resolves anonymous default function declarations through imported aliases and source filters', async (t) => {
   const workspace = project(t, {
-    'card.tsx': 'export default function (props: {title: string}) { return null; }',
+    'card.tsx': `export const Side = () => null;
+export default function (props: {title: string}) { return null; }`,
     'barrel.ts': "export { default } from './card';",
     'panel.tsx': 'type Props = {label: string}; export default class extends Component<Props> {}',
     'app.tsx': "import Card from './barrel'; const view = <Card title='x' />;",
@@ -338,11 +339,13 @@ test('resolves anonymous default function declarations through imported aliases 
   const result = await inspectComponent(workspace, { component: 'Card', source: './barrel' });
   assert.equal(result.total, 1);
   assert.equal(result.complete, true);
+  assert.equal(result.matches[0].name, 'default');
   assert.equal(result.matches[0].filePath, path.join(workspace.root, 'card.tsx'));
   assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
   const panel = await inspectComponent(workspace, { component: 'default', source: './panel' });
   assert.equal(panel.total, 1);
   assert.equal(panel.complete, true);
+  assert.equal(panel.matches[0].name, 'default');
   assert.deepEqual(panel.matches[0].props, [{ name: 'label', type: 'string', required: true }]);
 });
 
