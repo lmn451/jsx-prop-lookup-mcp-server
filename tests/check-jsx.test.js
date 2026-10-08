@@ -156,6 +156,26 @@ test('audit finds the first violation after 100 passing call sites', async (t) =
   assert.equal(result.complete, true);
 });
 
+for (const jsx of [
+  '<Button {...{label: compute()}} />',
+  '<Button {...{label: "Save", other: compute()}} />',
+  '<Button {...{label}} />',
+  '<Button {...{...rest, label: "Save"}} />',
+]) {
+  test(`audit preserves statically proven spread presence: ${jsx}`, async (t) => {
+    const workspace = project(t, jsx);
+    const result = await checkJsx(workspace, {
+      rules: [{ component: 'Button', required: ['label'], deprecated: ['label'] }],
+    });
+    assert.equal(result.complete, true);
+    assert.equal(result.summary.status, 'fail');
+    assert.deepEqual(
+      result.matches.map(({ kind, prop }) => ({ kind, prop })),
+      [{ kind: 'deprecated', prop: 'label' }]
+    );
+  });
+}
+
 test('audit filters aliases by original export and source', async (t) => {
   const workspace = project(t, '<><B /><Other /></>');
   writeFileSync(
