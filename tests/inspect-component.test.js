@@ -348,7 +348,8 @@ test('resolves anonymous default function declarations through imported aliases 
 
 test('reads props from a declared callable type when its implementation omits the parameter', async (t) => {
   const workspace = project(t, {
-    'Widget.tsx': 'type Props = {title: string}; export const Widget: (props: Props) => unknown = () => null;',
+    'Widget.tsx':
+      'type Props = {title: string}; export const Widget: (props: Props) => unknown = () => null;',
   });
   const result = await inspectComponent(workspace, { component: 'Widget' });
   assert.equal(result.total, 1);
