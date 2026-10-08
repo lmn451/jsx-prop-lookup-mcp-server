@@ -58,10 +58,12 @@ export class ProjectWorkspace {
     if (!statSync(this.root).isDirectory()) {
       throw new Error(`Project root is not a directory: ${this.root}`);
     }
-    this.allowedRoots = options.allowedRoots ?? (process.env.ALLOWED_ROOTS ?? '')
-      .split(',')
-      .map((root) => root.trim())
-      .filter(Boolean);
+    this.allowedRoots =
+      options.allowedRoots ??
+      (process.env.ALLOWED_ROOTS ?? '')
+        .split(',')
+        .map((root) => root.trim())
+        .filter(Boolean);
     this.tsconfig = options.tsconfig;
     this.checkAllowedRoots(this.root);
   }
