@@ -85,6 +85,21 @@ Widget.defaultProps={b:2};`
   ]);
 });
 
+test('a whole defaultProps replacement clears uncertainty from the replaced expression', async (t) => {
+  const workspace = fixture(
+    t,
+    `export function Widget(props:{title?:string}) {return null;}
+Widget.defaultProps=compute();
+Widget.defaultProps={title:'Hi'};`
+  );
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.unresolved, []);
+  assert.deepEqual(result.matches[0].props, [
+    { name: 'title', type: 'string', required: false, default: { status: 'known', value: 'Hi' } },
+  ]);
+});
+
 test('external defaultProps assignments occur after class static defaults', async (t) => {
   const workspace = fixture(
     t,

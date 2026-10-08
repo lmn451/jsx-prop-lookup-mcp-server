@@ -330,7 +330,7 @@ test('supports unqualified function-component types and function expressions', a
 
 test('resolves anonymous default function declarations through imported aliases and source filters', async (t) => {
   const workspace = project(t, {
-    'card.tsx': `export const Side = () => null;
+    'card.tsx': `export function Side() { return null; }
 export default function (props: {title: string}) { return null; }`,
     'barrel.ts': "export { default } from './card';",
     'panel.tsx': 'type Props = {label: string}; export default class extends Component<Props> {}',

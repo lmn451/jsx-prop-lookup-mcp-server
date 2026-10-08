@@ -304,6 +304,12 @@ function describeCandidate(
   if (docs) result.docs = docs;
   const unknown = (reason: string, at: ts.Node = node) =>
     unresolved.push({ ...location(at), reason });
+  const defaultIssues = new Set<UnresolvedCase>();
+  const unknownDefault = (reason: string, at: ts.Node) => {
+    const issue = { ...location(at), reason };
+    defaultIssues.add(issue);
+    unresolved.push(issue);
+  };
   const overloads = symbol.declarations?.filter(ts.isFunctionDeclaration) ?? [];
   if (overloads.length > 1 && overloads.every((overload) => !overload.body)) {
     unknown('Ambiguous overloaded component declaration has no implementation signature.');
@@ -317,18 +323,18 @@ function describeCandidate(
     const value = staticValue(expression);
     defaults.set(name, value);
     if (value.status === 'unknown')
-      unknown(`Unresolved default for prop ${name}: ${value.expression}`, expression);
+      unknownDefault(`Unresolved default for prop ${name}: ${value.expression}`, expression);
   };
   const applyObjectDefaults = (expression: ts.ObjectLiteralExpression): void => {
     for (const property of expression.properties) {
       if (ts.isPropertyAssignment(property)) {
         const name = propertyName(property.name);
         if (name === '__proto__') {
-          unknown(`Unresolved defaultProps prototype: ${property.getText()}`, property);
+          unknownDefault(`Unresolved defaultProps prototype: ${property.getText()}`, property);
         } else if (name !== undefined) addDefault(name, property.initializer);
         else {
           invalidateDefaults(property.name.getText());
-          unknown(`Unresolved defaultProps key: ${property.name.getText()}`, property);
+          unknownDefault(`Unresolved defaultProps key: ${property.name.getText()}`, property);
         }
       } else {
         if (ts.isSpreadAssignment(property)) {
@@ -344,14 +350,19 @@ function describeCandidate(
             defaults.set(name, { status: 'unknown', expression: property.getText() });
           else invalidateDefaults(property.getText());
         }
-        unknown(`Unresolved defaultProps member: ${property.getText()}`, property);
+        unknownDefault(`Unresolved defaultProps member: ${property.getText()}`, property);
       }
     }
   };
   const objectDefaults = (expression: ts.Expression) => {
+    if (defaultIssues.size) {
+      for (let index = unresolved.length - 1; index >= 0; index--)
+        if (defaultIssues.has(unresolved[index])) unresolved.splice(index, 1);
+      defaultIssues.clear();
+    }
     defaults.clear();
     if (!ts.isObjectLiteralExpression(expression)) {
-      unknown(`Unresolved defaultProps: ${expression.getText()}`, expression);
+      unknownDefault(`Unresolved defaultProps: ${expression.getText()}`, expression);
       return;
     }
     applyObjectDefaults(expression);
