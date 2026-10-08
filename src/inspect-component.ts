@@ -53,8 +53,7 @@ function collectCandidates(snapshot: JsxSnapshot): Candidate[] {
         (ts.isFunctionDeclaration(node) ||
           ts.isVariableDeclaration(node) ||
           ts.isClassDeclaration(node)) &&
-        node.name &&
-        ts.isIdentifier(node.name)
+        node.name && ts.isIdentifier(node.name)
       ) {
         const symbol = checker.getSymbolAtLocation(node.name);
         if (symbol && (!ts.isFunctionDeclaration(node) || node.body || !candidates.has(symbol))) {
@@ -63,6 +62,18 @@ function collectCandidates(snapshot: JsxSnapshot): Candidate[] {
             symbol,
             names: new Set([node.name.text]),
           });
+        }
+      } else if (
+        (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) &&
+        !node.name &&
+        node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
+      ) {
+        const moduleSymbol = checker.getSymbolAtLocation(source);
+        const defaultExport = moduleSymbol &&
+          checker.getExportsOfModule(moduleSymbol).find((symbol) => symbol.name === 'default');
+        if (defaultExport) {
+          const symbol = canonical(checker, defaultExport);
+          candidates.set(symbol, { node, symbol, names: new Set(['default']) });
         }
       }
       ts.forEachChild(node, visit);
@@ -282,7 +293,11 @@ function describeCandidate(
 ): ComponentInspection {
   const { checker } = snapshot;
   const { node, symbol } = candidate;
-  const result: ComponentInspection = { ...location(node), name: node.name!.getText(), props: [] };
+  const result: ComponentInspection = {
+    ...location(node),
+    name: node.name?.getText() ?? 'default',
+    props: [],
+  };
   const docs = ts.displayPartsToString(symbol.getDocumentationComment(checker));
   if (docs) result.docs = docs;
   const unknown = (reason: string, at: ts.Node = node) =>
@@ -408,6 +423,8 @@ function describeCandidate(
       /(?:^|\.)(?:FC|FunctionComponent)$/.test(node.type.typeName.getText())
     )
       typeNode = node.type.typeArguments?.[0];
+    else if (node.type && ts.isFunctionTypeNode(node.type))
+      typeNode = node.type.parameters[0]?.type;
   } else {
     const base = node.heritageClauses?.find(
       (clause) => clause.token === ts.SyntaxKind.ExtendsKeyword

@@ -328,6 +328,34 @@ test('supports unqualified function-component types and function expressions', a
   assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
 });
 
+test('resolves anonymous default function declarations through imported aliases and source filters', async (t) => {
+  const workspace = project(t, {
+    'card.tsx': 'export default function (props: {title: string}) { return null; }',
+    'barrel.ts': "export { default } from './card';",
+    'panel.tsx': 'type Props = {label: string}; export default class extends Component<Props> {}',
+    'app.tsx': "import Card from './barrel'; const view = <Card title='x' />;",
+  });
+  const result = await inspectComponent(workspace, { component: 'Card', source: './barrel' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, true);
+  assert.equal(result.matches[0].filePath, path.join(workspace.root, 'card.tsx'));
+  assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
+  const panel = await inspectComponent(workspace, { component: 'default', source: './panel' });
+  assert.equal(panel.total, 1);
+  assert.equal(panel.complete, true);
+  assert.deepEqual(panel.matches[0].props, [{ name: 'label', type: 'string', required: true }]);
+});
+
+test('reads props from a declared callable type when its implementation omits the parameter', async (t) => {
+  const workspace = project(t, {
+    'Widget.tsx': 'type Props = {title: string}; export const Widget: (props: Props) => unknown = () => null;',
+  });
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
+});
+
 test('infers destructured props and represents an untyped default separately', async (t) => {
   const workspace = project(t, {
     'widget.tsx': `export const Widget = ({ title = 'Hello', count }) => null;
