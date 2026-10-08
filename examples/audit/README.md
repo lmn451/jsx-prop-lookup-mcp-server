@@ -1,7 +1,11 @@
 # Button migration and audit examples
 
-Run these commands from the repository root after `npm ci && npm run build`.
-They analyze the checked-in fixture without executing its components or changing
+For a source checkout, run `npm ci && npm run build` from the repository root first.
+For an installed npm package, run the commands from that package's directory and
+skip those setup steps: npm has installed its runtime dependencies, and `dist/`
+is included.
+
+The commands analyze this fixture without executing its components or changing
 its source. `Missing.tsx` intentionally omits a required prop; `Dynamic.tsx`
 intentionally spreads an object whose keys cannot be determined statically.
 
