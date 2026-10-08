@@ -17,6 +17,7 @@ describe('MCP v2 server integration', () => {
     'find_prop_usage',
     'find_jsx',
     'check_jsx',
+    'inspect_component',
     'get_component_props',
     'find_components_without_prop',
   ];
