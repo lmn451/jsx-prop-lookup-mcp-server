@@ -79,3 +79,5 @@ npm start
 `src/cli.ts` shares parsing and command execution; `src/index.ts` owns process I/O
 and lifecycle. `src/server.ts` registers the modern tools, while
 `src/legacy-server.ts` keeps the compatibility registrations separate.
+
+Run the checked-in [migration and audit examples](examples/audit/README.md) to try caller search, component inspection, and saved checks with stated results.
