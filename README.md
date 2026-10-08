@@ -81,3 +81,6 @@ and lifecycle. `src/server.ts` registers the modern tools, while
 `src/legacy-server.ts` keeps the compatibility registrations separate.
 
 Run the checked-in [migration and audit examples](examples/audit/README.md) to try caller search, component inspection, and saved checks with stated results.
+
+Preview a proposed prop removal with `inspect --component Button --remove-prop variant`.
+See [change impact](docs/change-impact.md) and the [runnable migration examples](examples/audit/README.md).

@@ -45,7 +45,8 @@
     "test:mutation:project": "stryker run stryker.project.config.json",
     "test:mutation:find": "stryker run stryker.find-jsx.config.json",
     "test:mutation:check": "stryker run stryker.check-jsx.config.json",
-    "test:mutation:inspect": "stryker run stryker.inspect.config.json"
+    "test:mutation:inspect": "stryker run stryker.inspect.config.json",
+    "test:mutation:impact": "stryker run stryker.impact.config.json"
   },
   "bin": {
     "jsx-prop-lookup-mcp-server": "dist/index.js"

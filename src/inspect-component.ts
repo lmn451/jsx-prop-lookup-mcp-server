@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import ts from 'typescript';
 import * as z from 'zod/v4';
 import { ProjectWorkspace } from './project.js';
+import { analyzePropRemoval } from './change-impact.js';
 import { createJsxSnapshot, staticValue, type JsxSnapshot, type PropValue } from './jsx-query.js';
 import {
   paginateResults,
@@ -14,6 +15,7 @@ import {
 
 export interface InspectComponentQuery extends PageOptions {
   component: string;
+  removeProp?: string;
   path?: string;
   source?: string;
 }
@@ -532,6 +534,8 @@ function describeCandidate(
 
 /** Inspect component definitions and declared props without evaluating project code. */
 export async function inspectComponent(project: ProjectWorkspace, query: InspectComponentQuery) {
+  if (query.removeProp !== undefined)
+    return analyzePropRemoval(project, { ...query, prop: query.removeProp });
   if (!query.component.trim()) throw new Error('component must be a non-empty string');
   const snapshot = await createJsxSnapshot(project, query.path);
   const unresolved = [...snapshot.unresolved];
@@ -555,13 +559,19 @@ export function registerInspectComponentTool(server: McpServer, project: Project
     {
       title: 'Inspect component',
       description:
-        'Inspect component definitions, declared prop types, docs, and statically known defaults. Resolves imported aliases and reports unknown information explicitly.',
+        'Inspect component definitions, declared prop types, docs, and statically known defaults. Resolves imported aliases and reports unknown information explicitly. Use removeProp to preview affected JSX callers without editing source.',
       inputSchema: z.object({
         component: z
           .string()
           .min(1)
           .describe('Component name, local import alias, or original export name.'),
         path: z.string().default('.').describe('Project file or directory to inspect.'),
+        removeProp: z
+          .string()
+          .trim()
+          .min(1)
+          .optional()
+          .describe('Preview callers affected by removing this prop.'),
         source: z
           .string()
           .optional()

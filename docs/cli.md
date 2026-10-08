@@ -31,7 +31,7 @@ add a restriction to the project boundary.
 | Command   | Required flags     | Optional query flags                                                                      |
 | --------- | ------------------ | ----------------------------------------------------------------------------------------- |
 | `query`   | None               | `--path`, `--component`, `--source`, `--prop`, `--value`, `--offset`, `--limit`, `--json` |
-| `inspect` | `--component NAME` | `--path`, `--source`, `--offset`, `--limit`, `--json`                                     |
+| `inspect` | `--component NAME` | `--path`, `--source`, `--remove-prop`, `--offset`, `--limit`, `--json`                    |
 | `check`   | `--rules FILE`     | `--path`, `--offset`, `--limit`, `--json`                                                 |
 | `serve`   | None               | `--legacy-tools`                                                                          |
 
@@ -44,6 +44,9 @@ in `unresolved`; application code is never evaluated.
 `inspect` uses MCP `inspect_component`'s analysis of component definitions, prop
 types, documentation, and statically known defaults. A missing component produces
 an incomplete result. `--source` disambiguates component definitions by module.
+Add `--remove-prop NAME` to preview affected JSX callers instead of the declaration.
+This read-only mode returns affected usages and explicit uncertainty, with exit `0`
+when complete and `2` when incomplete. See [prop-removal impact](change-impact.md).
 
 `check` reads a strict saved JSON document with `version: 1` and a nonempty `rules`
 array, then runs the same audit as `check_jsx`. Rules may require, deprecate, or forbid

@@ -61,3 +61,10 @@ instead of presenting their shared fields as a complete props list.
 A missing component also produces an explicit unresolved case. A
 resolved component with no declared parameters can have an empty props list and
 still be complete.
+
+## Preview removing a prop
+
+Pass `removeProp: "variant"` alongside `component` and optional `source`/`path`
+to return affected JSX callers instead of the declaration. Unknown spreads and
+unresolved imports remain explicit, and no source is edited. Pagination uses the
+same limits. See [prop-removal impact](change-impact.md) for the result schema.
