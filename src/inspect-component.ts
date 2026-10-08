@@ -147,6 +147,117 @@ function propertyName(name: ts.PropertyName | ts.BindingName): string | undefine
     : undefined;
 }
 
+function unwrapDefault(expression: ts.Expression): ts.Expression {
+  while (
+    ts.isParenthesizedExpression(expression) ||
+    ts.isAsExpression(expression) ||
+    ts.isTypeAssertionExpression(expression) ||
+    ts.isSatisfiesExpression(expression) ||
+    ts.isNonNullExpression(expression)
+  )
+    expression = expression.expression;
+  return expression;
+}
+
+function hasTypeErrors(snapshot: JsxSnapshot, node: ts.Node): boolean {
+  return snapshot.program
+    .getSemanticDiagnostics(node.getSourceFile())
+    .some(
+      (diagnostic) =>
+        diagnostic.start !== undefined &&
+        diagnostic.start >= node.getStart() &&
+        diagnostic.start < node.end
+    );
+}
+
+/** Follow type-only dependencies, including aliases and interface bases. */
+function hasUnresolvedDependencies(
+  snapshot: JsxSnapshot,
+  node: ts.Node,
+  includeTypeParameters = false
+): boolean {
+  const visited = new Set<ts.Node>();
+  let unresolved = false;
+  const inspect = (current: ts.Node): void => {
+    if (visited.has(current)) return;
+    visited.add(current);
+    if (ts.isClassDeclaration(current)) {
+      const inspectSignature = (child: ts.Node): void => {
+        if (ts.isTypeNode(child)) inspect(child);
+        else if (ts.isParameter(child) || ts.isTypeParameterDeclaration(child))
+          ts.forEachChild(child, inspectSignature);
+      };
+      current.typeParameters?.forEach(inspectSignature);
+      for (const heritage of current.heritageClauses ?? []) inspect(heritage);
+      for (const member of current.members) {
+        if (ts.getCombinedModifierFlags(member) & ts.ModifierFlags.Static) continue;
+        ts.forEachChild(member, inspectSignature);
+      }
+      return;
+    }
+    if (hasTypeErrors(snapshot, current)) unresolved = true;
+    const visit = (child: ts.Node): void => {
+      if (ts.isTypeReferenceNode(child) || ts.isExpressionWithTypeArguments(child)) {
+        const name = ts.isTypeReferenceNode(child) ? child.typeName : child.expression;
+        const binding = snapshot.checker.getSymbolAtLocation(name);
+        if (binding) {
+          for (const declaration of binding.declarations ?? []) {
+            let parent: ts.Node = declaration;
+            while (!ts.isImportDeclaration(parent) && !ts.isSourceFile(parent))
+              parent = parent.parent;
+            if (ts.isImportDeclaration(parent) && hasTypeErrors(snapshot, parent))
+              unresolved = true;
+          }
+          const symbol = canonical(snapshot.checker, binding);
+          if (includeTypeParameters && symbol.flags & ts.SymbolFlags.TypeParameter)
+            unresolved = true;
+          for (const declaration of symbol.declarations ?? []) {
+            if (
+              ts.isTypeAliasDeclaration(declaration) ||
+              ts.isInterfaceDeclaration(declaration) ||
+              ts.isClassDeclaration(declaration)
+            )
+              inspect(declaration);
+          }
+        }
+      }
+      ts.forEachChild(child, visit);
+    };
+    visit(current);
+  };
+  inspect(node);
+  return unresolved;
+}
+
+/** Inspect nested property and signature types without traversing application values. */
+function hasUnresolvedType(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+  at: ts.Node,
+  visited = new Set<ts.Type>()
+): boolean {
+  if (visited.has(type)) return false;
+  visited.add(type);
+  if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.TypeParameter))
+    return true;
+  if (type.isUnionOrIntersection())
+    return type.types.some((part) => hasUnresolvedType(checker, part, at, visited));
+  if (!(type.flags & ts.TypeFlags.Object)) return false;
+  const check = (part: ts.Type) => hasUnresolvedType(checker, part, at, visited);
+  return (
+    checker
+      .getPropertiesOfType(type)
+      .some((prop) => check(checker.getTypeOfSymbolAtLocation(prop, at))) ||
+    [...type.getCallSignatures(), ...type.getConstructSignatures()].some(
+      (signature) =>
+        signature.parameters.some((parameter) =>
+          check(checker.getTypeOfSymbolAtLocation(parameter, at))
+        ) || check(signature.getReturnType())
+    ) ||
+    checker.getIndexInfosOfType(type).some((index) => check(index.type))
+  );
+}
+
 function describeCandidate(
   snapshot: JsxSnapshot,
   candidate: Candidate,
@@ -159,28 +270,72 @@ function describeCandidate(
   if (docs) result.docs = docs;
   const unknown = (reason: string, at: ts.Node = node) =>
     unresolved.push({ ...location(at), reason });
+  const overloads = symbol.declarations?.filter(ts.isFunctionDeclaration) ?? [];
+  if (overloads.length > 1 && overloads.every((overload) => !overload.body)) {
+    unknown('Ambiguous overloaded component declaration has no implementation signature.');
+    return result;
+  }
   const defaults = new Map<string, PropValue>();
+  const invalidateDefaults = (expression: string) => {
+    for (const name of defaults.keys()) defaults.set(name, { status: 'unknown', expression });
+  };
   const addDefault = (name: string, expression: ts.Expression) => {
     const value = staticValue(expression);
     defaults.set(name, value);
     if (value.status === 'unknown')
       unknown(`Unresolved default for prop ${name}: ${value.expression}`, expression);
   };
+  const applyObjectDefaults = (expression: ts.ObjectLiteralExpression): void => {
+    for (const property of expression.properties) {
+      if (ts.isPropertyAssignment(property)) {
+        const name = propertyName(property.name);
+        if (name === '__proto__') {
+          unknown(`Unresolved defaultProps prototype: ${property.getText()}`, property);
+        } else if (name !== undefined) addDefault(name, property.initializer);
+        else {
+          invalidateDefaults(property.name.getText());
+          unknown(`Unresolved defaultProps key: ${property.name.getText()}`, property);
+        }
+      } else {
+        if (ts.isSpreadAssignment(property)) {
+          const spread = unwrapDefault(property.expression);
+          if (ts.isObjectLiteralExpression(spread)) {
+            applyObjectDefaults(spread);
+            continue;
+          }
+          invalidateDefaults(property.expression.getText());
+        } else if (property.name) {
+          const name = propertyName(property.name);
+          if (name !== undefined)
+            defaults.set(name, { status: 'unknown', expression: property.getText() });
+          else invalidateDefaults(property.getText());
+        }
+        unknown(`Unresolved defaultProps member: ${property.getText()}`, property);
+      }
+    }
+  };
   const objectDefaults = (expression: ts.Expression) => {
+    defaults.clear();
     if (!ts.isObjectLiteralExpression(expression)) {
       unknown(`Unresolved defaultProps: ${expression.getText()}`, expression);
       return;
     }
-    for (const property of expression.properties) {
-      if (ts.isPropertyAssignment(property)) {
-        const name = propertyName(property.name);
-        if (name !== undefined) addDefault(name, property.initializer);
-        else unknown(`Unresolved defaultProps key: ${property.name.getText()}`, property);
-      } else unknown(`Unresolved defaultProps member: ${property.getText()}`, property);
-    }
+    applyObjectDefaults(expression);
   };
+  if (ts.isClassDeclaration(node)) {
+    for (const member of node.members) {
+      if (
+        ts.isPropertyDeclaration(member) &&
+        propertyName(member.name) === 'defaultProps' &&
+        member.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword) &&
+        member.initializer
+      )
+        objectDefaults(member.initializer);
+    }
+  }
   // Assignments are matched by lexical symbol, so a same-named component elsewhere
   // cannot contribute its defaults to this definition.
+  let unorderedDefaultExpression: string | undefined;
   for (const source of snapshot.program.getSourceFiles()) {
     const visit = (current: ts.Node): void => {
       if (
@@ -191,19 +346,31 @@ function describeCandidate(
       ) {
         const target = checker.getSymbolAtLocation(current.left.expression);
         if (target && canonical(checker, target) === symbol) {
-          if (ts.isExpressionStatement(current.parent) && ts.isSourceFile(current.parent.parent))
+          if (source !== node.getSourceFile()) {
+            unorderedDefaultExpression = current.right.getText();
+            unknown(
+              'defaultProps assignments outside the defining module cannot be statically ordered.',
+              current
+            );
+          } else if (
+            ts.isExpressionStatement(current.parent) &&
+            ts.isSourceFile(current.parent.parent)
+          )
             objectDefaults(current.right);
-          else
+          else {
+            invalidateDefaults(current.right.getText());
             unknown(
               'Conditional or nested defaultProps assignment cannot be resolved statically.',
               current
             );
+          }
         }
       }
       ts.forEachChild(current, visit);
     };
     visit(source);
   }
+  if (unorderedDefaultExpression !== undefined) invalidateDefaults(unorderedDefaultExpression);
   let propsType: ts.Type | undefined;
   let parameter: ts.ParameterDeclaration | undefined;
   let typeNode: ts.TypeNode | undefined;
@@ -231,15 +398,6 @@ function describeCandidate(
     if (base && /(?:^|\.)(?:Component|PureComponent)$/.test(base.expression.getText()))
       typeNode = base.typeArguments?.[0];
     if (!typeNode) unknown('Unresolved class component props type.');
-    for (const member of node.members) {
-      if (
-        ts.isPropertyDeclaration(member) &&
-        propertyName(member.name) === 'defaultProps' &&
-        member.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword) &&
-        member.initializer
-      )
-        objectDefaults(member.initializer);
-    }
   }
   typeNode = parameter?.type ?? typeNode;
   if (typeNode) propsType = checker.getTypeFromTypeNode(typeNode);
@@ -256,6 +414,7 @@ function describeCandidate(
     }
   }
   if (propsType) {
+    const issueCount = unresolved.length;
     if (
       propsType.flags &
       (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.TypeParameter | ts.TypeFlags.Union)
@@ -271,7 +430,8 @@ function describeCandidate(
         const declaredTypeNode =
           ts.isPropertySignature(declaration) ||
           ts.isPropertyDeclaration(declaration) ||
-          ts.isParameter(declaration)
+          ts.isParameter(declaration) ||
+          ts.isGetAccessorDeclaration(declaration)
             ? declaration.type
             : undefined;
         const declaredType = declaredTypeNode?.getText();
@@ -293,25 +453,22 @@ function describeCandidate(
         const deprecated = prop.getJsDocTags(checker).find((tag) => tag.name === 'deprecated');
         if (deprecated) item.deprecated = ts.displayPartsToString(deprecated.text) || true;
         if (defaults.has(prop.name)) item.default = defaults.get(prop.name);
-        const hasTypeError = snapshot.program
-          .getSemanticDiagnostics(declaration.getSourceFile())
-          .some(
-            (diagnostic) =>
-              diagnostic.start !== undefined &&
-              diagnostic.start >= declaration.getStart() &&
-              diagnostic.start < declaration.end
-          );
         if (
-          propType.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.TypeParameter) ||
-          (resolvedType === '{}' &&
-            declaredTypeNode &&
-            checker.getTypeFromTypeNode(declaredTypeNode).flags & ts.TypeFlags.TypeParameter) ||
-          hasTypeError
+          hasUnresolvedType(checker, propType, declaration) ||
+          (declaredTypeNode &&
+            hasUnresolvedDependencies(snapshot, declaredTypeNode, resolvedType === '{}')) ||
+          (prop.declarations ?? []).some((part) => hasTypeErrors(snapshot, part))
         )
           unknown(`Unresolved type for prop ${prop.name}: ${item.type}.`, declaration);
         result.props.push(item);
       }
     }
+    if (
+      unresolved.length === issueCount &&
+      typeNode &&
+      hasUnresolvedDependencies(snapshot, typeNode)
+    )
+      unknown(`Unresolved props dependency: ${typeNode.getText()}.`, typeNode);
   }
   for (const [name, value] of defaults) {
     if (!result.props.some((prop) => prop.name === name)) {

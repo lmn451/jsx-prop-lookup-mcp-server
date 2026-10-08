@@ -26,6 +26,11 @@ argument. Types declared later in the file and imported types are supported.
 Generic substitutions and intersections use the compiler's resolved prop type.
 Source annotations are retained when an unresolved type or the no-library
 compiler environment would otherwise erase them.
+Missing type dependencies and unresolved generics inside object, callback, or
+array props keep the page incomplete. Recursive types are inspected without
+revisiting the same type. When function overloads have an implementation, its
+props signature is used; multiple ambient declarations without an implementation
+are reported as ambiguous.
 `required` describes the declaration's optional marker; defaults are reported
 separately. For example, `title: string` stays required even if a destructured
 parameter supplies a default.
@@ -35,7 +40,15 @@ Literal destructuring defaults and `defaultProps` properties have
 `{ "status": "unknown", "expression": "computeTitle()" }` and an unresolved
 diagnostic. Application code is never executed. Destructuring defaults take
 precedence over a corresponding `defaultProps` value. Conditional or nested
-`defaultProps` assignments remain unresolved.
+`defaultProps` assignments remain unresolved. Each whole-object assignment
+replaces earlier defaults, including class static defaults. Literal object
+spreads follow property order: an unknown spread makes preceding defaults
+unknown, and later explicit values can restore known defaults. Known keys inside
+nested literal spreads are retained through parentheses, type assertions,
+`satisfies`, and nonnull assertions. Assignments from other modules remain
+unresolved because their execution order is unknown. Spreads of non-object
+values, computed accessors, and prototype setters remain explicitly unresolved;
+prototype setters do not produce an own prop named `__proto__`.
 
 Every result page has `unresolved` and `complete`. Unknown prop types, dynamic
 defaults, and unsupported wrappers such as `memo(forwardRef(...))` make the page
