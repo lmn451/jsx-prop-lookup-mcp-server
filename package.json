@@ -43,7 +43,8 @@
     "prepack": "npm run build",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run build && npm test",
     "test:mutation:project": "stryker run stryker.project.config.json",
-    "test:mutation:find": "stryker run stryker.find-jsx.config.json"
+    "test:mutation:find": "stryker run stryker.find-jsx.config.json",
+    "test:mutation:check": "stryker run stryker.check-jsx.config.json"
   },
   "bin": {
     "jsx-prop-lookup-mcp-server": "dist/index.js"
@@ -64,7 +65,8 @@
     "LICENSE",
     "package.json",
     "docs/find-jsx.md",
-    "dist/check-jsx.*"
+    "dist/check-jsx.*",
+    "docs/check-jsx.md"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",
