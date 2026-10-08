@@ -1,6 +1,6 @@
 # Find JSX call sites
 
-`find_jsx` searches JSX elements using import identity. It never runs application code. Existing analysis tools remain available during migration.
+`find_jsx` searches JSX elements using import identity. It never runs application code. For legacy MCP tool compatibility, see the [CLI reference](cli.md).
 
 ```json
 {

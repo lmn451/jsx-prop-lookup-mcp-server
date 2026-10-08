@@ -18,7 +18,7 @@ export function createServer(options: readonly string[] | ServerOptions = {}): M
     return createLegacyServer(
       configured.root !== undefined || configured.tsconfig !== undefined
         ? configured
-        : (configured.allowedRoots ?? [])
+        : configured.allowedRoots ?? []
     );
   }
   const project = new ProjectWorkspace(configured);
