@@ -207,3 +207,81 @@ test('MCP inspection advertises and executes the optional removal mode', async (
   assert.equal(invalid.isError, true);
   project.assertUnchanged();
 });
+
+test("normal MCP inspection preserves another definition's uncertainty after replacing defaults", async (t) => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'jsx-impact-defaults-')));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const files = {
+    'a.tsx': `export function Widget(props: {title?: string}) { return null; }
+Widget.defaultProps = compute();`,
+    'b.tsx': `export function Widget(props: {title?: string}) { return null; }
+Widget.defaultProps = compute();
+Widget.defaultProps = {title: 'Known'};`,
+  };
+  for (const [name, source] of Object.entries(files))
+    fs.writeFileSync(path.join(root, name), source);
+  const before = Object.fromEntries(
+    Object.keys(files).map((name) => [name, fs.readFileSync(path.join(root, name))])
+  );
+  const server = new McpServer({
+    name: 'impact-normal-inspection',
+    version: '1.0.0',
+  });
+  registerInspectComponentTool(server, new ProjectWorkspace({ root }));
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const handle = serveStdio(() => server, {
+    transport: serverTransport,
+    legacy: 'reject',
+  });
+  const client = new Client(
+    { name: 'impact-normal-inspection-tests', version: '1.0.0' },
+    { versionNegotiation: { mode: { pin: '2026-07-28' } } }
+  );
+  t.after(async () => {
+    await client.close();
+    await handle.close();
+  });
+  await client.connect(clientTransport);
+  const query = {
+    name: 'inspect_component',
+    arguments: { component: 'Widget' },
+  };
+  const response = await client.callTool(query);
+  assert.equal(response.isError, undefined);
+  const result = response.structuredContent;
+  assert.deepEqual(result, JSON.parse(response.content[0].text));
+  assert.equal(result.total, 2);
+  assert.equal(result.complete, false);
+  assert.deepEqual(
+    result.matches.map(({ filePath, props }) => ({
+      file: path.basename(filePath),
+      props,
+    })),
+    [
+      {
+        file: 'a.tsx',
+        props: [{ name: 'title', type: 'string', required: false }],
+      },
+      {
+        file: 'b.tsx',
+        props: [
+          {
+            name: 'title',
+            type: 'string',
+            required: false,
+            default: { status: 'known', value: 'Known' },
+          },
+        ],
+      },
+    ]
+  );
+  assert.equal(result.unresolved.length, 1);
+  assert.equal(result.unresolved[0].filePath, path.join(root, 'a.tsx'));
+  assert.match(result.unresolved[0].reason, /Unresolved defaultProps: compute\(\)/);
+  const repeated = await client.callTool(query);
+  assert.equal(repeated.isError, undefined);
+  assert.deepEqual(repeated.structuredContent, result);
+  assert.deepEqual(fs.readdirSync(root).sort(), Object.keys(files).sort());
+  for (const [name, bytes] of Object.entries(before))
+    assert.deepEqual(fs.readFileSync(path.join(root, name)), bytes);
+});
