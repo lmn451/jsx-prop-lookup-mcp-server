@@ -1,24 +1,13 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "mutate": [
-    "src/check-jsx.ts"
-  ],
-  "ignorePatterns": [
-    "/mcp.json"
-  ],
+  "mutate": ["src/check-jsx.ts"],
+  "ignorePatterns": ["/mcp.json"],
   "testRunner": "tap",
   "tap": {
-    "testFiles": [
-      "tests/check-jsx.test.js"
-    ]
+    "testFiles": ["tests/check-jsx.test.js"]
   },
   "coverageAnalysis": "perTest",
-  "reporters": [
-    "clear-text",
-    "progress",
-    "json",
-    "html"
-  ],
+  "reporters": ["clear-text", "progress", "json", "html"],
   "jsonReporter": {
     "fileName": "reports/mutation/check-jsx.json"
   },
