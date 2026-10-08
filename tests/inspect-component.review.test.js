@@ -550,3 +550,36 @@ test('nested class method bodies do not taint declared callback signatures', asy
   assert.equal(result.complete, true);
   assert.deepEqual(result.matches[0].props, [{ name: 'nested', type: 'Props', required: true }]);
 });
+
+for (const [shape, annotation] of [
+  ['array property', '{values:T[]}'],
+  ['callback return', '{make:()=>T[]}'],
+  ['callback parameter', '{consume:(values:T[])=>void}'],
+  ['index signature', '{[key:string]:T[]}'],
+]) {
+  test(`nested generic ${shape} retains uncertainty after array erasure`, async (t) => {
+    const workspace = fixture(
+      t,
+      `export function Widget<T>(props:{data:${annotation}}) {return null;}`
+    );
+    const result = await inspectComponent(workspace, { component: 'Widget' });
+    assert.equal(result.complete, false);
+    assert.deepEqual(
+      result.unresolved.map((item) => item.reason.split(':')[0]),
+      ['Unresolved type for prop data']
+    );
+  });
+}
+
+test('resolved nested generic substitutions stay known beside explicit empty object types', async (t) => {
+  const workspace = fixture(
+    t,
+    `type Props<T>={data:{value:T;empty:{}}};
+export function Widget(props:Props<string>) {return null;}`
+  );
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.matches[0].props, [
+    { name: 'data', type: '{ value: string; empty: {}; }', required: true },
+  ]);
+});

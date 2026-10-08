@@ -147,6 +147,16 @@ function propertyName(name: ts.PropertyName | ts.BindingName): string | undefine
     : undefined;
 }
 
+function propertyTypeNode(declaration: ts.Declaration | undefined): ts.TypeNode | undefined {
+  return declaration &&
+    (ts.isPropertySignature(declaration) ||
+      ts.isPropertyDeclaration(declaration) ||
+      ts.isParameter(declaration) ||
+      ts.isGetAccessorDeclaration(declaration))
+    ? declaration.type
+    : undefined;
+}
+
 function unwrapDefault(expression: ts.Expression): ts.Expression {
   while (
     ts.isParenthesizedExpression(expression) ||
@@ -231,30 +241,37 @@ function hasUnresolvedDependencies(
 
 /** Inspect nested property and signature types without traversing application values. */
 function hasUnresolvedType(
-  checker: ts.TypeChecker,
+  snapshot: JsxSnapshot,
   type: ts.Type,
   at: ts.Node,
   visited = new Set<ts.Type>()
 ): boolean {
+  const { checker } = snapshot;
   if (visited.has(type)) return false;
   visited.add(type);
   if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.TypeParameter))
     return true;
   if (type.isUnionOrIntersection())
-    return type.types.some((part) => hasUnresolvedType(checker, part, at, visited));
+    return type.types.some((part) => hasUnresolvedType(snapshot, part, at, visited));
   if (!(type.flags & ts.TypeFlags.Object)) return false;
-  const check = (part: ts.Type) => hasUnresolvedType(checker, part, at, visited);
+  const check = (part: ts.Type, annotation?: ts.TypeNode) =>
+    hasUnresolvedType(snapshot, part, at, visited) ||
+    (annotation !== undefined &&
+      checker.typeToString(part) === '{}' &&
+      hasUnresolvedDependencies(snapshot, annotation, true));
+  const checkSymbol = (symbol: ts.Symbol) =>
+    check(
+      checker.getTypeOfSymbolAtLocation(symbol, at),
+      propertyTypeNode(symbol.valueDeclaration ?? symbol.declarations?.[0])
+    );
   return (
-    checker
-      .getPropertiesOfType(type)
-      .some((prop) => check(checker.getTypeOfSymbolAtLocation(prop, at))) ||
+    checker.getPropertiesOfType(type).some(checkSymbol) ||
     [...type.getCallSignatures(), ...type.getConstructSignatures()].some(
       (signature) =>
-        signature.parameters.some((parameter) =>
-          check(checker.getTypeOfSymbolAtLocation(parameter, at))
-        ) || check(signature.getReturnType())
+        signature.parameters.some(checkSymbol) ||
+        check(signature.getReturnType(), signature.getDeclaration()?.type)
     ) ||
-    checker.getIndexInfosOfType(type).some((index) => check(index.type))
+    checker.getIndexInfosOfType(type).some((index) => check(index.type, index.declaration?.type))
   );
 }
 
@@ -427,13 +444,7 @@ function describeCandidate(
       for (const prop of checker.getPropertiesOfType(propsType)) {
         const declaration = prop.valueDeclaration ?? prop.declarations?.[0] ?? node;
         const propType = checker.getTypeOfSymbolAtLocation(prop, declaration);
-        const declaredTypeNode =
-          ts.isPropertySignature(declaration) ||
-          ts.isPropertyDeclaration(declaration) ||
-          ts.isParameter(declaration) ||
-          ts.isGetAccessorDeclaration(declaration)
-            ? declaration.type
-            : undefined;
+        const declaredTypeNode = propertyTypeNode(declaration);
         const declaredType = declaredTypeNode?.getText();
         const resolvedType = checker.typeToString(
           propType,
@@ -454,7 +465,7 @@ function describeCandidate(
         if (deprecated) item.deprecated = ts.displayPartsToString(deprecated.text) || true;
         if (defaults.has(prop.name)) item.default = defaults.get(prop.name);
         if (
-          hasUnresolvedType(checker, propType, declaration) ||
+          hasUnresolvedType(snapshot, propType, declaration) ||
           (declaredTypeNode &&
             hasUnresolvedDependencies(snapshot, declaredTypeNode, resolvedType === '{}')) ||
           (prop.declarations ?? []).some((part) => hasTypeErrors(snapshot, part))
