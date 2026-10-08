@@ -19,7 +19,7 @@ function createMCPClient(env = {}, args = []) {
   );
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [serverPath, ...args],
+    args: [serverPath, '--legacy-tools', ...args],
     cwd: repoRoot,
     env: { ...process.env, ...env },
   });

@@ -22,7 +22,6 @@
 - Respect parameter bindings when finding prop access inside closures and callbacks.
 - Handle static computed access, optional chaining, and defaulted props parameters.
 - Associate prop type declarations regardless of their position in the file.
-- Restore the missing configuration API for the optional, disconnected request logger.
 
 ### Security
 

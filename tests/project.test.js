@@ -45,6 +45,36 @@ test('configured project selects included source independently of the working di
   assert.equal(project.resolve('src/A.tsx'), fs.realpathSync(path.join(root, 'src/A.tsx')));
 });
 
+test('workspace uses environment defaults while explicit options take precedence', (t) => {
+  const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'jsx-project-env-')));
+  const envRoot = path.join(parent, 'environment');
+  const optionRoot = path.join(parent, 'option');
+  const allowedRoot = path.join(parent, 'allowed');
+  for (const directory of [envRoot, optionRoot, allowedRoot]) fs.mkdirSync(directory);
+  const previousRoot = process.env.PROJECT_ROOT;
+  const previousAllowedRoots = process.env.ALLOWED_ROOTS;
+  t.after(() => {
+    if (previousRoot === undefined) delete process.env.PROJECT_ROOT;
+    else process.env.PROJECT_ROOT = previousRoot;
+    if (previousAllowedRoots === undefined) delete process.env.ALLOWED_ROOTS;
+    else process.env.ALLOWED_ROOTS = previousAllowedRoots;
+    fs.rmSync(parent, { recursive: true, force: true });
+  });
+  process.env.PROJECT_ROOT = envRoot;
+  process.env.ALLOWED_ROOTS = ` ${allowedRoot}, ,${envRoot} `;
+
+  assert.equal(new ProjectWorkspace().root, fs.realpathSync(envRoot));
+  assert.throws(() => new ProjectWorkspace({ root: optionRoot }), /outside allowed roots/);
+  assert.equal(
+    new ProjectWorkspace({ root: optionRoot, allowedRoots: [parent] }).root,
+    fs.realpathSync(optionRoot)
+  );
+  assert.equal(
+    new ProjectWorkspace({ root: optionRoot, allowedRoots: [] }).root,
+    fs.realpathSync(optionRoot)
+  );
+});
+
 for (const [input, expected] of [
   ['src', ['src/A.tsx']],
   ['src/A.tsx', ['src/A.tsx']],
