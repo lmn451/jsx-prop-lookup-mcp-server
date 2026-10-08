@@ -94,7 +94,7 @@ For a local build:
 
 ## Tools
 
-The server exposes six tools: the four existing analysis tools below, `find_jsx` for import-aware JSX call-site search, and `check_jsx` for rule-based prop auditing. See [Find JSX call sites](docs/find-jsx.md) and [Audit JSX props](docs/check-jsx.md) for their filters, results, and uncertainty reporting.
+The server exposes the read-only analysis tools below, including import-aware [JSX search](docs/find-jsx.md), [component inspection](docs/inspect-component.md), and [rule checks](docs/check-jsx.md).
 
 ### `analyze_jsx_props`
 
@@ -147,6 +147,14 @@ Example:
   "directory": "src/components"
 }
 ```
+
+### `inspect_component`
+
+Inspects component definitions and their declared prop types, JSDoc, deprecations,
+and static defaults. Accepts `component`, optional `source` and `path` filters,
+and `offset`/`limit` pagination. Imported aliases and barrel exports resolve to
+the original definition. Results include snippets and explicit unresolved cases.
+See [component inspection](docs/inspect-component.md) for examples and limitations.
 
 ### `find_components_without_prop`
 
@@ -218,7 +226,7 @@ forms default their project root to the current working directory.
 
 ## Filesystem access
 
-All six tools read paths supplied by the MCP client. Configure a project root or
+The analysis tools read paths supplied by the MCP client. Configure a project root or
 allowed roots to limit filesystem access. See [SECURITY.md](SECURITY.md) for the
 root configuration and containment rules.
 

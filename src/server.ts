@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { JSXPropAnalyzer } from './jsx-analyzer.js';
 import { registerFindJsxTool } from './find-jsx.js';
+import { registerInspectComponentTool } from './inspect-component.js';
 import { registerCheckJsxTool } from './check-jsx.js';
 import { ProjectWorkspace, type ProjectOptions } from './project.js';
 import { PACKAGE_VERSION } from './version.js';
@@ -99,5 +100,6 @@ export function createServer(options: readonly string[] | ProjectOptions = []): 
   const project = new ProjectWorkspace(projectOptions);
   registerFindJsxTool(server, project);
   registerCheckJsxTool(server, project);
+  registerInspectComponentTool(server, project);
   return server;
 }
