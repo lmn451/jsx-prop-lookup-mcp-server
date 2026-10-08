@@ -125,6 +125,22 @@ for (const [label, jsx, prop, affected, complete, value] of [
   });
 }
 
+for (const [jsx, value] of [
+  ['<Button {...{label: compute()}} />', { status: 'unknown', expression: 'compute()' }],
+  ['<Button {...{label: "Save", other: compute()}} />', { status: 'known', value: 'Save' }],
+  ['<Button {...{label}} />', { status: 'unknown', expression: 'label' }],
+  ['<Button {...{...rest, label: "Save"}} />', { status: 'known', value: 'Save' }],
+]) {
+  test(`prop removal preserves statically proven spread presence: ${jsx}`, async (t) => {
+    const project = fixture(t, { 'app.tsx': `const x = ${jsx};` });
+    const result = await analyzePropRemoval(project, { component: 'Button', prop: 'label' });
+    assert.equal(result.total, 1);
+    assert.equal(result.complete, true);
+    assert.equal(result.summary.affected, 1);
+    assert.deepEqual(result.matches[0].value, value);
+  });
+}
+
 test('impact resolves aliased barrels while excluding other sources and shadowed bindings', async (t) => {
   const project = fixture(t, {
     'ui.tsx': 'export const Button = (props: any) => null;',
