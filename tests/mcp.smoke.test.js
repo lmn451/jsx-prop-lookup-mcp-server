@@ -15,9 +15,6 @@ describe('MCP v2 server integration', () => {
   const toolNames = [
     'analyze_jsx_props',
     'find_prop_usage',
-    'find_jsx',
-    'check_jsx',
-    'inspect_component',
     'get_component_props',
     'find_components_without_prop',
   ];
@@ -29,7 +26,7 @@ describe('MCP v2 server integration', () => {
     );
     const transport = new StdioClientTransport({
       command: process.execPath,
-      args: [serverPath],
+      args: [serverPath, '--legacy-tools'],
       cwd: path.resolve(__dirname, '..'),
     });
 
