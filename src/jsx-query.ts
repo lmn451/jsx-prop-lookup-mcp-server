@@ -337,7 +337,7 @@ export function collectJsx(snapshot: JsxSnapshot): {
           filePath: source.fileName,
           line: location.line + 1,
           column: location.character + 1,
-          snippet: sourceSnippet(source.text, location.line + 1),
+          snippet: sourceSnippet(source.text, location.line + 1, location.character + 1),
           component: node.tagName.getText(source),
           identity: getComponentIdentity(snapshot, node.tagName),
           props: Object.fromEntries(Object.entries(props)),

@@ -62,8 +62,13 @@ export function paginateResults<T extends LocatedResult>(
 }
 
 /** A one-based source line, limited to 240 Unicode code points. */
-export function sourceSnippet(source: string, line: number): string {
+export function sourceSnippet(source: string, line: number, column?: number): string {
   const text = source.split(/\r?\n/)[line - 1] ?? '';
   const points = [...text];
-  return points.length > 240 ? points.slice(0, 239).join('') + '…' : text;
+  if (points.length <= 240) return text;
+  if (column === undefined) return points.slice(0, 239).join('') + '…';
+  const position = [...text.slice(0, column - 1)].length;
+  const start = Math.max(0, Math.min(position - 119, points.length - 238));
+  const end = Math.min(points.length, start + 238);
+  return `${start > 0 ? '…' : ''}${points.slice(start, end).join('')}${end < points.length ? '…' : ''}`;
 }

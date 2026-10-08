@@ -356,3 +356,29 @@ test('MCP audit returns the same results and rejects invalid rules and page limi
   assert.ok(tools[0].title.length > 0);
   assert.ok(tools[0].description.length > 0);
 });
+
+test('MCP audit snippets include late call sites on long source lines', async (t) => {
+  const workspace = project(t, `${' '.repeat(3900)}<Button /><Button old />`);
+  const server = new McpServer({ name: 'check-test', version: '1.0.0' });
+  registerCheckJsxTool(server, workspace);
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const handle = serveStdio(() => server, { transport: serverTransport, legacy: 'reject' });
+  const client = new Client(
+    { name: 'check-client', version: '1.0.0' },
+    { versionNegotiation: { mode: { pin: '2026-07-28' } } }
+  );
+  t.after(async () => {
+    await client.close();
+    await handle.close();
+  });
+  await client.connect(clientTransport);
+  const response = await client.callTool({
+    name: 'check_jsx',
+    arguments: { rules: [{ component: 'Button', required: ['label'], forbidden: ['old'] }] },
+  });
+  const findings = response.structuredContent.matches;
+  assert.deepEqual(findings.map(({ kind }) => kind), ['missing', 'missing', 'forbidden']);
+  for (const finding of findings) {
+    assert.match(finding.snippet, /<Button/);
+  }
+});
