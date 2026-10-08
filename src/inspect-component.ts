@@ -427,6 +427,16 @@ function describeCandidate(
       typeNode = node.type.typeArguments?.[0];
     else if (node.type && ts.isFunctionTypeNode(node.type))
       typeNode = node.type.parameters[0]?.type;
+    else if (node.type && !parameter) {
+      const signatures = checker.getTypeFromTypeNode(node.type).getCallSignatures();
+      if (signatures.length === 1) {
+        const props = signatures[0].parameters[0];
+        if (props) {
+          propsType = checker.getTypeOfSymbolAtLocation(props, node);
+          typeNode = propertyTypeNode(props.valueDeclaration ?? props.declarations?.[0]);
+        }
+      } else unknown('Unresolved or ambiguous declared callable signature.', node.type);
+    }
   } else {
     const base = node.heritageClauses?.find(
       (clause) => clause.token === ts.SyntaxKind.ExtendsKeyword
@@ -436,7 +446,7 @@ function describeCandidate(
     if (!typeNode) unknown('Unresolved class component props type.');
   }
   typeNode = parameter?.type ?? typeNode;
-  if (typeNode) propsType = checker.getTypeFromTypeNode(typeNode);
+  if (typeNode) propsType ??= checker.getTypeFromTypeNode(typeNode);
   else if (parameter) propsType = checker.getTypeAtLocation(parameter);
   if (parameter && ts.isObjectBindingPattern(parameter.name)) {
     for (const element of parameter.name.elements) {

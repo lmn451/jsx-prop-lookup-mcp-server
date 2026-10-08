@@ -357,6 +357,63 @@ test('reads props from a declared callable type when its implementation omits th
   assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
 });
 
+for (const [kind, declaration] of [
+  ['alias', 'type Render = (props: {title: string}) => unknown;'],
+  ['interface', 'interface Render { (props: {title: string}): unknown; }'],
+  ['instantiated alias', 'type Render<T> = (props: {title: T}) => unknown;'],
+]) {
+  test(`reads declared callable ${kind} props when the implementation omits its parameter`, async (t) => {
+    const annotation = kind === 'instantiated alias' ? 'Render<string>' : 'Render';
+    const workspace = project(t, {
+      'Widget.tsx': `${declaration} export const Widget: ${annotation} = () => null;`,
+    });
+    const result = await inspectComponent(workspace, { component: 'Widget' });
+    assert.equal(result.total, 1);
+    assert.equal(result.complete, true);
+    assert.deepEqual(result.unresolved, []);
+    assert.deepEqual(result.matches[0].props, [{ name: 'title', type: 'string', required: true }]);
+  });
+}
+
+for (const annotation of ['Render', '() => unknown']) {
+  test(`a declared zero-props callable stays complete: ${annotation}`, async (t) => {
+    const workspace = project(t, {
+      'Widget.tsx': `type Render = () => unknown; export const Widget: ${annotation} = () => null;`,
+    });
+    const result = await inspectComponent(workspace, { component: 'Widget' });
+    assert.equal(result.total, 1);
+    assert.equal(result.complete, true);
+    assert.deepEqual(result.unresolved, []);
+    assert.deepEqual(result.matches[0].props, []);
+  });
+}
+
+test('ambiguous declared callable signatures stay unresolved when the implementation has no parameter', async (t) => {
+  const workspace = project(t, {
+    'Widget.tsx': `interface Render {
+  (props: {title: string}): unknown;
+  (props: {count: number}): unknown;
+}
+export const Widget: Render = () => null;`,
+  });
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.matches[0].props, []);
+  assert.match(result.unresolved[0].reason, /callable.*signature/i);
+});
+
+test('an unresolved callable annotation cannot imply a known zero-props signature', async (t) => {
+  const workspace = project(t, {
+    'Widget.tsx': 'export const Widget: MissingRender = () => null;',
+  });
+  const result = await inspectComponent(workspace, { component: 'Widget' });
+  assert.equal(result.total, 1);
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.matches[0].props, []);
+  assert.match(result.unresolved[0].reason, /callable.*signature/i);
+});
+
 test('infers destructured props and represents an untyped default separately', async (t) => {
   const workspace = project(t, {
     'widget.tsx': `export const Widget = ({ title = 'Hello', count }) => null;

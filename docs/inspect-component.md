@@ -24,6 +24,10 @@ Props come from a function's first parameter annotation, an explicit `React.FC`
 or `FunctionComponent` type argument, or a `Component`/`PureComponent` class type
 argument. Types declared later in the file and imported types are supported.
 Generic substitutions and intersections use the compiler's resolved prop type.
+When a function implementation omits its props parameter, a declared callable
+type can supply it, including a type alias or callable interface. An unresolved
+annotation or multiple declared call signatures remains explicitly unresolved;
+a single zero-parameter signature has a complete empty props list.
 Source annotations are retained when an unresolved type or the no-library
 compiler environment would otherwise erase them.
 Missing type dependencies and unresolved generics inside object, callback, or
