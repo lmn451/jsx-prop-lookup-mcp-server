@@ -34,11 +34,11 @@ node dist/index.js check --project-root examples/audit --path src/Legacy.tsx --r
 node dist/index.js check --project-root examples/audit --path src/Dynamic.tsx --rules rules.json --json
 ```
 
-| Input | Expected result | Exit status |
-| --- | --- | --- |
-| `Good.tsx` | No findings or unresolved cases | `0` |
-| `Legacy.tsx` | One deprecated `variant` finding | `1` |
-| `Dynamic.tsx` | Unknown spread could supply `label` or `variant` | `2` |
+| Input         | Expected result                                  | Exit status |
+| ------------- | ------------------------------------------------ | ----------- |
+| `Good.tsx`    | No findings or unresolved cases                  | `0`         |
+| `Legacy.tsx`  | One deprecated `variant` finding                 | `1`         |
+| `Dynamic.tsx` | Unknown spread could supply `label` or `variant` | `2`         |
 
 To audit the entire fixture, omit `--path`. Expect two findings: deprecated
 `variant` in `Legacy.tsx` and missing `label` in `Missing.tsx`. The unresolved

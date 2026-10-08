@@ -10,13 +10,16 @@ const fixture = path.join(repository, 'examples/audit');
 const executable = path.join(repository, 'dist/index.js');
 
 function run(command, flags = []) {
-  const child = spawnSync(process.execPath, [executable, command,
-    '--project-root', fixture, ...flags, '--json'], {
-    cwd: repository,
-    encoding: 'utf8',
-    timeout: 15_000,
-    env: { ...process.env, ALLOWED_ROOTS: '', PROJECT_ROOT: '' },
-  });
+  const child = spawnSync(
+    process.execPath,
+    [executable, command, '--project-root', fixture, ...flags, '--json'],
+    {
+      cwd: repository,
+      encoding: 'utf8',
+      timeout: 15_000,
+      env: { ...process.env, ALLOWED_ROOTS: '', PROJECT_ROOT: '' },
+    }
+  );
   assert.equal(child.error, undefined);
   assert.equal(child.signal, null);
   assert.equal(child.stderr, '');
@@ -35,8 +38,10 @@ test('documented migration query finds all four aliased callers and labels the u
   const { code, result } = run('query', ['--component', 'Button', '--source', './Button']);
   assert.equal(code, 2);
   assert.equal(result.total, 4);
-  assert.deepEqual(result.matches.map((match) => path.basename(match.filePath)),
-    ['Dynamic.tsx', 'Good.tsx', 'Legacy.tsx', 'Missing.tsx']);
+  assert.deepEqual(
+    result.matches.map((match) => path.basename(match.filePath)),
+    ['Dynamic.tsx', 'Good.tsx', 'Legacy.tsx', 'Missing.tsx']
+  );
   assert.ok(result.matches.every((match) => match.component === 'Action'));
   assert.equal(result.complete, false);
   assert.ok(result.unresolved.some((item) => item.reason.includes('spread')));
@@ -62,11 +67,19 @@ for (const [file, code, kinds, complete] of [
   ['Dynamic.tsx', 2, [], false],
 ]) {
   test(`documented saved check for ${file} exits ${code}`, () => {
-    const { code: actual, result } = run('check', ['--path', `src/${file}`, '--rules', 'rules.json']);
+    const { code: actual, result } = run('check', [
+      '--path',
+      `src/${file}`,
+      '--rules',
+      'rules.json',
+    ]);
     assert.equal(actual, code);
     assert.equal(result.exitCode, code);
     assert.equal(result.complete, complete);
-    assert.deepEqual(result.matches.map((finding) => finding.kind), kinds);
+    assert.deepEqual(
+      result.matches.map((finding) => finding.kind),
+      kinds
+    );
   });
 }
 
@@ -75,10 +88,13 @@ test('whole-fixture audit returns both known failures and stays incomplete witho
   const { code, result } = run('check', ['--rules', 'rules.json']);
   assert.equal(code, 2);
   assert.equal(result.total, 2);
-  assert.deepEqual(result.matches.map((finding) => [path.basename(finding.filePath), finding.kind, finding.prop]), [
-    ['Legacy.tsx', 'deprecated', 'variant'],
-    ['Missing.tsx', 'missing', 'label'],
-  ]);
+  assert.deepEqual(
+    result.matches.map((finding) => [path.basename(finding.filePath), finding.kind, finding.prop]),
+    [
+      ['Legacy.tsx', 'deprecated', 'variant'],
+      ['Missing.tsx', 'missing', 'label'],
+    ]
+  );
   assert.equal(result.summary.status, 'incomplete');
   assert.equal(result.unresolved.length, 2);
   assert.deepEqual(fixtureBytes(), before);
