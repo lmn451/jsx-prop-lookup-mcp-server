@@ -28,7 +28,7 @@ No command starts the MCP stdio server.
   -h, --help              Show help
   --version               Show package version
 
-Requires Node.js 20+ and MCP v2 (2026-07-28). Protocol uses stdout; logs use stderr.
+Requires Node.js 24.11.0+ and MCP v2 (2026-07-28). Protocol uses stdout; logs use stderr.
 `;
 
 function fail(error: unknown): void {
@@ -39,8 +39,9 @@ function fail(error: unknown): void {
 }
 
 async function main(): Promise<void> {
-  if (Number(process.versions.node.split('.')[0]) < 20)
-    throw new Error('Node.js 20 or higher is required');
+  const [major, minor] = process.versions.node.split('.').map(Number);
+  if (major < 24 || (major === 24 && minor < 11))
+    throw new Error('Node.js 24.11.0 or higher is required');
   const options = parseCommandLine(process.argv.slice(2));
   if (options.action === 'help') {
     console.log(HELP);

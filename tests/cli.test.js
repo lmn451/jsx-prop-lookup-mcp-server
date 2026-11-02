@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
+import process from 'node:process';
 
 const serverPath = fileURLToPath(new URL('../dist/index.js', import.meta.url));
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -11,9 +12,16 @@ const { version } = JSON.parse(readFileSync(new URL('../package.json', import.me
 // This exercises the startup version guard with controlled runtime metadata;
 // actual support for each Node release is verified by the CI runtime matrix.
 for (const [boundary, nodeVersion, expectedStatus, expectedStderr, expectedStdout] of [
-  ['below the supported major', '19.9.0', 2, 'Error: Node.js 20 or higher is required\n', ''],
-  ['at the supported major', '20.0.0', 0, '', `${version}\n`],
-  ['above the supported major', '21.0.0', 0, '', `${version}\n`],
+  [
+    'below the supported minimum',
+    '24.10.0',
+    2,
+    'Error: Node.js 24.11.0 or higher is required\n',
+    '',
+  ],
+  ['retired Node 20', '20.19.0', 2, 'Error: Node.js 24.11.0 or higher is required\n', ''],
+  ['at the supported minimum', '24.11.0', 0, '', `${version}\n`],
+  ['above the supported major', '26.0.0', 0, '', `${version}\n`],
 ]) {
   test(`runtime version ${boundary} determines startup availability`, () => {
     const setup = `Object.defineProperty(process.versions, 'node', { value: ${JSON.stringify(nodeVersion)} });`;

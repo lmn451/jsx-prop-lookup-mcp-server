@@ -3,12 +3,13 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 import test from 'node:test';
 import YAML from 'yaml';
 import { Lexer, Parser, Evaluator, data } from '@actions/expressions';
 import semver from 'semver';
 import { truthy } from '@actions/expressions/result';
+import process from 'node:process';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const validator = `${root}/.github/scripts/validate-version.cjs`;
@@ -67,7 +68,7 @@ test('stacked PRs run tests while only master pushes start automatic releases', 
   assert.equal(workflow.on.workflow_dispatch.inputs.publish.type, 'boolean');
   assert.equal(workflow.jobs.test.if, undefined);
   assert.equal(workflow.jobs.publish.needs, 'test');
-  assert.deepEqual(workflow.jobs.test.strategy.matrix['node-version'], ['20.x', '26.x']);
+  assert.deepEqual(workflow.jobs.test.strategy.matrix['node-version'], ['24.x', '26.x']);
 });
 
 test('only publishing receives OIDC and repository write permissions', () => {

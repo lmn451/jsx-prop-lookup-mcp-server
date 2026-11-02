@@ -105,8 +105,8 @@ Tests use `examples/sample-components/`:
 
 ## CI expectations
 
-The supported runtime is Node.js 20 or newer. Tests are deterministic, use no network services, and communicate with the MCP server over local stdio or in-memory transports. Stdio integration and containment tests start the compiled `dist/index.js`, so run `npm run build` before the suite. The integration suite verifies the package version advertised to clients and checks that parse failures return tool errors without closing the connection.
+The supported runtime is Node.js 24.11.0 or newer. Tests are deterministic, use no network services, and communicate with the MCP server over local stdio or in-memory transports. Stdio integration and containment tests start the compiled `dist/index.js`, so run `npm run build` before the suite. The integration suite verifies the package version advertised to clients and checks that parse failures return tool errors without closing the connection.
 
-CI runs the build, tests, scoped mutation checks, and lint on Node.js 20 and 26.
+CI runs the build, tests, scoped mutation checks, and lint on Node.js 24 and 26.
 
 When adding a tool, update the MCP v2 integration inventory and call coverage, then update the current tool documentation and release notes.
