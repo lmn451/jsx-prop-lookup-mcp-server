@@ -16,6 +16,8 @@ Use an absolute allowed root:
       "args": [
         "--yes",
         "jsx-prop-lookup-mcp-server",
+        "--project-root",
+        "/absolute/path/to/project",
         "--allowed-roots",
         "/absolute/path/to/project"
       ]
@@ -34,6 +36,7 @@ For a local checkout:
       "args": ["dist/index.js"],
       "cwd": "/absolute/path/to/jsx-prop-lookup-mcp-server",
       "env": {
+        "PROJECT_ROOT": "/absolute/path/to/project",
         "ALLOWED_ROOTS": "/absolute/path/to/project"
       }
     }
@@ -62,7 +65,7 @@ Upgrade the MCP client or configure it to pin/negotiate `2026-07-28`. Do not sen
 
 ### `Connection closed`
 
-Check Node.js version, the executable path, `cwd`, and that no wrapper writes logs to stdout. For local development, build `dist/index.js` first.
+Check Node.js version, the executable path, `cwd`, `PROJECT_ROOT`, and that no wrapper writes logs to stdout. `PROJECT_ROOT` selects the analyzed project; `cwd` is the process working directory. For local development, build `dist/index.js` first.
 
 ### Path access denied
 

@@ -53,12 +53,17 @@ export class ProjectWorkspace {
   private readonly tsconfig?: string;
 
   constructor(options: ProjectOptions = {}) {
-    this.configuredRoot = resolve(options.root ?? process.cwd());
+    this.configuredRoot = resolve(options.root ?? process.env.PROJECT_ROOT ?? process.cwd());
     this.root = realpathSync.native(this.configuredRoot);
     if (!statSync(this.root).isDirectory()) {
       throw new Error(`Project root is not a directory: ${this.root}`);
     }
-    this.allowedRoots = options.allowedRoots ?? [];
+    this.allowedRoots =
+      options.allowedRoots ??
+      (process.env.ALLOWED_ROOTS ?? '')
+        .split(',')
+        .map((root) => root.trim())
+        .filter(Boolean);
     this.tsconfig = options.tsconfig;
     this.checkAllowedRoots(this.root);
   }

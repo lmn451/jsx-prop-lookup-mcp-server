@@ -55,4 +55,5 @@ does not turn a failure into a pass. Unresolved cases remain in every page.
 
 The shared library function is `checkJsx(project, query)` from
 `dist/check-jsx.js`; `validateRules(value)` exposes the same rule validation.
-Saved rule files and CLI exit statuses are added by the following stack layers.
+Saved rule files are described in [saved checks](saved-checks.md); CLI exit
+statuses are documented in the [CLI reference](cli.md).
