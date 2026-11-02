@@ -34,7 +34,7 @@ async function fixtureClient(t) {
   await client.connect(
     new StdioClientTransport({
       command: process.execPath,
-      args: [serverPath],
+      args: [serverPath, '--legacy-tools'],
       cwd: directory,
       env: { ...process.env, ALLOWED_ROOTS: directory },
     })

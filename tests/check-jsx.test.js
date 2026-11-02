@@ -377,7 +377,10 @@ test('MCP audit snippets include late call sites on long source lines', async (t
     arguments: { rules: [{ component: 'Button', required: ['label'], forbidden: ['old'] }] },
   });
   const findings = response.structuredContent.matches;
-  assert.deepEqual(findings.map(({ kind }) => kind), ['missing', 'missing', 'forbidden']);
+  assert.deepEqual(
+    findings.map(({ kind }) => kind),
+    ['missing', 'missing', 'forbidden']
+  );
   for (const finding of findings) {
     assert.match(finding.snippet, /<Button/);
   }

@@ -36,8 +36,11 @@ then compares line and column numerically. Original paths and match objects are
 retained. Identical locations retain input order. Neither the input match array
 nor the unresolved array is mutated; unresolved cases retain their input order.
 
-`sourceSnippet(source, line)` takes a one-based line number. It returns the whole
-line, including indentation but excluding LF or CRLF line endings. A missing or
-non-integer line returns an empty string. Snippets longer than 240 Unicode code
-points become the first 239 code points plus `…`; the ellipsis is inside the cap.
-This counts Unicode code points, not grapheme clusters or bytes.
+`sourceSnippet(source, line, column?)` takes one-based line and optional column
+numbers. It returns the whole line, including indentation but excluding LF or
+CRLF line endings. A missing or non-integer line returns an empty string.
+Snippets longer than 240 Unicode code points become the first 239 code points
+plus `…` when no column is supplied. With a column, the snippet keeps context
+around that position and uses an ellipsis at either truncated edge; the result
+still fits within 240 code points. This counts Unicode code points, not grapheme
+clusters or bytes.
