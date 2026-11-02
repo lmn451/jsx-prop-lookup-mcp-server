@@ -31,6 +31,7 @@
 
 ### Security
 
+- Update glob and Zod to patched releases addressing filesystem-traversal cancellation and collection-validation denial-of-service advisories; the release has no known production dependency audit findings.
 - Enforce `ALLOWED_ROOTS` and `--allowed-roots` on every discovered file and again before reading; reject symlinks that escape the allowed roots.
 - Treat requested directories as literal paths so glob characters cannot redirect scans to other directories.
 - Removed hardcoded API credentials from the local MCP configuration.
