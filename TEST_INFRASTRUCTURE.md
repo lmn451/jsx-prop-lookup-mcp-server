@@ -24,8 +24,7 @@ This project uses Node.js's built-in test runner. The suite covers the AST analy
 
 - pinning and negotiating protocol/specification `2026-07-28`;
 - server identity and discovery;
-- the exact four-tool inventory;
-- valid calls to all four tools;
+- tool discovery and valid calls for every registered tool (see [Test Coverage Summary](TEST_COVERAGE_SUMMARY.md) for the current inventory);
 - invalid arguments and tool-level errors;
 - relative paths from the configured working directory; and
 - clean client-owned process shutdown.
@@ -34,7 +33,10 @@ Boundary cases exercise default working-directory paths, argument type errors, o
 
 `tests/server.test.js` checks that constructing a server has no CLI side effects and that two instances keep their filesystem restrictions independent, using real MCP clients and in-memory transports.
 
-`tests/cli.test.js` executes the compiled CLI to check both help flags, invalid arguments, SIGINT/SIGTERM shutdown, and stdin EOF. `tests/request-logger.test.js` uses an injected transport to verify the disconnected logger's payload, opt-out, timeout, duration normalization, and one-time warning behavior without network requests.
+`tests/cli.test.js` executes the compiled CLI to check help, invalid arguments,
+SIGINT/SIGTERM shutdown, and stdin EOF. `tests/cli-core.test.js` and
+`tests/commands.test.js` cover command parsing and execution; callable-contract
+tests check the exported CLI interface.
 
 ### Filesystem security tests
 
@@ -107,4 +109,4 @@ The supported runtime is Node.js 20 or newer. Tests are deterministic, use no ne
 
 CI runs the build, tests, scoped mutation checks, and lint on Node.js 20 and 26.
 
-When adding a tool, update the MCP v2 integration inventory and call coverage, then update the current four-tool documentation and release notes.
+When adding a tool, update the MCP v2 integration inventory and call coverage, then update the current tool documentation and release notes.

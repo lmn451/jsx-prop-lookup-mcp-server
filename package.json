@@ -41,7 +41,12 @@
     "prebuild": "npm run clean",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run typecheck && npm run lint && npm run build && npm test"
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run build && npm test",
+    "test:mutation:project": "stryker run stryker.project.config.json",
+    "test:mutation:find": "stryker run stryker.find-jsx.config.json",
+    "test:mutation:check": "stryker run stryker.check-jsx.config.json",
+    "test:mutation:inspect": "stryker run stryker.inspect.config.json",
+    "test:mutation:impact": "stryker run stryker.impact.config.json"
   },
   "bin": {
     "jsx-prop-lookup-mcp-server": "dist/index.js"
@@ -50,13 +55,31 @@
     "dist/index.*",
     "dist/server.*",
     "dist/jsx-analyzer.*",
+    "dist/jsx-query.*",
+    "dist/find-jsx.*",
+    "dist/inspect-component.*",
     "dist/version.*",
+    "dist/results.*",
+    "dist/project.*",
+    "dist/cli.*",
+    "dist/legacy-server.*",
+    "docs/cli.md",
     "README.md",
     "SECURITY.md",
     "CHANGELOG.md",
     "RELEASE_NOTES.md",
     "LICENSE",
-    "package.json"
+    "package.json",
+    "docs/find-jsx.md",
+    "dist/check-jsx.*",
+    "docs/check-jsx.md",
+    "dist/saved-checks.*",
+    "docs/saved-checks.md",
+    "docs/inspect-component.md",
+    "examples/audit",
+    "dist/change-impact.*",
+    "docs/change-impact.md",
+    "docs/legacy-analysis.md"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",
@@ -64,6 +87,8 @@
     "@babel/types": "^7.29.8",
     "@modelcontextprotocol/server": "^2.3.1",
     "glob": "^13.0.6",
+    "ignore": "^7.0.12",
+    "typescript": "5.9.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -82,7 +107,6 @@
     "prettier": "^3.9.9",
     "semver": "^7.8.5",
     "tsx": "^4.23.15",
-    "typescript": "^5.9.3",
     "yaml": "^2.9.1"
   }
 }
