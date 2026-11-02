@@ -43,6 +43,10 @@ export async function createJsxSnapshot(
     noEmit: true,
     jsx: ts.JsxEmit.Preserve,
   };
+  const optionsKey = JSON.stringify(options);
+  const previous = syntaxCache.get(project);
+  const reusable = previous?.optionsKey === optionsKey ? previous.sources : undefined;
+  const sources = new Map<string, ts.SourceFile>();
   const read = (file: string) => {
     try {
       return project.readFile(file);
@@ -52,11 +56,25 @@ export async function createJsxSnapshot(
     return undefined;
   };
   const host: ts.CompilerHost = {
-    getSourceFile: (file, languageVersion) => {
-      const source = read(file);
-      return source === undefined
-        ? undefined
-        : ts.createSourceFile(file, source, languageVersion, true);
+    getSourceFile: (file, languageVersion, _onError, shouldCreateNewSourceFile) => {
+      // Always validate and reread before considering syntax reuse. Neither mtimes
+      // nor an old Program are trusted as evidence of current source/permissions.
+      const text = read(file);
+      if (text === undefined) return undefined;
+      const cached = reusable?.get(file);
+      const target =
+        typeof languageVersion === 'number' ? languageVersion : languageVersion.languageVersion;
+      const impliedNodeFormat =
+        typeof languageVersion === 'number' ? undefined : languageVersion.impliedNodeFormat;
+      const source =
+        !shouldCreateNewSourceFile &&
+        cached?.text === text &&
+        cached.languageVersion === target &&
+        cached.impliedNodeFormat === impliedNodeFormat
+          ? cached
+          : ts.createSourceFile(file, text, languageVersion, true);
+      sources.set(file, source);
+      return source;
     },
     getDefaultLibFileName: () => '',
     writeFile: () => {},
@@ -108,7 +126,19 @@ export async function createJsxSnapshot(
       });
     }
   }
-  return { project, program, checker: program.getTypeChecker(), files, unresolved, resolveModule };
+  // Retain only this workspace's latest successfully built syntax set. Semantic
+  // Programs, checkers, module resolutions and projected results are never cached.
+  syntaxCache.set(project, { optionsKey, sources });
+  return {
+    project,
+    program,
+    get checker() {
+      return program.getTypeChecker();
+    },
+    files,
+    unresolved,
+    resolveModule,
+  };
 }
 
 function resolvedSymbol(checker: ts.TypeChecker, symbol: ts.Symbol): ts.Symbol {
@@ -302,13 +332,8 @@ export function collectJsx(snapshot: JsxSnapshot): {
   const matches: JsxMatch[] = [];
   const unresolved = [...snapshot.unresolved];
   for (const source of snapshot.files) {
-    const visit = (node: ts.Node) => {
-      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
-        matches.push(createJsxMatch(snapshot, source, node));
-      }
-      ts.forEachChild(node, visit);
-    };
-    visit(source);
+    for (const node of getJsxOpeningNodes(source))
+      matches.push(createJsxMatch(snapshot, source, node));
   }
   return { matches, unresolved };
 }
@@ -350,4 +375,27 @@ export function createJsxMatch(
     props: Object.fromEntries(Object.entries(props)),
     unknownSpreads,
   };
+}
+const syntaxCache = new WeakMap<
+  ProjectWorkspace,
+  { optionsKey: string; sources: Map<string, ts.SourceFile> }
+>();
+const openingCache = new WeakMap<
+  ts.SourceFile,
+  Array<ts.JsxOpeningElement | ts.JsxSelfClosingElement>
+>();
+export function getJsxOpeningNodes(
+  source: ts.SourceFile
+): readonly (ts.JsxOpeningElement | ts.JsxSelfClosingElement)[] {
+  let nodes = openingCache.get(source);
+  if (!nodes) {
+    nodes = [];
+    const visit = (node: ts.Node) => {
+      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) nodes!.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+    openingCache.set(source, nodes);
+  }
+  return nodes;
 }

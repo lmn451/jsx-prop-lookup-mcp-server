@@ -1,6 +1,11 @@
 import { parseSync, walk } from '@swc-next/core';
 import ts from 'typescript';
-import { collectJsx, createJsxMatch, type JsxMatch, type JsxSnapshot } from './jsx-query.js';
+import {
+  createJsxMatch,
+  getJsxOpeningNodes,
+  type JsxMatch,
+  type JsxSnapshot,
+} from './jsx-query.js';
 
 /** Locate semantic nodes without a second complete TypeScript AST walk. */
 function openingNodes(source: ts.SourceFile, offsets: readonly number[]) {
@@ -47,45 +52,59 @@ export function collectJsxWithSwc(snapshot: JsxSnapshot): {
   matches: JsxMatch[];
   unresolved: JsxSnapshot['unresolved'];
   fallbackFiles: string[];
+  parsedFiles: number;
+  reusedFiles: number;
 } {
   const matches: JsxMatch[] = [];
   const fallbackFiles: string[] = [];
+  let parsedFiles = 0;
+  let reusedFiles = 0;
   for (const source of snapshot.files) {
-    let offsets: number[] | undefined;
-    try {
-      const lang = source.isDeclarationFile
-        ? 'dts'
-        : /\.tsx$/i.test(source.fileName)
-          ? 'tsx'
-          : /\.ts$/i.test(source.fileName)
-            ? 'ts'
-            : 'jsx';
-      const parsed = parseSync(source.text, {
-        lang,
-        sourceType: 'module',
-        semanticErrors: true,
-        errorRecovery: true,
-      });
-      if (!parsed.diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-        const found: number[] = [];
-        walk(parsed.program, {
-          JSXOpeningElement(node) {
-            if (typeof node.start !== 'number') throw new Error('Missing JSX source offset.');
-            found.push(node.start);
-          },
-        });
-        offsets = found;
-      }
-    } catch {
-      // Native parser/walker failures must not hide valid TypeScript recovery results.
-    }
-    const nodes = offsets && openingNodes(source, offsets);
-    if (!nodes) {
-      fallbackFiles.push(source.fileName);
-      matches.push(...collectJsx({ ...snapshot, files: [source], unresolved: [] }).matches);
+    let discovery = discoveryCache.get(source);
+    if (discovery) {
+      reusedFiles++;
     } else {
-      for (const node of nodes) matches.push(createJsxMatch(snapshot, source, node));
+      parsedFiles++;
+      let offsets: number[] | undefined;
+      try {
+        const lang = source.isDeclarationFile
+          ? 'dts'
+          : /\.tsx$/i.test(source.fileName)
+            ? 'tsx'
+            : /\.ts$/i.test(source.fileName)
+              ? 'ts'
+              : 'jsx';
+        const parsed = parseSync(source.text, {
+          lang,
+          sourceType: 'module',
+          semanticErrors: true,
+          errorRecovery: true,
+        });
+        if (!parsed.diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
+          const found: number[] = [];
+          walk(parsed.program, {
+            JSXOpeningElement(node) {
+              if (typeof node.start !== 'number') throw new Error('Missing JSX source offset.');
+              found.push(node.start);
+            },
+          });
+          offsets = found;
+        }
+      } catch {
+        // Keep TypeScript recovery authoritative when native discovery cannot run.
+      }
+      const nodes = offsets && openingNodes(source, offsets);
+      discovery = { nodes: nodes ?? getJsxOpeningNodes(source), fallback: nodes === undefined };
+      discoveryCache.set(source, discovery);
     }
+    if (discovery.fallback) fallbackFiles.push(source.fileName);
+    // Cache syntax only. Identities and values are projected against the fresh
+    // Program/checker so changed imports/types and disappeared files stay visible.
+    for (const node of discovery.nodes) matches.push(createJsxMatch(snapshot, source, node));
   }
-  return { matches, unresolved: [...snapshot.unresolved], fallbackFiles };
+  return { matches, unresolved: [...snapshot.unresolved], fallbackFiles, parsedFiles, reusedFiles };
 }
+const discoveryCache = new WeakMap<
+  ts.SourceFile,
+  { nodes: readonly (ts.JsxOpeningElement | ts.JsxSelfClosingElement)[]; fallback: boolean }
+>();

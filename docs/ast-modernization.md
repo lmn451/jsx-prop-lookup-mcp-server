@@ -47,7 +47,7 @@ The script is [scripts/benchmark-parsers.mjs](../scripts/benchmark-parsers.mjs).
 
 ## Follow-up implementation
 
-An [opt-in SWC Next discovery adapter](find-jsx.md#experimental-swc-next-discovery) is now available for query/find_jsx. It retains the TypeScript Program/checker, shared semantic projection, and per-file TypeScript recovery. The recorded full-query benchmark does not show a speedup, so the default stays TypeScript and no production-wide parser switch is claimed.
+An [opt-in SWC Next discovery adapter](find-jsx.md#experimental-swc-next-discovery) is now available for query/find_jsx. It retains the TypeScript Program/checker, shared semantic projection, and per-file TypeScript recovery. Validated syntax reuse now improves repeated queries for both backends, with fresh source reads, Programs, resolutions and semantic projections. The recorded full-query benchmark still does not show SWC outperforming the optimized TypeScript path; fresh workspaces still perform both parses. The default stays TypeScript and no production-wide parser switch is claimed.
 
 ## Sources
 

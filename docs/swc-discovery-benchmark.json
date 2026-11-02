@@ -13,15 +13,31 @@
   "alternatingOrder": true,
   "parity": true,
   "swcFallbackFiles": 0,
-  "scope": "Warm in-process findJsx API queries: discovery, validated filesystem reads, fresh TypeScript Program/checker, prop evaluation, import resolution and pagination. Excludes process startup, native module loading and MCP transport.",
+  "scope": "Warm-process findJsx API queries with independent per-backend workspaces: validated source reads, fresh Programs/resolutions, semantics and pagination. results reuse unchanged syntax; freshWorkspaceResults create a new workspace for each query and include initial parsing. Excludes process startup, first native module load, cold OS filesystem caches and MCP transport.",
   "results": {
     "typescript": {
-      "medianMs": 36.953,
-      "p95Ms": 42.716
+      "medianMs": 26.332,
+      "p95Ms": 49.864
     },
     "swc": {
-      "medianMs": 38.499,
-      "p95Ms": 41.577
+      "medianMs": 26.482,
+      "p95Ms": 29.004
     }
+  },
+  "freshWorkspaceResults": {
+    "typescript": {
+      "medianMs": 35.671,
+      "p95Ms": 38.08
+    },
+    "swc": {
+      "medianMs": 37.619,
+      "p95Ms": 44.237
+    }
+  },
+  "reuseAudit": {
+    "sameSourceFiles": true,
+    "freshPrograms": true,
+    "swcParsedFiles": 0,
+    "swcReusedFiles": 41
   }
 }
