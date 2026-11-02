@@ -61,6 +61,8 @@ filesystem restrictions, see [SECURITY.md](SECURITY.md).
 Existing beta clients can select `--legacy-tools` for the original tool set; see
 the [CLI reference](docs/cli.md) for compatibility details.
 
+Legacy prop-key, forwarding, and baseline analysis is documented in the [legacy analysis reference](docs/legacy-analysis.md).
+
 ## Development
 
 Release maintainers: see [automatic npm publishing](docs/publishing.md) for the

@@ -78,7 +78,8 @@
     "docs/inspect-component.md",
     "examples/audit",
     "dist/change-impact.*",
-    "docs/change-impact.md"
+    "docs/change-impact.md",
+    "docs/legacy-analysis.md"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",
