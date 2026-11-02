@@ -99,3 +99,29 @@ test('whole-fixture audit returns both known failures and stays incomplete witho
   assert.equal(result.unresolved.length, 2);
   assert.deepEqual(fixtureBytes(), before);
 });
+
+for (const [selection, expectedCode, unknown] of [
+  ['.', 2, 1],
+  ['src/Legacy.tsx', 0, 0],
+]) {
+  test(`documented removal preview for ${selection} preserves fixture files`, () => {
+    const before = fixtureBytes();
+    const { code, result } = run('inspect', [
+      '--component',
+      'Button',
+      '--source',
+      './Button',
+      '--remove-prop',
+      'variant',
+      '--path',
+      selection,
+    ]);
+    assert.equal(code, expectedCode);
+    assert.equal(result.summary.action, 'remove-prop');
+    assert.equal(result.summary.affected, 1);
+    assert.equal(result.summary.unresolved, unknown);
+    assert.equal(path.basename(result.matches[0].filePath), 'Legacy.tsx');
+    assert.deepEqual(result.matches[0].value, { status: 'known', value: 'legacy' });
+    assert.deepEqual(fixtureBytes(), before);
+  });
+}

@@ -18,6 +18,7 @@ No command starts the MCP stdio server.
   --path PATH             Project-relative source file or directory
   --component NAME        Component name or import alias (query/inspect)
   --source MODULE         Import source filter (query/inspect)
+  --remove-prop NAME      Preview affected callers for prop removal (inspect)
   --prop NAME             Prop filter (query)
   --value VALUE           Primitive value filter; requires --prop (query)
   --offset N              Non-negative page offset (default 0)

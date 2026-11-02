@@ -11,14 +11,14 @@ export interface CommandLine {
   json: boolean;
   legacyTools: boolean;
   project: ProjectOptions;
-  query: FindJsxQuery;
+  query: FindJsxQuery & { removeProp?: string };
   rulesFile?: string;
 }
 export type ParsedCommandLine = CommandLine | { action: 'help' } | { action: 'version' };
 
 const commandOptions: Record<Command, readonly string[]> = {
   query: ['path', 'component', 'source', 'prop', 'value', 'offset', 'limit', 'json'],
-  inspect: ['path', 'component', 'source', 'offset', 'limit', 'json'],
+  inspect: ['path', 'component', 'source', 'remove-prop', 'offset', 'limit', 'json'],
   check: ['path', 'rules', 'offset', 'limit', 'json'],
   serve: ['legacy-tools'],
 };
@@ -44,6 +44,7 @@ export function parseCommandLine(
       component: { type: 'string' },
       source: { type: 'string' },
       prop: { type: 'string' },
+      'remove-prop': { type: 'string' },
       value: { type: 'string' },
       rules: { type: 'string' },
       offset: { type: 'string' },
@@ -65,7 +66,8 @@ export function parseCommandLine(
   if (command === 'check' && !values.rules?.trim()) throw new Error('check requires --rules.');
   if (values.value !== undefined && values.prop === undefined)
     throw new Error('--value requires --prop.');
-  const query: FindJsxQuery = {};
+  const query: CommandLine['query'] = {};
+  if (values['remove-prop'] !== undefined) query.removeProp = values['remove-prop'];
   for (const key of ['path', 'component', 'source', 'prop', 'value'] as const) {
     if (values[key] !== undefined) query[key] = values[key];
   }
@@ -132,7 +134,9 @@ export function renderHumanResult(result: CommandResult): string {
         ? match.message
         : 'name' in match
           ? `${match.name}: ${match.props.map((prop) => `${prop.name}: ${prop.type}`).join(', ')}`
-          : match.component;
+          : 'prop' in match
+            ? `${match.component}: remove prop ${match.prop}`
+            : match.component;
     return `${match.filePath}:${match.line}:${match.column} ${label}`;
   });
   if (lines.length === 0)
