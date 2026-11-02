@@ -1,201 +1,88 @@
 # JSX Prop Lookup MCP Server
 
-An MCP (Model Context Protocol) server that analyzes JSX prop usage in React/TypeScript codebases using AST parsing.
+Find JSX call sites, inspect component props, and run saved prop rules from the
+command line or an MCP client. Analysis reads JavaScript and TypeScript without
+executing application code or editing source files.
 
-## Features
+## Install and run
 
-- **AST-based Analysis**: Uses Babel parser for accurate JSX/TSX parsing
-- **Prop Usage Tracking**: Find where props are used across components
-- **Component Analysis**: Analyze prop definitions and usage patterns (supports destructuring and identifier-based props access in function/arrow components)
-- **TypeScript Support**: Includes TypeScript interface analysis
-- **Identifier Param Support**: Detects props accessed via identifier parameters (not just destructured), e.g., `p.onClick` and `buttonProps.disabled` inside function/arrow component bodies
-- **Multiple Search Options**: Search by component, prop name, or analyze entire directories
-
-## Installation
-
-### Option 1: Use with npx (Recommended)
-
-No installation required! Use directly with npx:
+Node.js 20 or newer is required.
 
 ```bash
-npx jsx-prop-lookup-mcp-server
+npm install --global jsx-prop-lookup-mcp-server
+jsx-prop-lookup-mcp-server query --project-root /workspace/app --component Button --json
+jsx-prop-lookup-mcp-server inspect --project-root /workspace/app --component Button
+jsx-prop-lookup-mcp-server check --project-root /workspace/app --rules checks/props.json --json
 ```
 
-### Option 2: Install Globally
+You can also prefix commands with `npx --yes jsx-prop-lookup-mcp-server`.
+Running the executable without a command starts the MCP stdio server;
+`serve` selects that behavior explicitly. See the [CLI reference](docs/cli.md)
+for flags, output, and exit codes, and [saved checks](docs/saved-checks.md)
+for the versioned JSON rules schema.
 
-```bash
-npm install -g jsx-prop-lookup-mcp-server
-jsx-prop-lookup-mcp-server
-```
+## MCP client configuration
 
-### Option 3: Development Setup
-
-```bash
-git clone https://github.com/your-username/jsx-prop-lookup-mcp-server.git
-cd jsx-prop-lookup-mcp-server
-npm install
-npm run build
-npm start
-```
-
-## Usage
-
-The server provides four main tools:
-
-### 1. `analyze_jsx_props`
-
-Analyze JSX prop usage in files or directories.
-
-**Parameters:**
-
-- `path` (required): File or directory path to analyze
-- `componentName` (optional): Specific component name to analyze
-- `propName` (optional): Specific prop name to search for
-- `includeTypes` (optional): Include TypeScript type information (default: true)
-
-### 2. `find_prop_usage`
-
-Find all usages of a specific prop across JSX files. The `directory` must be an absolute path.
-
-**Parameters:**
-
-- `propName` (required): Name of the prop to search for
-- `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
-- `componentName` (optional): Limit search to specific component
-
-### 3. `get_component_props`
-
-Get all props used by a specific component. The `directory` must be an absolute path.
-
-**Parameters:**
-
-- `componentName` (required): Name of the component to analyze
-- `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
-
-### 4. `find_components_without_prop`
-
-Find component instances that are missing a required prop (e.g., Select components without width prop). The `directory` must be an absolute path.
-
-**Parameters:**
-
-- `componentName` (required): Name of the component to check (e.g., "Select")
-- `requiredProp` (required): Name of the required prop (e.g., "width")
-- `directory` (optional): Directory to search in (default: "."). Must be an absolute path.
-
-## Example Output
-
-```json
-{
-  "summary": {
-    "totalFiles": 5,
-    "totalComponents": 3,
-    "totalProps": 12
-  },
-  "components": [
-    {
-      "componentName": "Button",
-      "file": "./src/Button.tsx",
-      "props": [
-        {
-          "propName": "onClick",
-          "componentName": "Button",
-          "file": "./src/Button.tsx",
-          "line": 5,
-          "column": 10
-        }
-      ],
-      "propsInterface": "ButtonProps"
-    }
-  ],
-  "propUsages": [
-    {
-      "propName": "className",
-      "componentName": "Button",
-      "file": "./src/App.tsx",
-      "line": 15,
-      "column": 20,
-      "value": "btn-primary"
-    }
-  ]
-}
-```
-
-### Component name matching
-
-- Namespaced JSX components (e.g., `UI.Select`) are supported. You can target either the full dotted name (e.g., `UI.Select`) or the local component name (e.g., `Select`) in tool inputs. Results record the full dotted name where applicable.
-
-## Supported File Types
-
-- `.js` - JavaScript
-- `.jsx` - JavaScript with JSX
-- `.ts` - TypeScript
-- `.tsx` - TypeScript with JSX
-
-## MCP Client Configuration
-
-### Using with npx (Recommended)
-
-Add to your MCP client configuration:
+The default MCP server exposes three read-only tools: `find_jsx`,
+`inspect_component`, and `check_jsx`.
 
 ```json
 {
   "mcpServers": {
     "jsx-prop-lookup": {
       "command": "npx",
-      "args": ["jsx-prop-lookup-mcp-server"]
+      "args": ["--yes", "jsx-prop-lookup-mcp-server"],
+      "env": {
+        "PROJECT_ROOT": "/workspace/app",
+        "ALLOWED_ROOTS": "/workspace/app"
+      }
     }
   }
 }
 ```
 
-### Using with global installation
+For a local build, use `node` as the command and the absolute path to
+`dist/index.js` as its first argument. See the [CLI reference](docs/cli.md) for
+project-root and filesystem options.
 
-```json
-{
-  "mcpServers": {
-    "jsx-prop-lookup": {
-      "command": "jsx-prop-lookup-mcp-server"
-    }
-  }
-}
-```
+## Tools
 
-### Using with local development
+| Tool                | Purpose                                             | Reference                               |
+| ------------------- | --------------------------------------------------- | --------------------------------------- |
+| `find_jsx`          | Find JSX call sites by component and prop.          | [Search](docs/find-jsx.md)              |
+| `inspect_component` | Inspect declared props, types, and static defaults. | [Inspection](docs/inspect-component.md) |
+| `check_jsx`         | Check required, deprecated, and forbidden props.    | [Checks](docs/check-jsx.md)             |
 
-```json
-{
-  "mcpServers": {
-    "jsx-prop-lookup": {
-      "command": "node",
-      "args": ["dist/index.js"],
-      "cwd": "/path/to/jsx-prop-lookup-mcp-server"
-    }
-  }
-}
-```
+For saved rule files, see the [schema and examples](docs/saved-checks.md). For
+filesystem restrictions, see [SECURITY.md](SECURITY.md).
+
+## Compatibility
+
+Existing beta clients can select `--legacy-tools` for the original tool set; see
+the [CLI reference](docs/cli.md) for compatibility details.
+
+Legacy prop-key, forwarding, and baseline analysis is documented in the [legacy analysis reference](docs/legacy-analysis.md).
 
 ## Development
 
-```bash
-npm run dev  # Run in development mode
-npm run build  # Build for production
-npm start  # Run built version
-```
-
-## Security and safe operation
-
-Important: this MCP server reads files and directories on disk based on client-provided paths. Do NOT expose the stdio-based server to untrusted or network-exposed clients. By default there is no filesystem whitelist; to restrict filesystem access, set the `ALLOWED_ROOTS` environment variable to a comma-separated list of allowed root directories (absolute or workspace-relative). When configured, any tool request that refers to a path outside the allowed roots will be rejected.
-
-Example (restrict to the repository root):
+Release maintainers: see [automatic npm publishing](docs/publishing.md) for the
+one-time OIDC trusted-publisher setup and release behavior after merging to `master`.
 
 ```bash
-export ALLOWED_ROOTS="."
-npm run dev
+git clone https://github.com/lmn451/jsx-prop-lookup-mcp-server.git
+cd jsx-prop-lookup-mcp-server
+npm install
+npm run build
+npm test
+npm start
 ```
 
-Recommended practices:
+`npm run dev -- query --component Button --json` runs source directly.
+`src/cli.ts` shares parsing and command execution; `src/index.ts` owns process I/O
+and lifecycle. `src/server.ts` registers the modern tools, while
+`src/legacy-server.ts` keeps the compatibility registrations separate.
 
-- Run this server only in trusted environments, or behind an authenticated proxy.
-- Use `ALLOWED_ROOTS` to limit the scope of accessible files.
-- Do not run the server as a privileged user; run under a least-privileged account.
-- Consider further sandboxing (containerization) when servicing untrusted inputs.
+Run the checked-in [migration and audit examples](examples/audit/README.md) to try caller search, component inspection, and saved checks with stated results.
+
+Preview a proposed prop removal with `inspect --component Button --remove-prop variant`.
+See [change impact](docs/change-impact.md) and the [runnable migration examples](examples/audit/README.md).

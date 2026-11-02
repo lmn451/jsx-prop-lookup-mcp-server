@@ -14,7 +14,8 @@ describe('analyzeJSXElement value extraction', () => {
     fs.mkdirSync(tmpDir, { recursive: true });
 
     const filePath = path.join(tmpDir, 'ValueProps.tsx');
-    const content = `import React from 'react';
+    const content =
+      `import React from 'react';
 const a = { x: 'X' };
 function getName() { return 'n'; }
 const handler = (e) => e;
@@ -22,7 +23,9 @@ export const Test = () => {
   const id = 'id';
   return (
     <div>
-      <Button simple={id} member={a.x} computed={a['x']} call={getName()} fn={() => getName()} tmpl={` + "`hi ${id}`" + `} obj={{a:1}} arr={[1,2]} />
+      <Button simple={id} member={a.x} computed={a['x']} call={getName()} fn={() => getName()} tmpl={` +
+      '`hi ${id}`' +
+      `} obj={{a:1}} arr={[1,2]} />
     </div>
   );
 };
@@ -31,7 +34,9 @@ export const Test = () => {
 
     try {
       const result = await analyzer.analyzeProps(filePath);
-      const usages = result.propUsages.filter((u) => u.componentName === 'Button' || u.file.includes('ValueProps'));
+      const usages = result.propUsages.filter(
+        (u) => u.componentName === 'Button' || u.file.includes('ValueProps')
+      );
 
       const byName = (n) => usages.find((u) => u.propName === n);
 
@@ -45,8 +50,12 @@ export const Test = () => {
       assert.strictEqual(byName('obj')?.value, '{...}');
       assert.strictEqual(byName('arr')?.value, '[...]');
     } finally {
-      try { fs.unlinkSync(filePath); } catch (_) {}
-      try { fs.rmdirSync(tmpDir); } catch (_) {}
+      try {
+        fs.unlinkSync(filePath);
+      } catch (_) {}
+      try {
+        fs.rmdirSync(tmpDir);
+      } catch (_) {}
     }
   });
 });

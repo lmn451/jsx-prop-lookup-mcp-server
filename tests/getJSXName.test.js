@@ -25,7 +25,10 @@ describe('getJSXName and complex JSX expressions', () => {
 
     // Deep member expression: A.B.C.D
     const deep = t.jsxMemberExpression(
-      t.jsxMemberExpression(t.jsxMemberExpression(t.jsxIdentifier('A'), t.jsxIdentifier('B')), t.jsxIdentifier('C')),
+      t.jsxMemberExpression(
+        t.jsxMemberExpression(t.jsxIdentifier('A'), t.jsxIdentifier('B')),
+        t.jsxIdentifier('C')
+      ),
       t.jsxIdentifier('D')
     );
     const res3 = analyzer['getJSXName'](deep);
@@ -55,7 +58,9 @@ export const Foo = () => {
       const result = await analyzer.analyzeProps(filePath);
       // Ensure we got prop usages and no crash
       assert.ok(result.propUsages, 'Should return propUsages');
-      const usages = result.propUsages.filter((u) => u.componentName === 'Button' || u.file.includes('ComplexProps'));
+      const usages = result.propUsages.filter(
+        (u) => u.componentName === 'Button' || u.file.includes('ComplexProps')
+      );
       // We expect at least several prop usages for Button
       assert.ok(usages.length >= 1, 'Should find prop usages for Button');
       // Values for complex expressions may be undefined but must not throw
@@ -63,8 +68,12 @@ export const Foo = () => {
         assert.ok('propName' in u, 'Usage should have propName');
       });
     } finally {
-      try { fs.unlinkSync(filePath); } catch (_) {}
-      try { fs.rmdirSync(tmpDir); } catch (_) {}
+      try {
+        fs.unlinkSync(filePath);
+      } catch (_) {}
+      try {
+        fs.rmdirSync(tmpDir);
+      } catch (_) {}
     }
   });
 });

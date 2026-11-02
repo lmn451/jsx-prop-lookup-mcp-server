@@ -1,37 +1,36 @@
 # Temporary Smoke Tests
 
-This repo includes a few temporary, dev-only smoke scripts to quickly verify behavior added in Phases 1–3. They are safe to run locally and do not require any external services.
+These development-only scripts exercise analyzer behavior without external services. The formal Node test suite in `tests/` is the source of release verification.
 
-Prerequisites
+## Prerequisites
 
-- Install dependencies: `npm install`
-- Node.js 18+ (recommended: Node 20+). For Node < 20.6, prefer using the `tsx` CLI instead of `node --import=tsx`.
+- Node.js 20 or newer
+- `npm install`
 
-Scripts
+## Scripts
 
-1. Relative/absolute path resolution
-   - Command:
-     - `node tmp_rovodev_test_relative_paths.cjs`
-   - Verifies the path normalization logic used by the MCP tools (relative -> absolute, validation exists).
-   - Expected: `OK` lines for existing paths (e.g., `./src`, `./examples/sample-components`), and an `ERR` line for a non-existent path.
+### Relative and absolute path resolution
 
-2. Phase 2: Identifier parameter handling
-   - Commands (choose one):
-     - Node >= 20.6: `node --import=tsx tmp_rovodev_test_phase2.ts`
-     - Any Node: `npx tsx tmp_rovodev_test_phase2.ts`
-   - Verifies the analyzer detects prop usage when function/arrow component parameters are identifiers (e.g., `p.onClick`, `buttonProps.disabled`).
-   - Expected: a summary and several `onClick` usages, including ones from `PropsIdentifierExample.tsx`.
+```bash
+node tmp_rovodev_test_relative_paths.cjs
+```
 
-3. Phase 3: Namespaced JSX + summary stats
-   - Commands (choose one):
-     - Node >= 20.6: `node --import=tsx tmp_rovodev_test_phase3.ts`
-     - Any Node: `npx tsx tmp_rovodev_test_phase3.ts`
-   - Verifies:
-     - Namespaced JSX (e.g., `UI.Select`) matches by either `Select` or `UI.Select`.
-     - `findComponentsWithoutProp` computes meaningful percentages using a second pass to count total instances.
-   - Expected: Missing summary with non-100% percentages, and a missing `width` entry for `UI.Select` in `NamespacedSelectExample.tsx`.
+Checks normalization and validation for existing and missing paths.
 
-Notes
+### Identifier parameter handling
 
-- These scripts are temporary helpers and not formal tests. We can replace them with a proper test suite (Vitest or Node’s built-in test runner) as a follow-up.
-- The scripts analyze the files in `examples/sample-components/` as part of their checks.
+```bash
+node --import=tsx tmp_rovodev_test_phase2.ts
+```
+
+Checks prop access through identifier parameters such as `p.onClick` and `buttonProps.disabled`.
+
+### Namespaced JSX and summary statistics
+
+```bash
+node --import=tsx tmp_rovodev_test_phase3.ts
+```
+
+Checks matching `<UI.Select />` by either `UI.Select` or `Select` and verifies missing-prop percentages.
+
+These scripts are not part of the MCP v2 protocol boundary. Run `npm test` for the supported release test suite.

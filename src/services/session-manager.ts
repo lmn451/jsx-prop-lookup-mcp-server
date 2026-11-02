@@ -1,5 +1,10 @@
 import { SessionData } from '../types/logging-types.js';
-import { generateMachineFingerprint, generateSessionId, getSystemInfo, getUserAgent } from '../utils/fingerprint.js';
+import {
+  generateMachineFingerprint,
+  generateSessionId,
+  getSystemInfo,
+  getUserAgent,
+} from '../utils/fingerprint.js';
 
 export class SessionManager {
   private currentSession: SessionData | null = null;
