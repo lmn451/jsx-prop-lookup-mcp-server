@@ -14,7 +14,9 @@ An MCP server for AST-based analysis of JSX prop usage in JavaScript and TypeScr
 - Parses `.js`, `.jsx`, `.ts`, and `.tsx` with Babel.
 - Finds JSX prop usage and component prop definitions.
 - Reads TypeScript prop interfaces when requested.
-- Supports destructured props and identifier-based access such as `props.disabled`.
+- Supports destructured props (including quoted keys such as `'aria-label'`) and identifier-based access such as `props.disabled`.
+- Reports binding-aware JSX spread forwarding, including rest exclusions and target component names.
+- Optionally compares analysis against a baseline checkout, ignoring line-number shifts.
 - Recognizes JSX children, optional prop access, and static computed access such as `props['disabled']`.
 - Supports namespaced JSX names such as `UI.Select`.
 - Restricts filesystem access when `ALLOWED_ROOTS` or `--allowed-roots` is configured.
@@ -104,6 +106,7 @@ Analyzes JSX props in one file or a directory.
 - `componentName` (optional): Filter by component name.
 - `propName` (optional): Filter by prop name.
 - `includeTypes` (optional): Include TypeScript type information. Defaults to `true`.
+- `baselinePath` (optional): File or directory from a baseline checkout. Uses the same filters on both sides and adds a semantic `comparison` to the result. Both paths must be within configured allowed roots.
 
 Example:
 
@@ -169,6 +172,25 @@ Example:
 ### Namespaced component names
 
 Namespaced JSX is supported. For `<UI.Select />`, component filters may use either the full name (`UI.Select`) or the local name (`Select`). Results retain the full dotted name where applicable.
+
+## Forwarding evidence and baseline comparisons
+
+Component definitions returned by `get_component_props` and `analyze_jsx_props` can include `forwardedProps`. For example, `({label, ...rest}) => <UI.Button {...rest} />` reports source `rest`, target `UI.Button`, and excluded prop `label`, with the spread's source location. Identifier parameters (`<Button {...props} />`), body destructuring, renamed rest bindings, and chained rest destructuring are supported. Unused rest bindings are not reported as forwarding. Shadowed or reassigned bindings are not mistaken for the original props. A dynamic computed destructuring key sets `hasDynamicExclusions: true`; its runtime name is unknown.
+
+Forwarding is syntactic evidence, not proof that the target consumes a prop. Target names are not resolved across imports; aliases, arbitrary helper calls, object mutations, and conditional runtime behavior are not evaluated. Follow the reported targets when reviewing a wrapper chain. Do not interpret `...rest` alone as either a dropped prop or proof of support. Quoted/static keys are reported by their public names; dynamic keys are not invented as named props.
+
+To separate changed evidence from pre-existing behavior, point `baselinePath` at a separate checkout of the base revision with the same relative file layout:
+
+```json
+{
+  "path": "/workspace/current/src",
+  "baselinePath": "/workspace/base/src"
+}
+```
+
+The optional `comparison` includes `addedPropUsages`, `removedPropUsages`, `addedComponents`, `removedComponents`, and `changedComponents` (before/after definitions). Matching uses relative files, component/prop names, readable values, duplicate counts, and forwarding evidence rather than line numbers or absolute checkout paths. Unchanged evidence is omitted from the comparison, but the normal analysis still describes the current tree. Component/prop/type filters apply to both trees; filtering can therefore hide unrelated changes. Renamed/moved files appear as removals and additions.
+
+This is a comparison of static evidence, not a dropped-prop validator or an automatic regression verdict. In particular, changed callers and changed definitions still need to be reviewed together. Previously broken behavior must not be attributed to a migration merely because it appears in the current analysis. The server reads an existing baseline directory; it does not invoke git, switch branches, or create worktrees. The CLI still starts the same stdio MCP server; pass `baselinePath` in the tool request, not as a CLI flag.
 
 ## Filesystem access
 

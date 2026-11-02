@@ -24,6 +24,12 @@ export function createServer(allowedRoots: readonly string[] = []): McpServer {
           .string()
           .default('.')
           .describe('Absolute or relative file or directory path to analyze.'),
+        baselinePath: z
+          .string()
+          .optional()
+          .describe(
+            'Optional baseline file or directory with the same layout. Compare semantic prop evidence, ignoring line shifts; this is not a bug verdict.'
+          ),
         componentName: z
           .string()
           .optional()
@@ -36,8 +42,8 @@ export function createServer(allowedRoots: readonly string[] = []): McpServer {
       }),
       annotations,
     },
-    ({ path, componentName, propName, includeTypes }) =>
-      toolResult(analyzer.analyzeProps(path, componentName, propName, includeTypes))
+    ({ path, componentName, propName, includeTypes, baselinePath }) =>
+      toolResult(analyzer.analyzeProps(path, componentName, propName, includeTypes, baselinePath))
   );
 
   server.registerTool(
@@ -62,7 +68,7 @@ export function createServer(allowedRoots: readonly string[] = []): McpServer {
     {
       title: 'Get component props',
       description:
-        'Get detailed information about the props used by a named component, including locations and associated TypeScript prop interface names.',
+        'Get detailed information about the props used by a named component, including locations, TypeScript prop interface names, and binding-aware JSX spread forwarding targets and exclusions. Forwarding is evidence, not proof the target consumes a prop.',
       inputSchema: z.object({
         componentName: z.string().describe('Name of the component to analyze.'),
         directory,

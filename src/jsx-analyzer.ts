@@ -1,6 +1,6 @@
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
-import type { NodePath } from '@babel/traverse';
+import type { NodePath, Binding } from '@babel/traverse';
 import * as t from '@babel/types';
 import { readFileSync, realpathSync, statSync } from 'fs';
 import { glob } from 'glob';
@@ -22,16 +22,21 @@ export interface ComponentAnalysis {
   file: string;
   props: PropUsage[];
   propsInterface?: string;
+  forwardedProps?: PropForwarding[];
 }
 
 export interface AnalysisResult {
-  summary: {
-    totalFiles: number;
-    totalComponents: number;
-    totalProps: number;
-  };
+  summary: { totalFiles: number; totalComponents: number; totalProps: number };
   components: ComponentAnalysis[];
   propUsages: PropUsage[];
+  comparison?: {
+    baselinePath: string;
+    addedPropUsages: PropUsage[];
+    removedPropUsages: PropUsage[];
+    addedComponents: ComponentAnalysis[];
+    removedComponents: ComponentAnalysis[];
+    changedComponents: Array<{ before: ComponentAnalysis; after: ComponentAnalysis }>;
+  };
 }
 
 export class JSXPropAnalyzer {
@@ -77,19 +82,18 @@ export class JSXPropAnalyzer {
     path: string,
     componentName?: string,
     propName?: string,
-    includeTypes: boolean = true
+    includeTypes: boolean = true,
+    baselinePath?: string
   ): Promise<AnalysisResult> {
     const files = await this.getFiles(path);
     const components: ComponentAnalysis[] = [];
     const allPropUsages: PropUsage[] = [];
-
     for (const file of files) {
       const analysis = await this.analyzeFile(file, componentName, propName, includeTypes);
       components.push(...analysis.components);
       allPropUsages.push(...analysis.propUsages);
     }
-
-    return {
+    const result: AnalysisResult = {
       summary: {
         totalFiles: files.length,
         totalComponents: components.length,
@@ -98,6 +102,11 @@ export class JSXPropAnalyzer {
       components,
       propUsages: allPropUsages,
     };
+    if (baselinePath !== undefined) {
+      const baseline = await this.analyzeProps(baselinePath, componentName, propName, includeTypes);
+      result.comparison = this.compareAnalysis(result, baseline, path, baselinePath);
+    }
+    return result;
   }
 
   async findPropUsage(
@@ -449,6 +458,9 @@ export class JSXPropAnalyzer {
           );
         }
 
+        if (propsParam && (t.isIdentifier(propsParam) || t.isObjectPattern(propsParam))) {
+          this.analyzePropForwarding(path, propsParam, componentAnalysis, propUsages, targetProp);
+        }
         components.push(componentAnalysis);
       },
 
@@ -491,6 +503,15 @@ export class JSXPropAnalyzer {
           );
         }
 
+        if (propsParam && (t.isIdentifier(propsParam) || t.isObjectPattern(propsParam))) {
+          this.analyzePropForwarding(
+            path.get('init') as NodePath<t.ArrowFunctionExpression>,
+            propsParam,
+            componentAnalysis,
+            propUsages,
+            targetProp
+          );
+        }
         components.push(componentAnalysis);
       },
 
@@ -559,8 +580,9 @@ export class JSXPropAnalyzer {
     targetProp?: string
   ) {
     for (const property of pattern.properties) {
-      if (t.isObjectProperty(property) && t.isIdentifier(property.key)) {
-        const propName = property.key.name;
+      if (t.isObjectProperty(property)) {
+        const propName = this.getObjectPropertyName(property);
+        if (propName === undefined) continue;
         if (targetProp && propName !== targetProp) continue;
 
         const loc = property.loc;
@@ -578,6 +600,7 @@ export class JSXPropAnalyzer {
         const loc = property.loc;
         const propUsage: PropUsage = {
           propName: '...rest',
+          value: t.isIdentifier(property.argument) ? property.argument.name : undefined,
           componentName,
           file: filePath,
           line: loc?.start.line || 0,
@@ -654,6 +677,7 @@ export class JSXPropAnalyzer {
         const loc = attribute.loc;
         const propUsage: PropUsage = {
           propName: '...spread',
+          value: this.stringifyExpression(attribute.argument),
           componentName,
           file: filePath,
           line: loc?.start.line || 0,
@@ -735,4 +759,155 @@ export class JSXPropAnalyzer {
 
     return undefined;
   }
+
+  private getObjectPropertyName(property: t.ObjectProperty): string | undefined {
+    if (!property.computed && t.isIdentifier(property.key)) return property.key.name;
+    if (t.isStringLiteral(property.key)) return property.key.value;
+    if (t.isNumericLiteral(property.key)) return String(property.key.value);
+    return undefined;
+  }
+
+  private analyzePropForwarding(
+    functionPath: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
+    parameter: t.Identifier | t.ObjectPattern,
+    component: ComponentAnalysis,
+    propUsages: PropUsage[],
+    targetProp?: string
+  ): void {
+    type Source = { excludedProps: string[]; hasDynamicExclusions: boolean };
+    const sources = new Map<Binding, Source>();
+    const addPattern = (pattern: t.ObjectPattern, scope: NodePath['scope'], source: Source) => {
+      const excludedProps = [...source.excludedProps];
+      let hasDynamicExclusions = source.hasDynamicExclusions;
+      for (const property of pattern.properties) {
+        if (!t.isObjectProperty(property)) continue;
+        const name = this.getObjectPropertyName(property);
+        if (name === undefined) hasDynamicExclusions = true;
+        else if (!excludedProps.includes(name)) excludedProps.push(name);
+      }
+      for (const property of pattern.properties) {
+        if (!t.isRestElement(property) || !t.isIdentifier(property.argument)) continue;
+        const binding = scope.getBinding(property.argument.name);
+        if (binding?.constant) sources.set(binding, { excludedProps, hasDynamicExclusions });
+      }
+    };
+    const initial: Source = { excludedProps: [], hasDynamicExclusions: false };
+    if (t.isIdentifier(parameter)) {
+      const binding = functionPath.scope.getBinding(parameter.name);
+      if (binding?.constant) sources.set(binding, initial);
+    } else {
+      addPattern(parameter, functionPath.scope, initial);
+    }
+    functionPath.traverse({
+      VariableDeclarator: (path: NodePath<t.VariableDeclarator>) => {
+        if (!t.isObjectPattern(path.node.id) || !t.isIdentifier(path.node.init)) return;
+        const binding = path.scope.getBinding(path.node.init.name);
+        const source = binding && sources.get(binding);
+        if (!source) return;
+        this.analyzeObjectPattern(
+          path.node.id,
+          component.componentName,
+          component.file,
+          component,
+          propUsages,
+          targetProp
+        );
+        addPattern(path.node.id, path.scope, source);
+      },
+    });
+    functionPath.traverse({
+      JSXSpreadAttribute: (path: NodePath<t.JSXSpreadAttribute>) => {
+        if (!t.isIdentifier(path.node.argument)) return;
+        const binding = path.scope.getBinding(path.node.argument.name);
+        const source = binding && sources.get(binding);
+        if (!source || !t.isJSXOpeningElement(path.parent)) return;
+        const name = path.parent.name;
+        if (!t.isJSXIdentifier(name) && !t.isJSXMemberExpression(name)) return;
+        const loc = path.node.loc;
+        (component.forwardedProps ??= []).push({
+          source: path.node.argument.name,
+          targetComponent: this.getJSXName(name).full,
+          file: component.file,
+          line: loc?.start.line ?? 0,
+          column: loc?.start.column ?? 0,
+          excludedProps: [...source.excludedProps],
+          hasDynamicExclusions: source.hasDynamicExclusions,
+        });
+      },
+    });
+  }
+
+  private compareAnalysis(
+    current: AnalysisResult,
+    baseline: AnalysisResult,
+    currentPath: string,
+    baselinePath: string
+  ): NonNullable<AnalysisResult['comparison']> {
+    // Match semantic evidence, not absolute worktree paths or shifting source locations.
+    const identity = (item: { file: string; componentName: string }, root: string) =>
+      JSON.stringify([relative(resolve(root), item.file), item.componentName]);
+    const difference = <T>(after: T[], before: T[], key: (item: T, root: string) => string) => {
+      const remaining = new Map<string, T[]>();
+      for (const item of before) {
+        const id = key(item, baselinePath);
+        const bucket = remaining.get(id) ?? [];
+        bucket.push(item);
+        remaining.set(id, bucket);
+      }
+      const matched = new Set<T>();
+      const added: T[] = [];
+      for (const item of after) {
+        const bucket = remaining.get(key(item, currentPath));
+        if (bucket?.length) matched.add(bucket.pop()!);
+        else added.push(item);
+      }
+      return { added, removed: before.filter((item) => !matched.has(item)) };
+    };
+    const usages = difference(current.propUsages, baseline.propUsages, (item, root) =>
+      JSON.stringify([identity(item, root), item.propName, item.value, !!item.isSpread])
+    );
+    const components = difference(current.components, baseline.components, (item, root) =>
+      JSON.stringify([
+        identity(item, root),
+        item.propsInterface,
+        [...new Set(item.props.map((prop) => prop.propName))].sort(),
+        (item.forwardedProps ?? [])
+          .map((forward) =>
+            JSON.stringify([
+              forward.targetComponent,
+              [...forward.excludedProps].sort(),
+              forward.hasDynamicExclusions,
+            ])
+          )
+          .sort(),
+      ])
+    );
+    const removed = [...components.removed];
+    const addedComponents: ComponentAnalysis[] = [];
+    const changedComponents: Array<{ before: ComponentAnalysis; after: ComponentAnalysis }> = [];
+    for (const after of components.added) {
+      const index = removed.findIndex(
+        (before) => identity(before, baselinePath) === identity(after, currentPath)
+      );
+      if (index === -1) addedComponents.push(after);
+      else changedComponents.push({ before: removed.splice(index, 1)[0], after });
+    }
+    return {
+      baselinePath,
+      addedPropUsages: usages.added,
+      removedPropUsages: usages.removed,
+      addedComponents,
+      removedComponents: removed,
+      changedComponents,
+    };
+  }
+}
+export interface PropForwarding {
+  source: string;
+  targetComponent: string;
+  file: string;
+  line: number;
+  column: number;
+  excludedProps: string[];
+  hasDynamicExclusions: boolean;
 }
