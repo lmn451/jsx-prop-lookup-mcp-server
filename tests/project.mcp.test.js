@@ -39,7 +39,7 @@ for (const configuration of ['environment', 'option', 'option-overrides-environm
     await client.connect(
       new StdioClientTransport({
         command: process.execPath,
-        args: [serverPath, ...args],
+        args: [serverPath, '--legacy-tools', ...args],
         cwd: parent,
         env,
       })
