@@ -33,7 +33,10 @@ Boundary cases exercise default working-directory paths, argument type errors, o
 
 `tests/server.test.js` checks that constructing a server has no CLI side effects and that two instances keep their filesystem restrictions independent, using real MCP clients and in-memory transports.
 
-`tests/cli.test.js` executes the compiled CLI to check both help flags, invalid arguments, SIGINT/SIGTERM shutdown, and stdin EOF. `tests/request-logger.test.js` uses an injected transport to verify the disconnected logger's payload, opt-out, timeout, duration normalization, and one-time warning behavior without network requests.
+`tests/cli.test.js` executes the compiled CLI to check help, invalid arguments,
+SIGINT/SIGTERM shutdown, and stdin EOF. `tests/cli-core.test.js` and
+`tests/commands.test.js` cover command parsing and execution; callable-contract
+tests check the exported CLI interface.
 
 ### Filesystem security tests
 
