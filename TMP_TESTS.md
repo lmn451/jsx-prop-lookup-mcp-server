@@ -4,7 +4,7 @@ These development-only scripts exercise analyzer behavior without external servi
 
 ## Prerequisites
 
-- Node.js 20 or newer
+- Node.js 24.11.0 or newer
 - `npm install`
 
 ## Scripts

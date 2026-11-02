@@ -2,7 +2,7 @@
 
 ## Runtime contract
 
-The server requires Node.js 20 or newer and an MCP v2 client that supports protocol/specification `2026-07-28`. It runs over stdio only. A legacy `initialize`-first client is intentionally rejected.
+The server requires Node.js 24.11.0 or newer and an MCP v2 client that supports protocol/specification `2026-07-28`. It runs over stdio only. A legacy `initialize`-first client is intentionally rejected.
 
 ## Recommended configuration
 

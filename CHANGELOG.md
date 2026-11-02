@@ -1,5 +1,15 @@
 # Changelog
 
+## [5.0.0] - 2026-11-02
+
+### Breaking
+
+- Require Node.js 24.11.0 or newer; CI tests Node 24 and 26 instead of Node 20 and 26. The published 4.0.0 release is unchanged.
+
+### Documentation
+
+- Evaluate SWC Next, Babel 8, Oxc, and TypeScript 7 APIs with a reproducible parser benchmark; production parser selection is unchanged.
+
 ## [4.0.0] - 2026-11-02
 
 ### Changed

@@ -1,11 +1,11 @@
 {
   "name": "jsx-prop-lookup-mcp-server",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "MCP v2 server for analyzing JSX prop usage using AST",
   "main": "dist/index.js",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=24.11.0"
   },
   "keywords": [
     "mcp",
@@ -79,7 +79,9 @@
     "examples/audit",
     "dist/change-impact.*",
     "docs/change-impact.md",
-    "docs/legacy-analysis.md"
+    "docs/legacy-analysis.md",
+    "docs/ast-modernization.md",
+    "docs/ast-parser-benchmark.json"
   ],
   "dependencies": {
     "@babel/parser": "^7.29.9",

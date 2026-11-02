@@ -6,7 +6,7 @@ executing application code or editing source files.
 
 ## Install and run
 
-Node.js 20 or newer is required.
+Node.js 24.11.0 or newer is required.
 
 ```bash
 npm install --global jsx-prop-lookup-mcp-server
@@ -62,6 +62,8 @@ Existing beta clients can select `--legacy-tools` for the original tool set; see
 the [CLI reference](docs/cli.md) for compatibility details.
 
 Legacy prop-key, forwarding, and baseline analysis is documented in the [legacy analysis reference](docs/legacy-analysis.md).
+
+Parser/API research and reproducible local measurements are in the [AST modernization report](docs/ast-modernization.md).
 
 ## Development
 
