@@ -1,0 +1,27 @@
+{
+  "node": "v26.2.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "swcNextVersion": "0.5.0",
+  "workload": {
+    "sourceFiles": 41,
+    "jsxCallSites": 1000,
+    "returnedPageSize": 500
+  },
+  "iterations": 15,
+  "warmupsPerBackend": 3,
+  "alternatingOrder": true,
+  "parity": true,
+  "swcFallbackFiles": 0,
+  "scope": "Warm in-process findJsx API queries: discovery, validated filesystem reads, fresh TypeScript Program/checker, prop evaluation, import resolution and pagination. Excludes process startup, native module loading and MCP transport.",
+  "results": {
+    "typescript": {
+      "medianMs": 36.953,
+      "p95Ms": 42.716
+    },
+    "swc": {
+      "medianMs": 38.499,
+      "p95Ms": 41.577
+    }
+  }
+}

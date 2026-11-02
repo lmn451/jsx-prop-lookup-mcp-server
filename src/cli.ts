@@ -17,7 +17,7 @@ export interface CommandLine {
 export type ParsedCommandLine = CommandLine | { action: 'help' } | { action: 'version' };
 
 const commandOptions: Record<Command, readonly string[]> = {
-  query: ['path', 'component', 'source', 'prop', 'value', 'offset', 'limit', 'json'],
+  query: ['path', 'component', 'source', 'prop', 'value', 'offset', 'limit', 'json', 'discovery'],
   inspect: ['path', 'component', 'source', 'remove-prop', 'offset', 'limit', 'json'],
   check: ['path', 'rules', 'offset', 'limit', 'json'],
   serve: ['legacy-tools'],
@@ -45,6 +45,7 @@ export function parseCommandLine(
       source: { type: 'string' },
       prop: { type: 'string' },
       'remove-prop': { type: 'string' },
+      discovery: { type: 'string' },
       value: { type: 'string' },
       rules: { type: 'string' },
       offset: { type: 'string' },
@@ -67,6 +68,11 @@ export function parseCommandLine(
   if (values.value !== undefined && values.prop === undefined)
     throw new Error('--value requires --prop.');
   const query: CommandLine['query'] = {};
+  if (values.discovery !== undefined) {
+    if (values.discovery !== 'typescript' && values.discovery !== 'swc')
+      throw new Error('--discovery must be typescript or swc.');
+    query.discovery = values.discovery;
+  }
   if (values['remove-prop'] !== undefined) query.removeProp = values['remove-prop'];
   for (const key of ['path', 'component', 'source', 'prop', 'value'] as const) {
     if (values[key] !== undefined) query[key] = values[key];

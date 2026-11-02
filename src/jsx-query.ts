@@ -304,43 +304,50 @@ export function collectJsx(snapshot: JsxSnapshot): {
   for (const source of snapshot.files) {
     const visit = (node: ts.Node) => {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
-        const location = source.getLineAndCharacterOfPosition(node.getStart(source));
-        const props: Record<string, PropValue> = Object.create(null);
-        const unknownSpreads: string[] = [];
-        for (const attribute of node.attributes.properties) {
-          if (ts.isJsxAttribute(attribute)) {
-            const initializer = attribute.initializer;
-            props[attribute.name.getText(source)] = !initializer
-              ? { status: 'known', value: true }
-              : ts.isStringLiteral(initializer)
-                ? initializer.text.includes('&')
-                  ? { status: 'unknown', expression: initializer.getText(source) }
-                  : { status: 'known', value: initializer.text }
-                : ts.isJsxExpression(initializer) && initializer.expression
-                  ? staticValue(initializer.expression)
-                  : { status: 'unknown', expression: initializer.getText(source) };
-          } else {
-            applyPropSpread(attribute.expression, props, unknownSpreads);
-          }
-        }
-        if (ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent)) {
-          const children = childrenValue(node.parent.children);
-          if (children) props.children = children;
-        }
-        matches.push({
-          filePath: source.fileName,
-          line: location.line + 1,
-          column: location.character + 1,
-          snippet: sourceSnippet(source.text, location.line + 1, location.character + 1),
-          component: node.tagName.getText(source),
-          identity: getComponentIdentity(snapshot, node.tagName),
-          props: Object.fromEntries(Object.entries(props)),
-          unknownSpreads,
-        });
+        matches.push(createJsxMatch(snapshot, source, node));
       }
       ts.forEachChild(node, visit);
     };
     visit(source);
   }
   return { matches, unresolved };
+}
+export function createJsxMatch(
+  snapshot: JsxSnapshot,
+  source: ts.SourceFile,
+  node: ts.JsxOpeningElement | ts.JsxSelfClosingElement
+): JsxMatch {
+  const location = source.getLineAndCharacterOfPosition(node.getStart(source));
+  const props: Record<string, PropValue> = Object.create(null);
+  const unknownSpreads: string[] = [];
+  for (const attribute of node.attributes.properties) {
+    if (ts.isJsxAttribute(attribute)) {
+      const initializer = attribute.initializer;
+      props[attribute.name.getText(source)] = !initializer
+        ? { status: 'known', value: true }
+        : ts.isStringLiteral(initializer)
+          ? initializer.text.includes('&')
+            ? { status: 'unknown', expression: initializer.getText(source) }
+            : { status: 'known', value: initializer.text }
+          : ts.isJsxExpression(initializer) && initializer.expression
+            ? staticValue(initializer.expression)
+            : { status: 'unknown', expression: initializer.getText(source) };
+    } else {
+      applyPropSpread(attribute.expression, props, unknownSpreads);
+    }
+  }
+  if (ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent)) {
+    const children = childrenValue(node.parent.children);
+    if (children) props.children = children;
+  }
+  return {
+    filePath: source.fileName,
+    line: location.line + 1,
+    column: location.character + 1,
+    snippet: sourceSnippet(source.text, location.line + 1, location.character + 1),
+    component: node.tagName.getText(source),
+    identity: getComponentIdentity(snapshot, node.tagName),
+    props: Object.fromEntries(Object.entries(props)),
+    unknownSpreads,
+  };
 }

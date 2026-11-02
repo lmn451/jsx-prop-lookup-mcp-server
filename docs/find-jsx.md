@@ -21,4 +21,32 @@ Each match includes its local component name, import identity and resolved defin
 
 Results use the shared sorted pagination contract: `matches`, `total`, `offset`, `limit`, `nextOffset`, `unresolved`, and `complete`. Defaults are offset zero and 100 matches, with a maximum page size of 500. Omit filters to list all discovered JSX call sites.
 
-The exported `createJsxSnapshot` and `collectJsx` APIs let related analysis tools inspect every match before pagination, using the same filesystem and import resolution boundary.
+## Experimental SWC Next discovery
+
+Set `"discovery": "swc"` on `find_jsx`, or pass `--discovery swc` to the `query` CLI command. The default is `typescript`; `inspect_component`, `check_jsx`, legacy analysis, and their CLI commands remain unchanged.
+
+```json
+{ "component": "Button", "source": "./ui", "discovery": "swc" }
+```
+
+This is an opt-in syntax-discovery adapter, not a replacement for TypeScript semantic analysis. SWC Next 0.5.0 enumerates JSX opening elements; their UTF-16 offsets locate existing TypeScript nodes through a cached range index. Both paths share the same projection of import identities, props, spreads, children, snippets, locations, pagination, and completeness. TypeScript still constructs the project Program/TypeChecker and remains the authority for diagnostics and recovery. No application code is executed and SWC receives only source strings already read through the workspace boundary.
+
+If SWC reports syntax/semantic errors, its walker fails, or an opening offset cannot be matched, that entire file uses the TypeScript collector. No partially discovered file results are returned. `collectJsxWithSwc` exposes `fallbackFiles` for diagnostics/benchmarks, but the public result-page shape is unchanged. Native process crashes cannot be recovered by JavaScript; the backend remains experimental.
+
+The pinned `@swc-next/core` package is an optional native dependency and is loaded only for an explicitly selected SWC query. Default queries, inspection, checking, and server startup work without it. `--omit=optional` installations or unsupported native environments receive an actionable error only if SWC is selected. Install optional dependencies to enable it; no hidden environment variable changes the production backend.
+
+### Measure the complete query, not just the parser
+
+From a repository checkout:
+
+```sh
+npm ci
+npm run build
+npm run benchmark:discovery
+```
+
+The recorded synthetic run used 41 files / 1000 JSX sites, 15 measured queries per backend, three warmups, and alternating order on Node v26.2.0 (darwin/arm64). TypeScript median: **36.953 ms**; SWC hybrid median: **38.499 ms**. Results were deeply equal and no files fell back. This sample shows **no end-to-end speedup**: the retained TypeScript Program/checker and extra parse work dominate the syntax-only gain.
+
+The timing includes fresh validated reads, Program/checker construction, collection, semantic projection, filtering, and pagination. It excludes process startup, first native-module import, and MCP transport; it is not a real-project performance guarantee. Raw results: [swc-discovery-benchmark.json](swc-discovery-benchmark.json). Keep the TypeScript default until representative project timings justify a broader migration.
+
+The exported `createJsxSnapshot` and `collectJsx` APIs let related analysis tools inspect every match before pagination, using the same filesystem and import resolution boundary. The experimental collector is in `swc-discovery.js`; importing that module directly requires the optional native dependency.

@@ -63,7 +63,7 @@ the [CLI reference](docs/cli.md) for compatibility details.
 
 Legacy prop-key, forwarding, and baseline analysis is documented in the [legacy analysis reference](docs/legacy-analysis.md).
 
-Parser/API research and reproducible local measurements are in the [AST modernization report](docs/ast-modernization.md).
+Parser/API research and reproducible local measurements are in the [AST modernization report](docs/ast-modernization.md). An [experimental SWC Next discovery backend](docs/find-jsx.md#experimental-swc-next-discovery) is available with `query --discovery swc`; TypeScript remains the default and semantic authority.
 
 ## Development
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Opt-in SWC Next JSX syntax discovery for `find_jsx` and `query --discovery swc`, with unchanged TypeScript-backed semantics, per-file recovery, optional native dependency loading, differential regression tests, and a full-query benchmark. TypeScript remains the default; no end-to-end speedup is claimed.
+
 ## [5.0.0] - 2026-11-02
 
 ### Breaking

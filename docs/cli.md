@@ -28,18 +28,20 @@ add a restriction to the project boundary.
 
 ## Commands
 
-| Command   | Required flags     | Optional query flags                                                                      |
-| --------- | ------------------ | ----------------------------------------------------------------------------------------- |
-| `query`   | None               | `--path`, `--component`, `--source`, `--prop`, `--value`, `--offset`, `--limit`, `--json` |
-| `inspect` | `--component NAME` | `--path`, `--source`, `--remove-prop`, `--offset`, `--limit`, `--json`                    |
-| `check`   | `--rules FILE`     | `--path`, `--offset`, `--limit`, `--json`                                                 |
-| `serve`   | None               | `--legacy-tools`                                                                          |
+| Command   | Required flags     | Optional query flags                                                                                     |
+| --------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `query`   | None               | `--path`, `--component`, `--source`, `--prop`, `--value`, `--offset`, `--limit`, `--json`, `--discovery` |
+| `inspect` | `--component NAME` | `--path`, `--source`, `--remove-prop`, `--offset`, `--limit`, `--json`                                   |
+| `check`   | `--rules FILE`     | `--path`, `--offset`, `--limit`, `--json`                                                                |
+| `serve`   | None               | `--legacy-tools`                                                                                         |
 
 `query` uses the same search as MCP `find_jsx`: component names can be local import
 aliases or original export names; `--source` filters import identity. `--prop`
 requires a statically present prop. `--value` additionally matches its primitive
 value converted to a string and requires `--prop`. Unknown information is reported
 in `unresolved`; application code is never evaluated.
+
+`query --discovery swc` opts into experimental SWC Next syntax discovery; `typescript` is the default. TypeScript still supplies semantic identities/values and error recovery. The optional native package must be installed. This flag is query-only and does not promise a speedup; see the [discovery contract and benchmark](find-jsx.md#experimental-swc-next-discovery).
 
 `inspect` uses MCP `inspect_component`'s analysis of component definitions, prop
 types, documentation, and statically known defaults. A missing component produces

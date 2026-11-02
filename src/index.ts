@@ -24,6 +24,7 @@ No command starts the MCP stdio server.
   --offset N              Non-negative page offset (default 0)
   --limit N               Page size from 1 to 500 (default 100)
   --json                  JSON result or error (query/inspect/check)
+  --discovery BACKEND     Query discovery: typescript (default) or experimental swc
   --legacy-tools          Serve the four legacy tools (serve only)
   -h, --help              Show help
   --version               Show package version
