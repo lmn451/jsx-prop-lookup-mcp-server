@@ -61,6 +61,8 @@ filesystem restrictions, see [SECURITY.md](SECURITY.md).
 Existing beta clients can select `--legacy-tools` for the original tool set; see
 the [CLI reference](docs/cli.md) for compatibility details.
 
+Legacy prop-key, forwarding, and baseline analysis is documented in the [legacy analysis reference](docs/legacy-analysis.md).
+
 ## Development
 
 Release maintainers: see [automatic npm publishing](docs/publishing.md) for the
@@ -79,3 +81,8 @@ npm start
 `src/cli.ts` shares parsing and command execution; `src/index.ts` owns process I/O
 and lifecycle. `src/server.ts` registers the modern tools, while
 `src/legacy-server.ts` keeps the compatibility registrations separate.
+
+Run the checked-in [migration and audit examples](examples/audit/README.md) to try caller search, component inspection, and saved checks with stated results.
+
+Preview a proposed prop removal with `inspect --component Button --remove-prop variant`.
+See [change impact](docs/change-impact.md) and the [runnable migration examples](examples/audit/README.md).

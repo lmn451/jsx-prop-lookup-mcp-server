@@ -6,14 +6,10 @@ The test suite covers the observable behavior of the JSX analyzer and its MCP st
 
 ## MCP server coverage
 
-The stdio integration coverage exercises:
+The default stdio integration coverage exercises:
 
 - server initialization;
-- discovery of exactly the seven current tools;
-- calls to `analyze_jsx_props`;
-- calls to `find_prop_usage`;
-- calls to `get_component_props`;
-- calls to `find_components_without_prop`;
+- discovery of exactly the three current tools;
 - calls to `inspect_component`;
 - calls to `find_jsx`;
 - calls to `check_jsx`;
@@ -22,6 +18,9 @@ The stdio integration coverage exercises:
 - tool error responses without server termination.
 
 Additional boundary coverage verifies all four default search paths, invalid argument types, optional type metadata, concurrent requests, and successful analysis after repairing a parse failure on the same connection.
+
+Separate compatibility coverage exercises the four legacy tools when the server
+is started with `--legacy-tools`.
 
 The protocol-facing coverage is maintained for the official `@modelcontextprotocol/server` v2 implementation and the `2026-07-28` protocol/specification line. MCP v1-only package APIs and protocol assumptions are outside the current target.
 
@@ -62,4 +61,8 @@ The CLI tests execute help and invalid-argument paths, signal-driven shutdown, a
 
 ## Regression focus
 
-The suite retains coverage for Babel traversal and value extraction, including expression shapes that previously caused traversal or serialization failures. Coverage includes all seven supported tools; removed or experimental query and similarity tools are not part of the product contract.
+The suite retains coverage for Babel traversal and value extraction, including
+expression shapes that previously caused traversal or serialization failures.
+The default server exposes three tools; the four legacy tools are available only
+in compatibility mode. Removed or experimental query and similarity tools are
+not part of the product contract.

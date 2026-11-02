@@ -3,15 +3,9 @@ import { ProjectWorkspace } from './project.js';
 import { sourceSnippet, type UnresolvedCase } from './results.js';
 
 export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type PropValue =
-  | { status: 'known'; value: JsonValue }
-  | { status: 'unknown'; expression: string };
+  { status: 'known'; value: JsonValue } | { status: 'unknown'; expression: string };
 export interface JsxIdentity {
   exportName: string;
   source: string;
