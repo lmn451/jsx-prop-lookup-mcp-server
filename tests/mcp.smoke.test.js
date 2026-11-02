@@ -26,7 +26,7 @@ describe('MCP v2 server integration', () => {
     );
     const transport = new StdioClientTransport({
       command: process.execPath,
-      args: [serverPath],
+      args: [serverPath, '--legacy-tools'],
       cwd: path.resolve(__dirname, '..'),
     });
 
@@ -204,7 +204,7 @@ describe('MCP v2 server integration', () => {
         assert.equal(result.isError, true, request.name);
         assert.match(result.content[0].text, /Failed to parse .*Broken\.tsx/);
       }
-      assert.equal((await client.listTools()).tools.length, 4);
+      assert.equal((await client.listTools()).tools.length, toolNames.length);
     });
   });
 

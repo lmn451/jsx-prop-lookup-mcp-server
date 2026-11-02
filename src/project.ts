@@ -53,12 +53,17 @@ export class ProjectWorkspace {
   private readonly tsconfig?: string;
 
   constructor(options: ProjectOptions = {}) {
-    this.configuredRoot = resolve(options.root ?? process.cwd());
-    this.root = realpathSync(this.configuredRoot);
+    this.configuredRoot = resolve(options.root ?? process.env.PROJECT_ROOT ?? process.cwd());
+    this.root = realpathSync.native(this.configuredRoot);
     if (!statSync(this.root).isDirectory()) {
       throw new Error(`Project root is not a directory: ${this.root}`);
     }
-    this.allowedRoots = options.allowedRoots ?? [];
+    this.allowedRoots =
+      options.allowedRoots ??
+      (process.env.ALLOWED_ROOTS ?? '')
+        .split(',')
+        .map((root) => root.trim())
+        .filter(Boolean);
     this.tsconfig = options.tsconfig;
     this.checkAllowedRoots(this.root);
   }
@@ -68,7 +73,7 @@ export class ProjectWorkspace {
       this.allowedRoots.length &&
       !this.allowedRoots.some((root) => {
         try {
-          return contains(realpathSync(resolve(root)), candidate);
+          return contains(realpathSync.native(resolve(root)), candidate);
         } catch {
           return false;
         }
@@ -93,7 +98,7 @@ export class ProjectWorkspace {
   /** Resolve an existing path without allowing lexical or symlink escapes. */
   resolve(input: string): string {
     const absolute = this.lexicalPath(input);
-    const canonical = realpathSync(absolute);
+    const canonical = realpathSync.native(absolute);
     if (!contains(this.root, canonical)) {
       throw new Error(`Access to path outside project root: ${absolute}`);
     }

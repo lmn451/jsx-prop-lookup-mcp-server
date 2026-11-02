@@ -1,6 +1,6 @@
 # Changelog
 
-## [4.0.0] - Unreleased
+## [4.0.0] - 2026-11-02
 
 ### Changed
 
@@ -11,6 +11,10 @@
 - Upgraded Babel, glob, Zod, TypeScript, ESLint, Prettier, and related development dependencies.
 - Migrated ESLint to the flat configuration used by ESLint 10.
 - Simplified the CLI/server entry point with built-in argument parsing, shared tool-response handling, and direct startup/shutdown. Invalid CLI arguments now fail before startup.
+- Added project-aware `find_jsx`, `inspect_component`, and `check_jsx` tools, with stable pagination and explicit completeness reporting.
+- Added `query`, `inspect`, and `check` CLI commands, reusable JSON audit rules, CI exit codes, and read-only prop-removal impact previews.
+- Retained the four original MCP tools behind `--legacy-tools`, including optional baseline comparisons and binding-aware rest-forwarding evidence.
+- Switched automated npm releases to GitHub Actions trusted publishing with OIDC.
 - Read and parse failures now return tool errors with the failed filename instead of successful, incomplete results.
 - Package builds now include only the active runtime modules and release documentation; stale tests and disconnected analytics helpers are excluded.
 
@@ -21,7 +25,9 @@
 - Respect parameter bindings when finding prop access inside closures and callbacks.
 - Handle static computed access, optional chaining, and defaulted props parameters.
 - Associate prop type declarations regardless of their position in the file.
-- Restore the missing configuration API for the optional, disconnected request logger.
+- Recognize quoted/static destructuring keys such as `aria-label` without inventing names for dynamic keys.
+- Track rest forwarding targets and exclusions without confusing shadowed or reassigned bindings.
+- Compare legacy analysis against a baseline checkout without treating line shifts or unchanged evidence as newly introduced behavior.
 
 ### Security
 
@@ -33,13 +39,13 @@
 
 - Replaced the hand-written legacy MCP wire test with official v2 client/stdio integration coverage.
 - Preserved analyzer, allowed-root, namespaced JSX, and expression-value regression coverage.
-- Test the compiled entry point and add regressions for containment escapes, analysis correctness, and parse errors across all four tools.
+- Test the compiled CLI, the three default MCP tools, and four opt-in legacy tools, including containment, parse errors, baseline comparisons, and package-runtime regressions.
 
 ## [3.5.0] - 2026-02-10
 
 - Latest published npm release before the 4.0.0 upgrade, using `@modelcontextprotocol/sdk` v1 and the same four analysis tools.
 
-Historical entries below describe older package releases and may mention APIs that are not part of the current four-tool product.
+Historical entries below describe older package releases and may mention APIs outside the current tool contract.
 
 ## [1.3.0] - 2024-07-23
 
