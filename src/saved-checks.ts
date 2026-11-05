@@ -11,6 +11,7 @@ export interface SavedChecks {
 export interface SavedCheckOptions extends PageOptions {
   rulesFile: string;
   path?: string;
+  undeclared?: boolean;
 }
 
 export type CheckExitCode = 0 | 1 | 2;

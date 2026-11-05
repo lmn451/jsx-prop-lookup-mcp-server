@@ -119,6 +119,8 @@ export function registerFindJsxTool(server: McpServer, project: ProjectWorkspace
           .string()
           .optional()
           .describe('Primitive prop value converted to a string; requires prop.'),
+        summaryOnly: z.boolean().default(false),
+        fields: z.array(z.string().min(1)).optional(),
         offset: z.number().int().min(0).default(0),
         limit: z.number().int().min(1).max(500).default(100),
       }),

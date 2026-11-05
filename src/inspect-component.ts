@@ -428,10 +428,17 @@ function describeCandidate(
       (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
     )
       parameter = node.initializer.parameters[0];
-    else
-      unknown(
-        `Unresolved component wrapper or value: ${node.initializer?.getText() ?? node.getText()}`
-      );
+    else {
+      const signatures = !node.type ? checker.getTypeAtLocation(node).getCallSignatures() : [];
+      const props = signatures.length === 1 ? signatures[0].parameters[0] : undefined;
+      if (props) {
+        propsType = checker.getTypeOfSymbolAtLocation(props, node);
+        typeNode = propertyTypeNode(props.valueDeclaration ?? props.declarations?.[0]);
+      } else
+        unknown(
+          `Unresolved component wrapper or value: ${node.initializer?.getText() ?? node.getText()}`
+        );
+    }
     if (
       node.type &&
       ts.isTypeReferenceNode(node.type) &&
@@ -576,6 +583,8 @@ export function registerInspectComponentTool(server: McpServer, project: Project
           .string()
           .optional()
           .describe('Import specifier or securely resolvable local module.'),
+        summaryOnly: z.boolean().default(false),
+        fields: z.array(z.string().min(1)).optional(),
         offset: z.number().int().min(0).default(0),
         limit: z.number().int().min(1).max(500).default(100),
       }),

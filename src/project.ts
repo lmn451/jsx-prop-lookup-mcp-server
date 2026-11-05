@@ -155,7 +155,10 @@ export class ProjectWorkspace {
   }
 
   private configuration(files: string[]): ts.ParsedCommandLine | undefined {
-    const configPath = this.lexicalPath(this.tsconfig ?? 'tsconfig.json');
+    const defaultConfig = existsSync(this.lexicalPath('tsconfig.json'))
+      ? 'tsconfig.json'
+      : 'jsconfig.json';
+    const configPath = this.lexicalPath(this.tsconfig ?? defaultConfig);
     if (this.tsconfig === undefined && !existsSync(configPath)) return undefined;
     this.resolve(configPath);
     const directories = new Map<string, { files: string[]; directories: string[] }>();

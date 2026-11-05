@@ -8,6 +8,8 @@ export interface LocatedResult {
 export interface PageOptions {
   offset?: number;
   limit?: number;
+  summaryOnly?: boolean;
+  fields?: string[];
 }
 
 export interface UnresolvedCase {
@@ -25,6 +27,7 @@ export interface ResultPage<T extends LocatedResult> {
   nextOffset: number | null;
   unresolved: UnresolvedCase[];
   complete: boolean;
+  unresolvedCount?: number;
 }
 
 /** Sort and page matches without changing the caller's objects or arrays. */
@@ -51,12 +54,23 @@ export function paginateResults<T extends LocatedResult>(
   });
   const end = offset + limit;
   return {
-    matches: sorted.slice(offset, end),
+    matches: options.summaryOnly
+      ? []
+      : sorted
+          .slice(offset, end)
+          .map((item) =>
+            options.fields
+              ? (Object.fromEntries(
+                  Object.entries(item).filter(([key]) => options.fields!.includes(key))
+                ) as T)
+              : item
+          ),
     total: items.length,
     offset,
     limit,
     nextOffset: end < items.length ? end : null,
-    unresolved: [...unresolved],
+    unresolved: options.summaryOnly ? [] : [...unresolved],
+    ...(options.summaryOnly ? { unresolvedCount: unresolved.length } : {}),
     complete: unresolved.length === 0,
   };
 }

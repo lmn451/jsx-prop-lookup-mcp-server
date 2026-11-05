@@ -15,7 +15,7 @@ jsx-prop-lookup-mcp-server serve --project-root /workspace/app
 | Option                  | Meaning                                                                                                              |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `--project-root PATH`   | Project root; overrides `PROJECT_ROOT`, otherwise uses the working directory.                                        |
-| `--tsconfig FILE`       | In-project config path; otherwise uses root `tsconfig.json` when present.                                            |
+| `--tsconfig FILE`       | In-project config path; otherwise uses root `tsconfig.json`, falling back to `jsconfig.json`.                        |
 | `--allowed-roots PATHS` | Comma-separated allowed roots; overrides `ALLOWED_ROOTS`. Relative roots resolve from the process working directory. |
 | `--help`, `-h`          | Print help without validating project paths or starting a server.                                                    |
 | `--version`             | Print the package version without validating project paths or starting a server.                                     |
@@ -28,12 +28,12 @@ add a restriction to the project boundary.
 
 ## Commands
 
-| Command   | Required flags     | Optional query flags                                                                                     |
-| --------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `query`   | None               | `--path`, `--component`, `--source`, `--prop`, `--value`, `--offset`, `--limit`, `--json`, `--discovery` |
-| `inspect` | `--component NAME` | `--path`, `--source`, `--remove-prop`, `--offset`, `--limit`, `--json`                                   |
-| `check`   | `--rules FILE`     | `--path`, `--offset`, `--limit`, `--json`                                                                |
-| `serve`   | None               | `--legacy-tools`                                                                                         |
+| Command   | Required flags                   | Optional query flags                                                                                     |
+| --------- | -------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `query`   | None                             | `--path`, `--component`, `--source`, `--prop`, `--value`, `--offset`, `--limit`, `--json`, `--discovery` |
+| `inspect` | `--component NAME`               | `--path`, `--source`, `--remove-prop`, `--offset`, `--limit`, `--json`                                   |
+| `check`   | `--rules FILE` or `--undeclared` | `--path`, `--offset`, `--limit`, `--json`                                                                |
+| `serve`   | None                             | `--legacy-tools`                                                                                         |
 
 `query` uses the same search as MCP `find_jsx`: component names can be local import
 aliases or original export names; `--source` filters import identity. `--prop`
@@ -80,7 +80,7 @@ exits `1` when the requested page is empty but its total finding count is positi
 Errors with `--json` are machine-readable on stdout:
 
 ```json
-{ "error": { "message": "check requires --rules." }, "exitCode": 2 }
+{ "error": { "message": "check requires --rules or --undeclared." }, "exitCode": 2 }
 ```
 
 Human-mode errors go to stderr. MCP serving reserves stdout for protocol messages;
@@ -100,3 +100,22 @@ create the modern server around one shared `ProjectWorkspace`. Pass
 `{ legacyTools: true }` for explicit compatibility mode. The existing
 `createServer(allowedRootsArray)` form remains legacy-compatible. Importing or
 creating a server does not start a transport or attach process listeners.
+
+## Built-in checks and compact output
+
+`check --undeclared` audits passed prop names against resolved contracts without a rule file. Add `--rules FILE` to combine the built-in audit with saved rules. See [undeclared props](check-jsx.md#built-in-undeclared-prop-audit) for forwarding, naming suggestions, and uncertainty semantics.
+
+Query, inspect, and check accept `--summary-only` (omit match/unresolved details, retain counts and certainty) and `--fields elementId,component,prop` (select top-level match fields). JSON is recommended for selected-field output; human mode renders partial matches as JSON when location details are absent. See [compact output](results.md#compact-output).
+
+Unsupported Node versions exit `2` with an explicit error before loading CLI/MCP dependencies. `--json` returns the usual structured error. The stdio startup banner uses the package version, as does the MCP server identity.
+
+## Migration from the legacy tools
+
+Existing clients can keep the old tool names by adding `--legacy-tools` to their server arguments. This selects the legacy tool set rather than adding it to the modern tools. To migrate, translate arguments as follows; result schemas differ, so update consumers too.
+
+| Legacy call                                                              | Modern equivalent                                                                             | Notes                                                                                                |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `analyze_jsx_props({path, componentName, propName})`                     | `find_jsx({path, component: componentName, prop: propName})`                                  | Query call sites; use `inspect_component` for declarations. Baseline comparisons remain legacy-only. |
+| `find_prop_usage({directory, componentName, propName})`                  | `find_jsx({path: directory, component: componentName, prop: propName})`                       | Results are sorted and paginated.                                                                    |
+| `get_component_props({directory, componentName})`                        | `inspect_component({path: directory, component: componentName})`                              | Declared contracts, not the legacy combined usage report.                                            |
+| `find_components_without_prop({directory, componentName, requiredProp})` | `check_jsx({path: directory, rules: [{component: componentName, required: [requiredProp]}]})` | Missing-prop findings; unknown spreads remain incomplete.                                            |
