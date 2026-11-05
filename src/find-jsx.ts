@@ -10,6 +10,7 @@ export interface FindJsxQuery extends PageOptions {
   source?: string;
   prop?: string;
   value?: string;
+  discovery?: 'typescript' | 'swc';
 }
 
 export function matchesComponent(
@@ -40,8 +41,25 @@ export function matchesComponent(
 export async function findJsx(project: ProjectWorkspace, query: FindJsxQuery = {}) {
   if (query.value !== undefined && query.prop === undefined)
     throw new Error('A value filter requires a prop filter.');
+  if (
+    query.discovery !== undefined &&
+    query.discovery !== 'typescript' &&
+    query.discovery !== 'swc'
+  )
+    throw new Error('discovery must be typescript or swc.');
+  let collect = collectJsx;
+  if (query.discovery === 'swc') {
+    try {
+      collect = (await import('./swc-discovery.js')).collectJsxWithSwc;
+    } catch (cause) {
+      throw new Error(
+        'SWC Next discovery requires the optional @swc-next/core native package. Reinstall without --omit=optional.',
+        { cause }
+      );
+    }
+  }
   const snapshot = await createJsxSnapshot(project, query.path);
-  const collected = collectJsx(snapshot);
+  const collected = collect(snapshot);
   const unresolved: UnresolvedCase[] = [...collected.unresolved];
   const matches: JsxMatch[] = [];
   for (const match of collected.matches) {
@@ -82,6 +100,12 @@ export function registerFindJsxTool(server: McpServer, project: ProjectWorkspace
         'Find JSX call sites by component import identity, source module, and prop. Returns sorted paginated matches, snippets, known prop values, and explicit unresolved cases.',
       inputSchema: z.object({
         path: z.string().default('.').describe('File or directory within the configured project.'),
+        discovery: z
+          .enum(['typescript', 'swc'])
+          .optional()
+          .describe(
+            'JSX syntax discovery backend. Default typescript; swc is experimental and retains TypeScript semantic analysis.'
+          ),
         component: z
           .string()
           .optional()
@@ -95,6 +119,8 @@ export function registerFindJsxTool(server: McpServer, project: ProjectWorkspace
           .string()
           .optional()
           .describe('Primitive prop value converted to a string; requires prop.'),
+        summaryOnly: z.boolean().default(false),
+        fields: z.array(z.string().min(1)).optional(),
         offset: z.number().int().min(0).default(0),
         limit: z.number().int().min(1).max(500).default(100),
       }),

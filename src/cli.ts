@@ -2,7 +2,8 @@ import { parseArgs } from 'node:util';
 import { ProjectWorkspace, type ProjectOptions } from './project.js';
 import { findJsx, type FindJsxQuery } from './find-jsx.js';
 import { inspectComponent } from './inspect-component.js';
-import { runSavedChecks } from './saved-checks.js';
+import { runSavedChecks, checkExitCode } from './saved-checks.js';
+import { checkJsx } from './check-jsx.js';
 
 type Command = 'query' | 'inspect' | 'check' | 'serve';
 export interface CommandLine {
@@ -11,15 +12,37 @@ export interface CommandLine {
   json: boolean;
   legacyTools: boolean;
   project: ProjectOptions;
-  query: FindJsxQuery & { removeProp?: string };
+  query: FindJsxQuery & { removeProp?: string; undeclared?: boolean };
   rulesFile?: string;
 }
 export type ParsedCommandLine = CommandLine | { action: 'help' } | { action: 'version' };
 
 const commandOptions: Record<Command, readonly string[]> = {
-  query: ['path', 'component', 'source', 'prop', 'value', 'offset', 'limit', 'json'],
-  inspect: ['path', 'component', 'source', 'remove-prop', 'offset', 'limit', 'json'],
-  check: ['path', 'rules', 'offset', 'limit', 'json'],
+  query: [
+    'path',
+    'component',
+    'source',
+    'prop',
+    'value',
+    'offset',
+    'limit',
+    'json',
+    'discovery',
+    'summary-only',
+    'fields',
+  ],
+  inspect: [
+    'path',
+    'component',
+    'source',
+    'remove-prop',
+    'offset',
+    'limit',
+    'json',
+    'summary-only',
+    'fields',
+  ],
+  check: ['path', 'rules', 'undeclared', 'offset', 'limit', 'json', 'summary-only', 'fields'],
   serve: ['legacy-tools'],
 };
 const sharedOptions = ['project-root', 'tsconfig', 'allowed-roots'];
@@ -36,6 +59,9 @@ export function parseCommandLine(
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean' },
       json: { type: 'boolean' },
+      undeclared: { type: 'boolean' },
+      'summary-only': { type: 'boolean' },
+      fields: { type: 'string' },
       'legacy-tools': { type: 'boolean' },
       'project-root': { type: 'string' },
       'allowed-roots': { type: 'string' },
@@ -45,6 +71,7 @@ export function parseCommandLine(
       source: { type: 'string' },
       prop: { type: 'string' },
       'remove-prop': { type: 'string' },
+      discovery: { type: 'string' },
       value: { type: 'string' },
       rules: { type: 'string' },
       offset: { type: 'string' },
@@ -63,10 +90,23 @@ export function parseCommandLine(
   }
   if (command === 'inspect' && !values.component?.trim())
     throw new Error('inspect requires --component.');
-  if (command === 'check' && !values.rules?.trim()) throw new Error('check requires --rules.');
+  if (command === 'check' && !values.rules?.trim() && !values.undeclared)
+    throw new Error('check requires --rules or --undeclared.');
   if (values.value !== undefined && values.prop === undefined)
     throw new Error('--value requires --prop.');
   const query: CommandLine['query'] = {};
+  if (values.undeclared) query.undeclared = true;
+  if (values['summary-only']) query.summaryOnly = true;
+  if (values.fields !== undefined) {
+    query.fields = values.fields.split(',').map((field) => field.trim());
+    if (query.fields.some((field) => !field))
+      throw new Error('--fields requires comma-separated field names.');
+  }
+  if (values.discovery !== undefined) {
+    if (values.discovery !== 'typescript' && values.discovery !== 'swc')
+      throw new Error('--discovery must be typescript or swc.');
+    query.discovery = values.discovery;
+  }
   if (values['remove-prop'] !== undefined) query.removeProp = values['remove-prop'];
   for (const key of ['path', 'component', 'source', 'prop', 'value'] as const) {
     if (values[key] !== undefined) query[key] = values[key];
@@ -120,15 +160,29 @@ export async function executeCommand(options: CommandLine) {
       ...options.query,
       component: options.query.component!,
     });
-  else if (options.command === 'check')
-    result = await runSavedChecks(project, { ...options.query, rulesFile: options.rulesFile! });
-  else throw new Error('serve must run through the stdio server.');
+  else if (options.command === 'check') {
+    if (options.rulesFile)
+      result = await runSavedChecks(project, { ...options.query, rulesFile: options.rulesFile });
+    else {
+      const checked = await checkJsx(project, { ...options.query, undeclared: true });
+      result = { ...checked, exitCode: checkExitCode(checked) };
+    }
+  } else throw new Error('serve must run through the stdio server.');
   return { result, exitCode: 'exitCode' in result ? result.exitCode : result.complete ? 0 : 2 };
 }
 
 /** Compact human output; JSON callers receive the unmodified result instead. */
 export function renderHumanResult(result: CommandResult): string {
+  if (result.unresolvedCount !== undefined)
+    return `${result.total} matches; ${result.unresolvedCount} unresolved; ${result.complete ? 'complete' : 'incomplete'}.`;
   const lines = result.matches.map((match) => {
+    if (
+      !match.filePath ||
+      !match.line ||
+      !match.column ||
+      ('name' in match && !Array.isArray(match.props))
+    )
+      return JSON.stringify(match);
     const label =
       'message' in match
         ? match.message

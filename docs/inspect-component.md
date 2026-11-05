@@ -24,6 +24,7 @@ Props come from a function's first parameter annotation, an explicit `React.FC`
 or `FunctionComponent` type argument, or a `Component`/`PureComponent` class type
 argument. Types declared later in the file and imported types are supported.
 Generic substitutions and intersections use the compiler's resolved prop type.
+Styled factories and wrappers such as `forwardRef` also work when TypeScript resolves a single callable props signature; wrappers with unavailable types remain incomplete.
 When a function implementation omits its props parameter, a declared callable
 type can supply it, including a type alias or callable interface. An unresolved
 annotation or multiple declared call signatures remains explicitly unresolved;
@@ -55,7 +56,7 @@ values, computed accessors, and prototype setters remain explicitly unresolved;
 prototype setters do not produce an own prop named `__proto__`.
 
 Every result page has `unresolved` and `complete`. Unknown prop types, dynamic
-defaults, and unsupported wrappers such as `memo(forwardRef(...))` make the page
+defaults, and wrappers without a resolved callable contract make the page
 incomplete. Union props require selecting a variant and are reported as unresolved
 instead of presenting their shared fields as a complete props list.
 A missing component also produces an explicit unresolved case. A

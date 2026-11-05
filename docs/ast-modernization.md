@@ -26,7 +26,7 @@ SWC Next was about 4.1x faster than Babel 7 for parsing and 1.9x for parsing plu
 
 Limitations: synthetic input only, fixed backend order, all backends loaded into one process, no isolated memory comparison, no repeated-process confidence interval, and different AST traversal implementations. SWC Next runs semanticErrors checks; all backends check reported parse diagnostics. The test does not validate import identity, type checking, scope/bindings, security/completeness semantics, or project I/O. It is a candidate-selection experiment, not a production parity test.
 
-Raw results: [ast-parser-benchmark.json](ast-parser-benchmark.json). Reproduce from a repository checkout on Node 24.11+ (the optional parser packages are not production dependencies):
+Raw results: [ast-parser-benchmark.json](ast-parser-benchmark.json). Reproduce from a repository checkout on Node 24.11+ (Babel 8 and Oxc remain benchmark-only dependencies; SWC Next is now an optional runtime dependency for the explicit discovery experiment):
 
 ```sh
 npm ci --ignore-scripts
@@ -44,6 +44,10 @@ The script is [scripts/benchmark-parsers.mjs](../scripts/benchmark-parsers.mjs).
 3. Prototype SWC Next for syntax-only JSX discovery behind the existing response contract. Retain TypeScript for typed inspection/import identity; do not add an extra parse pass unless measurements justify it.
 4. Gate rollout on real-project end-to-end timings and the full existing regression suite, plus quoted/computed keys, shadowing, rest exclusions, UTF-16 locations, syntax errors, unknown spreads, package portability, root/symlink containment, and identical completeness flags.
 5. Independently evaluate Babel 8 for maintained binding semantics and TypeScript 6 compatibility APIs. Do not combine three AST migrations with a runtime/CI change.
+
+## Follow-up implementation
+
+An [opt-in SWC Next discovery adapter](find-jsx.md#experimental-swc-next-discovery) is now available for query/find_jsx. It retains the TypeScript Program/checker, shared semantic projection, and per-file TypeScript recovery. Validated syntax reuse now improves repeated queries for both backends, with fresh source reads, Programs, resolutions and semantic projections. The recorded full-query benchmark still does not show SWC outperforming the optimized TypeScript path; fresh workspaces still perform both parses. The default stays TypeScript and no production-wide parser switch is claimed.
 
 ## Sources
 

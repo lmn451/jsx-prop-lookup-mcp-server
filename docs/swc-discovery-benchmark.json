@@ -1,0 +1,43 @@
+{
+  "node": "v26.2.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "swcNextVersion": "0.5.0",
+  "workload": {
+    "sourceFiles": 41,
+    "jsxCallSites": 1000,
+    "returnedPageSize": 500
+  },
+  "iterations": 15,
+  "warmupsPerBackend": 3,
+  "alternatingOrder": true,
+  "parity": true,
+  "swcFallbackFiles": 0,
+  "scope": "Warm-process findJsx API queries with independent per-backend workspaces: validated source reads, fresh Programs/resolutions, semantics and pagination. results reuse unchanged syntax; freshWorkspaceResults create a new workspace for each query and include initial parsing. Excludes process startup, first native module load, cold OS filesystem caches and MCP transport.",
+  "results": {
+    "typescript": {
+      "medianMs": 26.332,
+      "p95Ms": 49.864
+    },
+    "swc": {
+      "medianMs": 26.482,
+      "p95Ms": 29.004
+    }
+  },
+  "freshWorkspaceResults": {
+    "typescript": {
+      "medianMs": 35.671,
+      "p95Ms": 38.08
+    },
+    "swc": {
+      "medianMs": 37.619,
+      "p95Ms": 44.237
+    }
+  },
+  "reuseAudit": {
+    "sameSourceFiles": true,
+    "freshPrograms": true,
+    "swcParsedFiles": 0,
+    "swcReusedFiles": 41
+  }
+}

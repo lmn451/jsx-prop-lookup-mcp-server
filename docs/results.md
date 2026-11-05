@@ -44,3 +44,11 @@ plus `…` when no column is supplied. With a column, the snippet keeps context
 around that position and uses an ellipsis at either truncated edge; the result
 still fits within 240 code points. This counts Unicode code points, not grapheme
 clusters or bytes.
+
+## Compact output
+
+All three modern tools accept `summaryOnly: true` and `fields: ["filePath", "line", "column"]`. CLI equivalents are `--summary-only` and `--fields filePath,line,column` for query, inspect, and check.
+
+Summary-only output sets `matches` and `unresolved` to empty arrays and adds `unresolvedCount`. Totals, completeness, audit summaries, and exit status still reflect the entire analysis; an empty details array does not imply a pass. Pagination metadata remains available.
+
+`fields` selects top-level own match fields after sorting and pagination; unknown names are omitted and an empty selection returns empty match objects. Nested values are retained whole. Metadata and unresolved details are not field-filtered; use summary-only mode to omit those details too. Normal output is unchanged when neither option is supplied.

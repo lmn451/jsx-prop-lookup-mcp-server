@@ -1,9 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { ProjectWorkspace } from './project.js';
-import { createJsxSnapshot, collectJsx } from './jsx-query.js';
+import { createJsxSnapshot, collectJsx, createJsxMatch, getJsxOpeningNodes } from './jsx-query.js';
 import { matchesComponent } from './find-jsx.js';
 import { paginateResults, type PageOptions, type LocatedResult } from './results.js';
+import { getPropContract, suggestProp } from './prop-contract.js';
 
 const names = z.array(z.string().trim().min(1));
 export const jsxRuleSchema = z
@@ -27,11 +28,15 @@ export const jsxRuleSchema = z
 export type JsxRule = z.infer<typeof jsxRuleSchema>;
 export interface CheckJsxQuery extends PageOptions {
   path?: string;
-  rules: JsxRule[];
+  rules?: JsxRule[];
+  undeclared?: boolean;
 }
 export interface JsxFinding extends LocatedResult {
   ruleId: string;
-  kind: 'missing' | 'deprecated' | 'forbidden';
+  kind: 'missing' | 'deprecated' | 'forbidden' | 'undeclared';
+  elementId: string;
+  suggestion?: string;
+  forwarding?: import('./prop-contract.js').RestDestination;
   component: string;
   prop: string;
   message: string;
@@ -48,10 +53,51 @@ export function validateRules(input: unknown): JsxRule[] {
 
 /** Audit every selected call site; page only after all findings are known. */
 export async function checkJsx(project: ProjectWorkspace, query: CheckJsxQuery) {
-  const rules = validateRules(query.rules);
+  const rules = query.rules === undefined && query.undeclared ? [] : validateRules(query.rules);
   const snapshot = await createJsxSnapshot(project, query.path);
   const { matches, unresolved } = collectJsx(snapshot);
   const findings: JsxFinding[] = [];
+  if (query.undeclared) {
+    for (const source of snapshot.files) {
+      for (const node of getJsxOpeningNodes(source)) {
+        const component = node.tagName.getText(source);
+        if (/^[a-z]/.test(component) && !component.includes('.')) continue;
+        const match = createJsxMatch(snapshot, source, node);
+        const location = { filePath: match.filePath, line: match.line, column: match.column };
+        const contract = getPropContract(snapshot, node.tagName);
+        if (contract.uncertain) {
+          unresolved.push({ ...location, reason: component + ': ' + contract.uncertain });
+          continue;
+        }
+        if (contract.open) continue;
+        if (match.unknownSpreads.length)
+          unresolved.push({
+            ...location,
+            reason: component + ': unknown spread may supply undeclared props',
+          });
+        for (const prop of Object.keys(match.props)) {
+          if (prop === 'key' || contract.names.has(prop)) continue;
+          const suggestion = suggestProp(prop, contract.names);
+          findings.push({
+            ...location,
+            elementId: location.filePath + ':' + location.line + ':' + location.column,
+            snippet: match.snippet,
+            ruleId: 'undeclared-props',
+            kind: 'undeclared',
+            component,
+            prop,
+            ...(suggestion ? { suggestion } : {}),
+            ...(contract.forwarding ? { forwarding: contract.forwarding } : {}),
+            message:
+              component +
+              ': undeclared prop ' +
+              prop +
+              (suggestion ? '; did you mean ' + suggestion + '?' : ''),
+          });
+        }
+      }
+    }
+  }
   for (const [index, rule] of rules.entries()) {
     const ruleId = rule.id ?? `rule-${index + 1}`;
     for (const match of matches) {
@@ -79,6 +125,7 @@ export async function checkJsx(project: ProjectWorkspace, query: CheckJsxQuery) 
             findings.push({
               ...location,
               snippet: match.snippet,
+              elementId: `${match.filePath}:${match.line}:${match.column}`,
               ruleId,
               kind,
               component: match.component,
@@ -101,10 +148,18 @@ export function registerCheckJsxTool(server: McpServer, project: ProjectWorkspac
     {
       title: 'Check JSX',
       description:
-        'Audit JSX for missing, deprecated, or forbidden props. Reports located findings and explicit uncertainty for unresolved spreads; never executes or edits source.',
+        'Audit JSX for undeclared props (undeclared: true), or missing, deprecated, or forbidden props using rules. Reports located findings and explicit uncertainty for unresolved spreads; never executes or edits source.',
       inputSchema: z.object({
         path: z.string().default('.'),
-        rules: z.array(jsxRuleSchema).min(1),
+        rules: z.array(jsxRuleSchema).min(1).optional(),
+        undeclared: z
+          .boolean()
+          .default(false)
+          .describe(
+            'Check passed props against resolved component contracts without hand-written rules.'
+          ),
+        summaryOnly: z.boolean().default(false),
+        fields: z.array(z.string().min(1)).optional(),
         offset: z.number().int().min(0).default(0),
         limit: z.number().int().min(1).max(500).default(100),
       }),

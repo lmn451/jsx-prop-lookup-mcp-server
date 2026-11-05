@@ -1,6 +1,6 @@
 # JSX Prop Lookup MCP Server
 
-Find JSX call sites, inspect component props, and run saved prop rules from the
+Find JSX call sites, inspect component props, and audit undeclared props or saved rules from the
 command line or an MCP client. Analysis reads JavaScript and TypeScript without
 executing application code or editing source files.
 
@@ -12,6 +12,7 @@ Node.js 24.11.0 or newer is required.
 npm install --global jsx-prop-lookup-mcp-server
 jsx-prop-lookup-mcp-server query --project-root /workspace/app --component Button --json
 jsx-prop-lookup-mcp-server inspect --project-root /workspace/app --component Button
+jsx-prop-lookup-mcp-server check --project-root /workspace/app --undeclared --json
 jsx-prop-lookup-mcp-server check --project-root /workspace/app --rules checks/props.json --json
 ```
 
@@ -47,11 +48,11 @@ project-root and filesystem options.
 
 ## Tools
 
-| Tool                | Purpose                                             | Reference                               |
-| ------------------- | --------------------------------------------------- | --------------------------------------- |
-| `find_jsx`          | Find JSX call sites by component and prop.          | [Search](docs/find-jsx.md)              |
-| `inspect_component` | Inspect declared props, types, and static defaults. | [Inspection](docs/inspect-component.md) |
-| `check_jsx`         | Check required, deprecated, and forbidden props.    | [Checks](docs/check-jsx.md)             |
+| Tool                | Purpose                                                      | Reference                               |
+| ------------------- | ------------------------------------------------------------ | --------------------------------------- |
+| `find_jsx`          | Find JSX call sites by component and prop.                   | [Search](docs/find-jsx.md)              |
+| `inspect_component` | Inspect declared props, types, and static defaults.          | [Inspection](docs/inspect-component.md) |
+| `check_jsx`         | Check undeclared, required, deprecated, and forbidden props. | [Checks](docs/check-jsx.md)             |
 
 For saved rule files, see the [schema and examples](docs/saved-checks.md). For
 filesystem restrictions, see [SECURITY.md](SECURITY.md).
@@ -63,7 +64,7 @@ the [CLI reference](docs/cli.md) for compatibility details.
 
 Legacy prop-key, forwarding, and baseline analysis is documented in the [legacy analysis reference](docs/legacy-analysis.md).
 
-Parser/API research and reproducible local measurements are in the [AST modernization report](docs/ast-modernization.md).
+Parser/API research and reproducible local measurements are in the [AST modernization report](docs/ast-modernization.md). An [experimental SWC Next discovery backend](docs/find-jsx.md#experimental-swc-next-discovery) is available with `query --discovery swc`; TypeScript remains the default and semantic authority.
 
 ## Development
 

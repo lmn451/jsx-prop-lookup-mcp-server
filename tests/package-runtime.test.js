@@ -3,10 +3,11 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 import test from 'node:test';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import process from 'node:process';
 
 // Execute the actual archive with an isolated production dependency installation.
 // This catches missing compiled files and accidental development-only imports.
@@ -93,6 +94,52 @@ test('packed executable queries a project and starts MCP with runtime dependenci
   assert.equal(result.matches[0].component, 'Action');
   assert.deepEqual(result.matches[0].props.label, { status: 'known', value: 'Save' });
   assert.equal(query.stderr, '');
+  assert.ok(fs.existsSync(path.join(packed, 'dist/swc-discovery.js')));
+  assert.equal(manifest.optionalDependencies['@swc-next/core'], '0.5.0');
+  const swcArgs = [
+    executable,
+    'query',
+    '--project-root',
+    project,
+    '--component',
+    'Button',
+    '--source',
+    './Button',
+    '--json',
+    '--discovery',
+    'swc',
+  ];
+  const swc = spawnSync(process.execPath, swcArgs, options);
+  assert.equal(swc.status, 0, swc.stderr);
+  assert.deepEqual(JSON.parse(swc.stdout), result);
+  const optional = path.join(packed, 'node_modules', '@swc-next', 'core');
+  const disabled = optional + '-disabled';
+  fs.renameSync(optional, disabled);
+  try {
+    const defaultOnly = spawnSync(
+      process.execPath,
+      [executable, 'query', '--project-root', project, '--json'],
+      options
+    );
+    assert.equal(defaultOnly.status, 0, defaultOnly.stderr);
+    const inspection = spawnSync(
+      process.execPath,
+      [executable, 'inspect', '--project-root', project, '--component', 'Button', '--json'],
+      options
+    );
+    assert.equal(inspection.status, 0, inspection.stderr);
+    assert.equal(JSON.parse(inspection.stdout).matches[0].name, 'Button');
+    const defaultServer = spawnSync(process.execPath, [executable, '--project-root', project], {
+      ...options,
+      input: '',
+    });
+    assert.equal(defaultServer.status, 0, defaultServer.stderr);
+    const unavailable = spawnSync(process.execPath, swcArgs, options);
+    assert.equal(unavailable.status, 2);
+    assert.match(JSON.parse(unavailable.stdout).error.message, /optional @swc-next\/core/);
+  } finally {
+    fs.renameSync(disabled, optional);
+  }
   await client.connect(
     new StdioClientTransport({
       command: process.execPath,
