@@ -21,6 +21,55 @@ test('counts each attribute once inside nested fragments', async (t) => {
   assert.equal((await analyzer.analyzeProps(file)).summary.totalProps, 1);
 });
 
+test('Babel 8 import expressions and bigint values produce JSON-safe prop evidence', async (t) => {
+  const { file, analyzer } = fixture(
+    t,
+    `const view = <Button load={import('./Button')} json={import('./data.json', {with: {type: 'json'}})} size={0xff01_0000_0000_0001n} />;`
+  );
+  const result = await analyzer.analyzeProps(file);
+  assert.deepEqual(
+    result.propUsages.map(({ propName, value }) => [propName, value]),
+    [
+      ['load', 'import(./Button)'],
+      ['json', 'import(./data.json,{...})'],
+      ['size', String(0xff01_0000_0000_0001n)],
+    ]
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), result);
+});
+
+test('Babel 8 traverses generic signatures, mapped types, heritage and enum bodies', async (t) => {
+  const { file, analyzer } = fixture(
+    t,
+    `interface BaseProps<T> { value: T; onChange(value: T): void }
+     interface ButtonProps<T> extends BaseProps<T> { optional?: boolean }
+     type Copy<T> = { [K in keyof T]: T[K] };
+     enum Size { Small, Large }
+     function Button<T>(props: ButtonProps<T>) {
+       const shadow = (props: Copy<ButtonProps<T>>) => props.optional;
+       return <UI.Button<T> value={props.value} size={Size.Small} />;
+     }`
+  );
+  const [component] = await analyzer.getComponentProps('Button', file);
+  assert.equal(component.propsInterface, 'ButtonProps');
+  assert.deepEqual(component.props.map(({ propName }) => propName), ['value']);
+  assert.equal((await analyzer.findPropUsage('value', file, 'UI.Button')).length, 1);
+});
+
+for (const source of ['const view = <Button label={first, second} />;', 'const view = <p>></p>;']) {
+  test(`Babel 8 reports invalid JSX instead of returning incomplete evidence: ${source}`, async (t) => {
+    const { file, analyzer } = fixture(t, source);
+    await assert.rejects(analyzer.analyzeProps(file), /Failed to parse/);
+  });
+}
+
+test('Babel 8 accepts parenthesized sequences and escaped JSX text', async (t) => {
+  const { file, analyzer } = fixture(t, "const view = <Button label={(first, second)}>{'>'}</Button>;");
+  const result = await analyzer.findComponentsWithoutProp('Button', 'children', file);
+  assert.equal(result.summary.totalInstances, 1);
+  assert.equal(result.summary.missingPropCount, 0);
+});
+
 test('recognizes JSX children and excludes comment-only or empty elements', async (t) => {
   const { file, analyzer } = fixture(
     t,

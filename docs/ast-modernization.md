@@ -2,6 +2,8 @@
 
 As of 2026-11-02. Registry versions and official upstream documentation were checked; measurements below are local, not upstream marketing numbers.
 
+The subsequent [dependency migration](dependency-migrations.md) implements Babel 8.1.0 and TypeScript 6.0.3. The findings and measurements below describe the earlier research baseline; the benchmark is not a measurement of the migrated server.
+
 ## Findings
 
 - **SWC Next 0.5.0 is the strongest syntax-scan candidate.** It has a flat ESTree-based Rust representation and a JavaScript-facing decoding/walking API, TSX parsing, diagnostics, walkers, and printing APIs. Rspack 2.3.0 explicitly migrated its JavaScript parser to SWC Next (PR #16089). The README claims up to 3x native and 10x JavaScript-API speedups versus SWC; these are not claims about this server. Its API is not compatible with the old SWC API. The Rust API has explicit early-stage/soundness warnings: do not treat Rspack adoption as proof that every public API is mature.

@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "mutate": ["src/project.ts"],
-  "ignorePatterns": ["/mcp.json"],
+  "ignorePatterns": ["/mcp.json", "/.context"],
   "testRunner": "tap",
   "tap": {
     "testFiles": ["tests/project.test.js"]

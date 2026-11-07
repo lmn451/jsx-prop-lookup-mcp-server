@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "mutate": ["src/jsx-query.ts", "src/find-jsx.ts"],
-  "ignorePatterns": ["/mcp.json"],
+  "ignorePatterns": ["/mcp.json", "/.context"],
   "testRunner": "tap",
   "tap": {
     "testFiles": ["tests/find-jsx.test.js", "tests/find-jsx-security.test.js"]
