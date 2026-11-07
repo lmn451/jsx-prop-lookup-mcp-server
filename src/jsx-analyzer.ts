@@ -42,10 +42,6 @@ export interface AnalysisResult {
 
 export class JSXPropAnalyzer {
   private readonly supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
-  // Normalize babel-traverse default export once for reuse (avoid `any` cast)
-  private readonly traverseDefault =
-    (traverse as unknown as { default?: typeof traverse }).default || traverse;
-
   private readonly allowedRoots: readonly string[];
   private readonly project?: ProjectWorkspace;
 
@@ -235,8 +231,7 @@ export class JSXPropAnalyzer {
     }> = [];
     let totalInstances = 0;
 
-    const traverseDefault = this.traverseDefault;
-    traverseDefault(ast, {
+    traverse(ast, {
       JSXElement: (path: NodePath<t.JSXElement>) => {
         const openingElement = path.node.openingElement;
         if (
@@ -377,19 +372,7 @@ export class JSXPropAnalyzer {
     try {
       return parse(content, {
         sourceType: 'module',
-        plugins: [
-          'jsx',
-          'typescript',
-          'decorators-legacy',
-          'classProperties',
-          'objectRestSpread',
-          'functionBind',
-          'exportDefaultFrom',
-          'exportNamespaceFrom',
-          'dynamicImport',
-          'nullishCoalescingOperator',
-          'optionalChaining',
-        ],
+        plugins: ['jsx', 'typescript', 'decorators-legacy', 'functionBind', 'exportDefaultFrom'],
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -410,9 +393,7 @@ export class JSXPropAnalyzer {
     // Track component definitions and their prop interfaces
     const componentInterfaces = new Map<string, string>();
 
-    // Handle TypeScript/type and JSX traversal using normalized traverse
-    const traverseDefault = this.traverseDefault;
-    traverseDefault(ast, {
+    traverse(ast, {
       // Handle TypeScript interfaces for props
       TSInterfaceDeclaration: (path: NodePath<t.TSInterfaceDeclaration>) => {
         if (!includeTypes) return;
@@ -715,6 +696,8 @@ export class JSXPropAnalyzer {
 
     if (t.isStringLiteral(expression)) return expression.value;
     if (t.isNumericLiteral(expression)) return String(expression.value);
+    // Babel 8 stores this as a bigint; keep analysis results JSON serializable.
+    if (t.isBigIntLiteral(expression)) return String(expression.value);
     if (t.isBooleanLiteral(expression)) return String(expression.value);
     if (t.isNullLiteral(expression)) return 'null';
 
@@ -734,6 +717,15 @@ export class JSXPropAnalyzer {
       if (obj && prop) return `${obj}.${prop}`.replace(/\.\[/g, '[');
       if (obj && prop === undefined) return `${obj}.?`;
       return prop ?? obj;
+    }
+
+    // Dynamic imports are ImportExpression nodes in Babel 8, not calls.
+    if (t.isImportExpression(expression)) {
+      const source = this.stringifyExpression(expression.source) ?? '...';
+      const options = expression.options
+        ? `,${this.stringifyExpression(expression.options) ?? '...'}`
+        : '';
+      return `import(${source}${options})`;
     }
 
     if (t.isCallExpression(expression)) {

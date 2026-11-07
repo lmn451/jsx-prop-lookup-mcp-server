@@ -60,6 +60,20 @@ test('destructured defaults preserve declared requiredness and report static val
   ]);
 });
 
+for (const compilerOptions of [{ strict: true }, { strictNullChecks: true }]) {
+  test(`project nullability options override analysis defaults: ${JSON.stringify(compilerOptions)}`, async (t) => {
+    const workspace = project(t, {
+      'tsconfig.json': JSON.stringify({ compilerOptions }),
+      'Widget.tsx': 'export function Widget(props: {title?: string}) { return null; }',
+    });
+    const result = await inspectComponent(workspace, { component: 'Widget' });
+    assert.equal(result.complete, true);
+    assert.deepEqual(result.matches[0].props, [
+      { name: 'title', type: 'string | undefined', required: false },
+    ]);
+  });
+}
+
 test('defaultProps reports each known and unknown default without invoking code', async (t) => {
   const workspace = project(t, {
     'Widget.tsx': `function compute() { throw new Error('must never execute'); }

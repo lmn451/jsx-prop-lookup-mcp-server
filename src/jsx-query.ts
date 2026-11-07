@@ -37,6 +37,9 @@ export async function createJsxSnapshot(
 ): Promise<JsxSnapshot> {
   const fileNames = await project.discover(input);
   const options: ts.CompilerOptions = {
+    // TypeScript 6 defaults to strict. Preserve the existing no-config analysis
+    // contract while allowing project options below to opt into strict checks.
+    strict: false,
     ...project.getCompilerOptions(),
     allowJs: true,
     noLib: true,

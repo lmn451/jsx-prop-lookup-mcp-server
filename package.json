@@ -81,34 +81,54 @@
     "docs/change-impact.md",
     "docs/legacy-analysis.md",
     "docs/ast-modernization.md",
+    "docs/dependency-migrations.md",
     "docs/ast-parser-benchmark.json"
   ],
   "dependencies": {
-    "@babel/parser": "^7.29.9",
-    "@babel/traverse": "^7.29.8",
-    "@babel/types": "^7.29.8",
-    "@modelcontextprotocol/server": "^2.3.1",
-    "glob": "^14.0.3",
-    "ignore": "^7.0.12",
-    "typescript": "5.9.3",
+    "@babel/parser": "^8.1.0",
+    "@babel/traverse": "^8.1.0",
+    "@babel/types": "^8.1.0",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "glob": "^14.0.4",
+    "ignore": "^7.0.14",
+    "typescript": "6.0.3",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@actions/expressions": "0.3.61",
     "@eslint/js": "^10.0.1",
-    "@modelcontextprotocol/client": "^2.3.1",
-    "@stryker-mutator/core": "^9.6.1",
-    "@stryker-mutator/tap-runner": "^9.6.1",
-    "@types/babel__traverse": "^7.28.0",
-    "@types/node": "^26.6.4",
-    "@typescript-eslint/eslint-plugin": "^8.71.1",
-    "@typescript-eslint/parser": "^8.71.1",
-    "eslint": "^10.12.0",
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@stryker-mutator/core": "^10.1.1",
+    "@stryker-mutator/tap-runner": "^10.1.1",
+    "@types/node": "^26.6.6",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
+    "@typescript-eslint/parser": "^8.72.1",
+    "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.13.0",
-    "prettier": "^3.9.9",
-    "semver": "^7.8.5",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "semver": "^7.8.6",
     "tsx": "^4.23.15",
     "yaml": "^2.9.1"
+  },
+  "overrides": {
+    "eslint@^10.14.0": {
+      "minimatch": "11.0.5"
+    },
+    "@eslint/config-array@0.23.5": {
+      "minimatch": "11.0.5"
+    },
+    "@typescript-eslint/typescript-estree@8.72.1": {
+      "minimatch": "11.0.5"
+    },
+    "@stryker-mutator/core@^10.1.1": {
+      "minimatch": "11.0.5",
+      "typed-rest-client": {
+        "qs": "6.17.1"
+      }
+    },
+    "@stryker-mutator/tap-runner@^10.1.1": {
+      "glob": "14.0.4"
+    }
   }
 }

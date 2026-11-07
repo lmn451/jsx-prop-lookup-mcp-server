@@ -95,7 +95,7 @@ function inner(B: any) { return <B />; }`,
 test('tsconfig paths resolve the same local component identity', async (t) => {
   const project = fixture(t, {
     'tsconfig.json': JSON.stringify({
-      compilerOptions: { baseUrl: '.', paths: { '@ui': ['./ui'] } },
+      compilerOptions: { paths: { '@ui': ['./ui'] } },
     }),
     'ui.tsx': ui,
     'app.tsx': `import { Button as B } from '@ui'; const a = <B />;`,
