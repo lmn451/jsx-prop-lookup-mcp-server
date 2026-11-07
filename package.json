@@ -1,6 +1,6 @@
 {
   "name": "jsx-prop-lookup-mcp-server",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "MCP v2 server for analyzing JSX prop usage using AST",
   "main": "dist/index.js",
   "type": "module",
